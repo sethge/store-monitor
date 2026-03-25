@@ -1,0 +1,39 @@
+{
+  "stores": [
+    {
+      "id": "gangcui_hqc",
+      "name": "港翠·港式餐厅（华侨城店）",
+      "platform": "meituan",
+      "login_url": "https://e.waimai.meituan.com/login",
+      "account": "",
+      "password": "",
+      "wm_poi_id": "23871792",
+      "acct_id": "201362138",
+      "operator": "运营A",
+      "push_token": "",
+      "enabled": true,
+      "notes": "第一家测试店铺"
+    }
+  ],
+  "operators": {
+    "运营A": {
+      "name": "",
+      "phone": "",
+      "push_token": "",
+      "stores": ["gangcui_hqc"]
+    }
+  },
+  "boss": {
+    "name": "老板",
+    "phone": "",
+    "push_token": "",
+    "notes": "授权掉线时通知老板重新验证"
+  },
+  "settings": {
+    "chrome_port": 9222,
+    "chrome_user_data_dir": "/tmp/store-monitor-chrome",
+    "alert_days_before_expiry": 7,
+    "bad_review_days": 3,
+    "notify_days": 3
+  }
+}

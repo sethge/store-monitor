@@ -1,0 +1,7 @@
+data/
+__pycache__/
+*.png
+*.pyc
+brands.txt
+/tmp/
+.DS_Store

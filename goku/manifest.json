@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "悟空",
+  "version": "3.0.2",
+  "description": "食亨商家端切换工具",
+  "icons": {
+    "16": "icons/logo16.png",
+    "19": "icons/logo19.png",
+    "38": "icons/logo38.png",
+    "48": "icons/logo48.png",
+    "128": "icons/logo128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/logo16.png",
+      "19": "icons/logo19.png",
+      "38": "icons/logo38.png",
+      "48": "icons/logo48.png",
+      "128": "icons/logo128.png"
+    },
+    "default_title": "悟空"
+  },
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "webNavigation",
+    "cookies",
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "scripting",
+    "tabs",
+    "alarms"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "all_frames": true,
+      "run_at": "document_start",
+      "match_about_blank": false
+    }
+  ],
+  "host_permissions": ["*://*/*"],
+  "optional_host_permissions": [],
+  "externally_connectable": {
+    "matches": ["*://*/*"]
+  },
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["index.html", "interceptor.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:8000; object-src 'self';",
+    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self';"
+  }
+}
