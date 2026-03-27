@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null)\" 2>/dev/null && python3 log_usage.py 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
