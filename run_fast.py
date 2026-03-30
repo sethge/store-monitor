@@ -14,7 +14,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification
 from promo_check import parse_promo_data, check_promo
 
 THREE_DAYS = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
@@ -465,12 +465,28 @@ async def run_once(brands, ctx):
 
                 if acct['platform'] == 'meituan':
                     for x in ctx.pages:
-                        if 'waimai.meituan.com' in x.url and 'chrome-extension' not in x.url:
-                            all_opened.append((store_key, real_name, 'meituan', x)); break
+                        if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
+                            blocked, reason = await check_verification(x)
+                            if blocked:
+                                all_issues.setdefault(_dn(real_name), []).append(
+                                    {"platform": p_name, "type": "verify", "msg": reason, "details": []})
+                                try: await x.close()
+                                except: pass
+                            else:
+                                all_opened.append((store_key, real_name, 'meituan', x))
+                            break
                 elif acct['platform'] == 'eleme':
                     for x in ctx.pages:
                         if 'ele.me' in x.url and 'melody' in x.url:
-                            all_opened.append((store_key, real_name, 'eleme', x)); break
+                            blocked, reason = await check_verification(x)
+                            if blocked:
+                                all_issues.setdefault(_dn(real_name), []).append(
+                                    {"platform": p_name, "type": "verify", "msg": reason, "details": []})
+                                try: await x.close()
+                                except: pass
+                            else:
+                                all_opened.append((store_key, real_name, 'eleme', x))
+                            break
 
         if not all_opened:
             print(f"{time.time()-t_brand:.0f}s")
@@ -592,12 +608,28 @@ async def watch_open_all(brands, ctx):
 
                 if acct['platform'] == 'meituan':
                     for x in ctx.pages:
-                        if 'waimai.meituan.com' in x.url and 'chrome-extension' not in x.url:
-                            all_pages.append((_dn(), 'meituan', x)); break
+                        if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
+                            blocked, reason = await check_verification(x)
+                            if blocked:
+                                p_name = "美团"
+                                print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
+                                try: await x.close()
+                                except: pass
+                            else:
+                                all_pages.append((_dn(), 'meituan', x))
+                            break
                 elif acct['platform'] == 'eleme':
                     for x in ctx.pages:
                         if 'ele.me' in x.url and 'melody' in x.url:
-                            all_pages.append((_dn(), 'eleme', x)); break
+                            blocked, reason = await check_verification(x)
+                            if blocked:
+                                p_name = "饿了么"
+                                print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
+                                try: await x.close()
+                                except: pass
+                            else:
+                                all_pages.append((_dn(), 'eleme', x))
+                            break
 
         print(f"{time.time()-t_brand:.0f}s")
 

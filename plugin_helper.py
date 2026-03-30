@@ -138,9 +138,48 @@ async def click_store_platform(ext, account):
     return 'not_found'
 
 
+async def check_verification(page):
+    """检测页面是否被平台验证拦截（滑块/短信/安全验证等），返回 (被拦截, 描述)"""
+    try:
+        url = page.url.lower()
+        # URL级别检测 — verify.meituan.com 等专用验证域名
+        verify_domains = ['verify.meituan.com', 'captcha.', 'security.']
+        for vd in verify_domains:
+            if vd in url:
+                return True, "平台安全验证"
+
+        # 页面内容检测
+        text = await page.evaluate("() => document.body ? document.body.innerText.substring(0, 2000) : ''")
+        verify_keywords = [
+            '滑动验证', '请完成验证', '安全验证', '身份验证', '身份核实', '短信验证',
+            '请输入验证码', '图形验证', '拖动滑块', '请拖动', '向右拖动', '请向右拖动',
+            '人机验证', '操作过于频繁', '账号异常', '风控', '请先验证',
+            '扫码验证', '扫码登录', '请用手机扫码',
+        ]
+        for kw in verify_keywords:
+            if kw in text:
+                return True, f"平台验证拦截({kw})"
+
+        # 检测常见验证码iframe（美团/饿了么的验证弹窗）
+        has_verify_frame = await page.evaluate("""() => {
+            for (const f of document.querySelectorAll('iframe')) {
+                const src = (f.src || '').toLowerCase();
+                if (src.includes('captcha') || src.includes('verify') || src.includes('slider'))
+                    return src;
+            }
+            return null;
+        }""")
+        if has_verify_frame:
+            return True, "平台验证弹窗"
+
+    except Exception:
+        pass
+    return False, ""
+
+
 async def close_store_pages(ctx):
     for p in ctx.pages:
-        if ('waimai.meituan.com' in p.url or ('ele.me' in p.url and 'melody' in p.url)) and 'chrome-extension' not in p.url:
+        if ('waimai.meituan.com' in p.url or 'verify.meituan.com' in p.url or ('ele.me' in p.url and 'melody' in p.url)) and 'chrome-extension' not in p.url:
             try:
                 await p.close()
             except:
