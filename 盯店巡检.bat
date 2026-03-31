@@ -27,7 +27,7 @@ if %errorlevel% neq 0 (
 curl --noproxy localhost -s http://localhost:%PORT%/json/version >nul 2>&1
 if %errorlevel% neq 0 (
     echo 启动Chrome调试模式...
-    start "" %CHROME% --remote-debugging-port=%PORT% --user-data-dir=%LOCALAPPDATA%\Chrome-Debug
+    start "" %CHROME% --remote-debugging-port=%PORT% --user-data-dir=%LOCALAPPDATA%\Chrome-Debug --load-extension=%SCRIPT_DIR%goku --disable-extensions-except=%SCRIPT_DIR%goku
     timeout /t 3 >nul
 
     echo.
