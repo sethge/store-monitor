@@ -1,12 +1,12 @@
 #!/bin/bash
-# 运营助理Agent安装脚本
+# 食亨智慧运营 — Agent安装脚本
 # 用法: cd store-monitor && bash install.sh
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 QCLAW_DIR="$HOME/.qclaw"
 
-echo "安装运营助理Agent..."
+echo "安装食亨智慧运营Agent..."
 
 # 1. 检查QClaw
 if [ ! -d "$QCLAW_DIR" ]; then
