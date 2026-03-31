@@ -779,6 +779,7 @@ async def main():
         print(f"\n摘要\n")
         print_issues(all_issues)
         print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒")
+        await close_store_pages(ctx)
     else:
         # === 预警模式：只看通知，到18:00自动结束 ===
         interval = args.interval
