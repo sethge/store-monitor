@@ -21,7 +21,7 @@ fi
 # ===== 2. 启动Chrome调试模式 =====
 if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
     echo "启动Chrome调试模式..."
-    "$CHROME" --remote-debugging-port=$PORT --user-data-dir="$HOME/Library/Application Support/Chrome-Debug" --proxy-server="direct://" --load-extension="$SCRIPT_DIR/goku" --disable-extensions-except="$SCRIPT_DIR/goku" &
+    "$CHROME" --remote-debugging-port=$PORT --user-data-dir="$HOME/Library/Application Support/Chrome-Debug" --proxy-server="direct://" --load-extension="$SCRIPT_DIR/goku" --disable-extensions-except="$SCRIPT_DIR/goku" --disable-features=ExtensionDeveloperModeWarning &
     sleep 3
 
     # 检查悟空插件
