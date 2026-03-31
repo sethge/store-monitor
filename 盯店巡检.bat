@@ -23,11 +23,17 @@ if %errorlevel% neq 0 (
     playwright install chromium
 )
 
-:: ===== 3. 启动Chrome调试模式 =====
+:: ===== 3. 白名单悟空插件（防止Chrome屏蔽） =====
+reg query "HKCU\SOFTWARE\Policies\Google\Chrome\ExtensionInstallAllowlist" /v 1 >nul 2>&1
+if %errorlevel% neq 0 (
+    reg add "HKCU\SOFTWARE\Policies\Google\Chrome\ExtensionInstallAllowlist" /v 1 /d "ekplipencnmccmaogdfnenioilpgfmab" /f >nul 2>&1
+)
+
+:: ===== 4. 启动Chrome调试模式 =====
 curl --noproxy localhost -s http://localhost:%PORT%/json/version >nul 2>&1
 if %errorlevel% neq 0 (
     echo 启动Chrome调试模式...
-    start "" %CHROME% --remote-debugging-port=%PORT% --user-data-dir=%LOCALAPPDATA%\Chrome-Debug --load-extension=%SCRIPT_DIR%goku --disable-extensions-except=%SCRIPT_DIR%goku --disable-features=ExtensionDeveloperModeWarning
+    start "" %CHROME% --remote-debugging-port=%PORT% --user-data-dir=%LOCALAPPDATA%\Chrome-Debug --load-extension=%SCRIPT_DIR%goku --disable-extensions-except=%SCRIPT_DIR%goku
     timeout /t 3 >nul
 
     echo.
