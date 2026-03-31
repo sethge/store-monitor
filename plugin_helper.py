@@ -1,17 +1,34 @@
 """悟空插件操作辅助模块"""
 import asyncio
+import json
+import subprocess
 from collections import defaultdict
 
-EXT_ID = "ekplipencnmccmaogdfnenioilpgfmab"
+EXT_ID = "kocmiihdllcmbjanolpggoafghdfnglg"
 
 
 async def get_ext(ctx):
+    # 先找已打开的悟空页面（按已知ID或页面内容匹配）
     for p in ctx.pages:
         if EXT_ID in p.url: return p
+    # 兜底：找任何chrome-extension页面，检查是否是悟空（含"品牌选择"文字）
+    for p in ctx.pages:
+        if 'chrome-extension://' in p.url:
+            try:
+                text = await p.evaluate("() => document.body.innerText.substring(0,100)")
+                if '品牌' in text or '重 置' in text or '授权' in text:
+                    return p
+            except:
+                pass
+    # 尝试用已知ID打开
     p = await ctx.new_page()
-    await p.goto(f"chrome-extension://{EXT_ID}/index.html", wait_until="commit", timeout=10000)
-    await asyncio.sleep(2)
-    return p
+    try:
+        await p.goto(f"chrome-extension://{EXT_ID}/index.html", wait_until="commit", timeout=10000)
+        await asyncio.sleep(2)
+        return p
+    except:
+        await p.close()
+    raise Exception("找不到悟空插件，请在Chrome中手动打开悟空插件页面")
 
 
 async def pick_brand(ext, brand):
