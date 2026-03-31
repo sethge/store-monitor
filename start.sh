@@ -21,11 +21,11 @@ fi
 # ===== 2. 启动Chrome调试模式 =====
 if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
     echo "启动Chrome调试模式..."
-    "$CHROME" --remote-debugging-port=$PORT --user-data-dir=/tmp/chrome-debug --proxy-server="direct://" &
+    "$CHROME" --remote-debugging-port=$PORT --user-data-dir=$HOME/Library/Application Support/Chrome-Debug --proxy-server="direct://" &
     sleep 3
 
     # 检查悟空插件
-    if [ ! -d "/tmp/chrome-debug/Default/Extensions" ] || ! find /tmp/chrome-debug -path "*/goku*" -print -quit 2>/dev/null | grep -q .; then
+    if [ ! -d "$HOME/Library/Application Support/Chrome-Debug/Default/Extensions" ] || ! find $HOME/Library/Application Support/Chrome-Debug -path "*/goku*" -print -quit 2>/dev/null | grep -q .; then
         echo ""
         echo "⚠️  首次使用需要手动操作："
         echo "  1. Chrome打开 chrome://extensions/"

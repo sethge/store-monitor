@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """极速摘要 - 目标15秒/店
 支持 --watch 预警模式：定时循环巡检，同一条问题当天不重复报
+支持 --watch-once 单轮预警：跑一轮就退出（供cron调度使用）
 
 用法:
   python3 run_fast.py 品牌1 品牌2                          # 跑一次
   python3 run_fast.py --watch 09:00-22:00 品牌1 品牌2       # 预警模式，默认10分钟一轮
   python3 run_fast.py --watch 09:00-22:00 -i 5 品牌1        # 5分钟一轮
+  python3 run_fast.py --watch-once 品牌1 品牌2               # 单轮预警（cron调度用）
 """
-import asyncio, json, subprocess, re, sys, time, statistics, argparse
+import asyncio, json, subprocess, re, sys, time, statistics, argparse, os
 from datetime import datetime, timedelta
+from pathlib import Path
 from collections import OrderedDict
 from pathlib import Path
 from playwright.async_api import async_playwright
@@ -567,8 +570,9 @@ async def run_once(brands, ctx):
 
 
 async def watch_open_all(brands, ctx):
-    """预警第一轮：打开所有品牌所有店的页面，返回 pages 列表（不关闭）"""
+    """预警第一轮：打开所有品牌所有店的页面，返回 (pages列表, 拦截列表)"""
     all_pages = []  # [(display_name, platform, page)]
+    blocked_stores = []  # [(display_name, platform_name, reason)]
 
     for bi, brand in enumerate(brands):
         t_brand = time.time()
@@ -613,6 +617,7 @@ async def watch_open_all(brands, ctx):
                             if blocked:
                                 p_name = "美团"
                                 print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
+                                blocked_stores.append((_dn(), p_name, reason))
                                 try: await x.close()
                                 except: pass
                             else:
@@ -625,6 +630,7 @@ async def watch_open_all(brands, ctx):
                             if blocked:
                                 p_name = "饿了么"
                                 print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
+                                blocked_stores.append((_dn(), p_name, reason))
                                 try: await x.close()
                                 except: pass
                             else:
@@ -634,7 +640,7 @@ async def watch_open_all(brands, ctx):
         print(f"{time.time()-t_brand:.0f}s")
 
     print(f"  共打开 {len(all_pages)} 个页面\n")
-    return all_pages
+    return all_pages, blocked_stores
 
 
 async def watch_refresh(all_pages):
@@ -681,6 +687,7 @@ async def main():
     parser = argparse.ArgumentParser(description='盯店巡检')
     parser.add_argument('brands', nargs='*', help='品牌名')
     parser.add_argument('--watch', action='store_true', help='预警模式，到18:00自动结束')
+    parser.add_argument('--watch-once', action='store_true', help='单轮预警：跑一轮就退出（cron调度用）')
     parser.add_argument('-i', '--interval', type=int, default=10, help='预警间隔（分钟），默认10')
     args = parser.parse_args()
 
@@ -692,13 +699,78 @@ async def main():
         print("  python3 run_fast.py --watch -i 5 品牌1              # 5分钟一轮")
         return
 
-    r = subprocess.run(["curl","--noproxy","localhost","-s","http://localhost:9222/json/version"], capture_output=True, text=True, timeout=5)
+    port = int(os.environ.get("CHROME_PORT", "9222"))
+    r = subprocess.run(["curl","--noproxy","localhost","-s",f"http://localhost:{port}/json/version"], capture_output=True, text=True, timeout=5)
+    if r.returncode != 0 or not r.stdout:
+        # 自动启动干净Chrome
+        print(f"Chrome调试端口{port}未响应，自动启动...")
+        chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        ext_path = str(Path(__file__).parent / "goku")
+        user_dir = f"/tmp/store-monitor-chrome-{port}"
+        # 清理旧目录避免同步扩展
+        import shutil
+        shutil.rmtree(user_dir, ignore_errors=True)
+        subprocess.Popen([
+            chrome_path,
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={user_dir}",
+            f"--disable-extensions-except={ext_path}",
+            f"--load-extension={ext_path}",
+            "--no-first-run",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--no-default-browser-check"
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        await asyncio.sleep(4)
+        r = subprocess.run(["curl","--noproxy","localhost","-s",f"http://localhost:{port}/json/version"], capture_output=True, text=True, timeout=5)
     ws = json.loads(r.stdout)["webSocketDebuggerUrl"]
     pw = await async_playwright().start()
     b = await pw.chromium.connect_over_cdp(ws)
     ctx = b.contexts[0]
 
-    if not args.watch:
+    if args.watch_once:
+        # === 单轮预警模式（cron调度用，跑一轮就退出） ===
+        t0 = time.time()
+        print(f"预警检查 — {len(brands)}个品牌 | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        seen_keys = load_watch_snapshot()
+        watch_pages, blocked_stores = await watch_open_all(brands, ctx)
+
+        # 验证拦截的店铺立即报告
+        if blocked_stores:
+            print(f"\n⚠️ 验证拦截\n")
+            for dn, p_name, reason in blocked_stores:
+                print(f"  {dn}（{p_name}）— {reason}")
+            print()
+
+        all_notices = await watch_refresh(watch_pages)
+        current_keys = notices_to_keys(all_notices)
+        new_keys = current_keys - seen_keys
+
+        if new_keys:
+            new_notices = OrderedDict()
+            for store, items in all_notices.items():
+                new_items = []
+                for item in items:
+                    new_ns = [n for n in item['notices']
+                              if f"{store}|{item['platform']}|{n['title']}" in new_keys]
+                    if new_ns:
+                        new_items.append({"platform": item['platform'], "notices": new_ns})
+                if new_items:
+                    new_notices[store] = new_items
+            print(f"\n🔔 新增通知\n")
+            print_watch_notices(new_notices)
+            seen_keys |= current_keys
+            save_watch_snapshot(seen_keys)
+        elif not blocked_stores:
+            print("✅ 无新增通知")
+
+        # 关闭所有页面
+        for _, _, pg in watch_pages:
+            try: await pg.close()
+            except: pass
+        print(f"完成 ({time.time()-t0:.0f}s)")
+
+    elif not args.watch:
         # === 单次模式（和原来完全一样） ===
         t0 = time.time()
         print(f"盯店巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')} | {len(brands)}个品牌")
@@ -731,7 +803,10 @@ async def main():
             try:
                 if watch_pages is None:
                     # 第一轮：打开所有页面
-                    watch_pages = await watch_open_all(brands, ctx)
+                    watch_pages, blocked = await watch_open_all(brands, ctx)
+                    if blocked:
+                        for dn, p_name, reason in blocked:
+                            print(f"  ⚠️ {dn}（{p_name}）— {reason}")
                     all_notices = await watch_refresh(watch_pages)
                 else:
                     # 后续轮次：直接刷新已有页面
