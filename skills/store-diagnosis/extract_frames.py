@@ -52,8 +52,8 @@ def extract_keyframes(video_path):
     return frame_dir, len(frames)
 
 
-def sample_frames(frame_dir, max_frames=30):
-    """前密后疏采样：前半部分每2帧取1张，后半部分每5帧取1张"""
+def sample_frames(frame_dir, max_frames=50):
+    """前半全取，后半稀疏。确保热销菜区完整覆盖。"""
     frames = sorted(Path(frame_dir).glob("scene_*.jpg"))
     if not frames:
         return []
@@ -61,12 +61,12 @@ def sample_frames(frame_dir, max_frames=30):
     if len(frames) <= max_frames:
         return [str(f) for f in frames]
 
-    mid = len(frames) // 2
-    front = frames[:mid]    # 前半部分（菜单热销区）
-    back = frames[mid:]     # 后半部分（低销量/评价/店铺信息）
+    # 前60%全取（热销菜/主要菜单），后40%每3帧取1
+    split = int(len(frames) * 0.6)
+    front = frames[:split]
+    back = frames[split:]
 
-    # 前半密集（每2帧取1），后半稀疏（每5帧取1）
-    sampled = list(front[::2]) + list(back[::5])
+    sampled = list(front) + list(back[::3])
 
     if len(sampled) > max_frames:
         sampled = sampled[:max_frames]
