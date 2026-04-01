@@ -6,6 +6,7 @@
 <title>竞对分析报告</title>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; padding: 16px; padding-bottom: 70px; }
@@ -31,19 +32,49 @@ td.editable.missing { background: #fff3f3; }
 .status .warn { color: #e53935; font-weight: 500; }
 .btn-download { background: #FFC000; color: #fff; border: none; border-radius: 6px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn-download:hover { background: #e6ac00; }
+.empty-state { text-align: center; padding: 80px 20px; color: #999; }
+.empty-state h2 { font-size: 20px; color: #333; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; line-height: 1.8; }
 </style>
 </head>
 <body>
-<div class="table-wrap"><table id="reportTable"></table></div>
-<div class="action-bar">
-  <span class="status" id="status"></span>
-  <button class="btn-download" id="btnDownload" onclick="handleDownload()">下载Excel</button>
-</div>
+
+<div id="app"></div>
 
 <script>
-// ===== 竞对数据（部署时替换）=====
-const COMPETITORS = [{"店铺名称": "熊大爷现包饺子(叶上海中区店)", "平台": "饿了么", "店铺评分": 5.0, "营业时间": "未获取", "月销": "300+", "实际配送费": "0元", "配送方式": "蜂鸟准时达", "评价数": 867, "差评数": 0, "差评率": 0, "满减档位": "38-3，49-5，65-7，78-11", "满减档位数": 4, "第一档满减力度": 0.079, "第二档满减力度": 0.102, "其他活动": "尝鲜价商品;品牌爆款折扣;收藏门店福利;14元红包;1元领", "热销菜": [{"名称": "随心三拼饺子18个", "月销": "61", "实际价格": 35.8, "折扣力度": 0}, {"名称": "韭菜鸡蛋饺子", "月销": "25", "实际价格": 27.8, "折扣力度": 0}, {"名称": "【生鲜】玉米鲜肉饺子", "月销": "15", "实际价格": 33.8, "折扣力度": 0}, {"名称": "双拼自选饺子小份【6+6】", "月销": "15", "实际价格": 27.8, "折扣力度": 0}, {"名称": "全家福单人餐", "月销": "9", "实际价格": 27.8, "折扣力度": 0}, {"名称": "【生鲜】韭菜鲜肉饺子", "月销": "8", "实际价格": 33.8, "折扣力度": 0}, {"名称": "【生鲜】韭菜鸡蛋饺子", "月销": "7", "实际价格": 33.8, "折扣力度": 0}, {"名称": "现煮云吞", "月销": "6", "实际价格": 25.8, "折扣力度": 0}, {"名称": "手工鲜肉云吞", "月销": "5", "实际价格": 25.8, "折扣力度": 0}, {"名称": "双拼自选云吞小份【6+6】", "月销": "5", "实际价格": 27.8, "折扣力度": 0}]}];
+// ===== 从URL hash读取数据 =====
+function loadData() {
+  const hash = location.hash.slice(1);
+  if (!hash) return null;
+  try {
+    const json = LZString.decompressFromEncodedURIComponent(hash);
+    return JSON.parse(json);
+  } catch(e) {
+    console.error('数据解析失败', e);
+    return null;
+  }
+}
 
+const COMPETITORS = loadData();
+
+if (!COMPETITORS || !COMPETITORS.length) {
+  document.getElementById('app').innerHTML = `
+    <div class="empty-state">
+      <h2>竞对分析报告</h2>
+      <p>此链接无数据或已失效。<br>请联系运营助理重新生成分析链接。</p>
+    </div>`;
+} else {
+  // 有数据，渲染表格
+  document.getElementById('app').innerHTML = `
+    <div class="table-wrap"><table id="reportTable"></table></div>
+    <div class="action-bar">
+      <span class="status" id="status"></span>
+      <button class="btn-download" id="btnDownload" onclick="handleDownload()">下载Excel</button>
+    </div>`;
+  initReport();
+}
+
+function initReport() {
 const ANALYSIS_DIMS = [
   {col:'C', label:'店铺评分'},
   {col:'D', label:'营业时间'},
@@ -117,7 +148,6 @@ function render() {
     });
     html += `</tr>`;
   });
-
   table.innerHTML = html;
 }
 
@@ -131,8 +161,7 @@ function checkStatus() {
 
 function getDimLabel(k) { const d = ANALYSIS_DIMS.find(x => x.col === k); return d ? d.label : k; }
 
-async function handleDownload() {
-  // 检查分析区
+window.handleDownload = async function() {
   const editables = document.querySelectorAll('td.editable');
   const empty = [];
   editables.forEach(td => { td.classList.remove('missing'); if (!td.textContent.trim()) empty.push(td); });
@@ -141,7 +170,6 @@ async function handleDownload() {
     const names = empty.map(td => `「${td.dataset.section} - ${getDimLabel(td.dataset.dim)}」`);
     alert('以下分析项未填写：\n\n' + names.join('\n') + '\n\n建议填写后再下载。如需直接下载，请再次点击按钮。');
     empty[0].scrollIntoView({behavior:'smooth', block:'center'});
-    // 第二次点击直接下载
     document.getElementById('btnDownload').onclick = () => generateExcel();
     return;
   }
@@ -149,11 +177,10 @@ async function handleDownload() {
 }
 
 async function generateExcel() {
-  document.getElementById('btnDownload').onclick = handleDownload; // 恢复
+  document.getElementById('btnDownload').onclick = window.handleDownload;
   const btn = document.getElementById('btnDownload');
   btn.textContent = '生成中...';
 
-  // 从页面收集竞对数据
   const competitors = JSON.parse(JSON.stringify(COMPETITORS));
   document.querySelectorAll('td[data-comp][data-field]').forEach(td => {
     const ci = parseInt(td.dataset.comp), field = td.dataset.field, val = td.textContent.trim();
@@ -165,7 +192,6 @@ async function generateExcel() {
     }
   });
 
-  // 收集分析
   const dimToField = {'C':'店铺评分','D':'营业时间','E':'月销','F':'配送费','G':'配送方式','HK':'菜单','L':'评价','MN':'差评率','OR':'活动','S':'活动丰富度'};
   const analysis = {};
   ANALYSIS_ROWS.forEach(s => { analysis[s] = {}; });
@@ -174,10 +200,8 @@ async function generateExcel() {
     if (td.textContent.trim()) analysis[s][dimToField[d]||d] = td.textContent.trim();
   });
 
-  // ===== ExcelJS 生成 =====
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('竞对报告');
-
   const colWidths = [5.64,28.76,25.47,18.64,17,24.76,20.47,50.64,10.88,11.94,13.12,21.64,14.12,18.88,19.64,13,13,13,31.64];
   ws.columns = colWidths.map(w => ({width: w}));
 
@@ -190,81 +214,49 @@ async function generateExcel() {
   const analysisFont = {size:12};
 
   function setCell(r,c,v,opts={}) {
-    const cell = ws.getCell(r,c);
-    cell.value = v;
-    cell.border = thinBorder;
+    const cell = ws.getCell(r,c); cell.value = v; cell.border = thinBorder;
     cell.alignment = opts.align || centerAlign;
     if (opts.fill) cell.fill = opts.fill;
     if (opts.font) cell.font = opts.font;
   }
 
-  // Row 1
-  ws.mergeCells('B1:S1');
-  setCell(1,2,'基础信息数据表（地址：）',{font:{bold:true,size:10}});
-  ws.getRow(1).height = 17;
-
-  // Row 2
+  ws.mergeCells('B1:S1'); setCell(1,2,'基础信息数据表（地址：）',{font:{bold:true,size:10}}); ws.getRow(1).height = 17;
   ws.mergeCells('B2:E2'); setCell(2,2,'基础',{fill:orangeFill,font:hdrFont});
   ws.mergeCells('F2:G2'); setCell(2,6,'配送',{fill:orangeFill,font:hdrFont});
   ws.mergeCells('H2:K2'); setCell(2,8,'菜单',{fill:orangeFill,font:hdrFont});
   ws.mergeCells('L2:N2'); setCell(2,12,'评论',{fill:orangeFill,font:hdrFont});
-  ws.mergeCells('O2:S2'); setCell(2,15,'活动',{fill:orangeFill,font:hdrFont});
-  ws.getRow(2).height = 17;
+  ws.mergeCells('O2:S2'); setCell(2,15,'活动',{fill:orangeFill,font:hdrFont}); ws.getRow(2).height = 17;
 
-  // Row 3
   const fields = ['','店铺名称','店铺评分','营业时间','月销','实际配送费','配送方式','热销菜名称','菜品月销量','实际价格','折扣力度','商家评论数','差评数','差评率','满减档位','满减档位数','第一档满减力度','第二档满减力度','其他营销活动'];
   fields.forEach((f,i) => { if(f) setCell(3,i+1,f,{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}}); });
   ws.getRow(3).height = 32;
 
-  // Data rows
   let row = 4;
   let totalR = 0;
   competitors.forEach(c => { totalR += Math.max((c['热销菜']||[]).length, 1); });
-
-  // A col merge
   if (totalR > 1) ws.mergeCells(4,1,3+totalR,1);
   setCell(4,1,'竞对品牌',{font:{bold:false,size:12}});
 
   competitors.forEach((comp) => {
     const dishes = comp['热销菜'] || [{}];
-    const n = dishes.length;
-    const endR = row + n - 1;
-
-    // Merge B-G, L-S
-    if (n > 1) {
-      [2,3,4,5,6,7,12,13,14,15,16,17,18,19].forEach(c => { ws.mergeCells(row,c,endR,c); });
-    }
-
-    setCell(row,2,comp['店铺名称']||'',{font:dataFont});
-    setCell(row,3,comp['店铺评分']||'',{font:dataFont});
-    setCell(row,4,comp['营业时间']||'',{font:dataFont});
-    setCell(row,5,comp['月销']||'',{font:dataFont});
-    setCell(row,6,comp['实际配送费']||'',{font:dataFont});
-    setCell(row,7,comp['配送方式']||'',{font:dataFont});
-    setCell(row,12,comp['评价数']||'',{font:dataFont});
-    setCell(row,13,comp['差评数']||'',{font:dataFont});
-    setCell(row,14,comp['差评率']||'',{font:dataFont});
-    setCell(row,15,comp['满减档位']||'',{font:dataFont});
-    setCell(row,16,comp['满减档位数']||'',{font:dataFont});
-    setCell(row,17,comp['第一档满减力度']||'',{font:dataFont});
-    setCell(row,18,comp['第二档满减力度']||'',{font:dataFont});
-    setCell(row,19,comp['其他活动']||'',{font:dataFont});
-
+    const n = dishes.length; const endR = row + n - 1;
+    if (n > 1) { [2,3,4,5,6,7,12,13,14,15,16,17,18,19].forEach(c => { ws.mergeCells(row,c,endR,c); }); }
+    setCell(row,2,comp['店铺名称']||'',{font:dataFont}); setCell(row,3,comp['店铺评分']||'',{font:dataFont});
+    setCell(row,4,comp['营业时间']||'',{font:dataFont}); setCell(row,5,comp['月销']||'',{font:dataFont});
+    setCell(row,6,comp['实际配送费']||'',{font:dataFont}); setCell(row,7,comp['配送方式']||'',{font:dataFont});
+    setCell(row,12,comp['评价数']||'',{font:dataFont}); setCell(row,13,comp['差评数']||'',{font:dataFont});
+    setCell(row,14,comp['差评率']||'',{font:dataFont}); setCell(row,15,comp['满减档位']||'',{font:dataFont});
+    setCell(row,16,comp['满减档位数']||'',{font:dataFont}); setCell(row,17,comp['第一档满减力度']||'',{font:dataFont});
+    setCell(row,18,comp['第二档满减力度']||'',{font:dataFont}); setCell(row,19,comp['其他活动']||'',{font:dataFont});
     dishes.forEach((dish,di) => {
-      const r = row + di;
-      ws.getRow(r).height = 22;
-      setCell(r,8,dish['名称']||'',{font:dataFont});
-      setCell(r,9,dish['月销']||'',{font:dataFont});
-      setCell(r,10,dish['实际价格']||'',{font:dataFont});
-      setCell(r,11,dish['折扣力度']||'',{font:dataFont});
+      const r = row + di; ws.getRow(r).height = 22;
+      setCell(r,8,dish['名称']||'',{font:dataFont}); setCell(r,9,dish['月销']||'',{font:dataFont});
+      setCell(r,10,dish['实际价格']||'',{font:dataFont}); setCell(r,11,dish['折扣力度']||'',{font:dataFont});
     });
-
     row += n;
   });
 
-  // Analysis header
-  row += 1;
-  ws.getRow(row).height = 32;
+  row += 1; ws.getRow(row).height = 32;
   setCell(row,2,'竞对分析',{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}});
   [['C','店铺评分'],['D','营业时间'],['E','月销'],['F','配送费'],['G','配送方式'],['L','评价数'],['S','活动丰富度']].forEach(([c,v]) => {
     setCell(row,c.charCodeAt(0)-64,v,{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}});
@@ -273,25 +265,17 @@ async function generateExcel() {
   ws.mergeCells(row,13,row,14); setCell(row,13,'差评率',{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}});
   ws.mergeCells(row,15,row,18); setCell(row,15,'活动版块（档位、自营销力度）',{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}});
 
-  // Analysis rows
   const dimCols = {'店铺评分':3,'营业时间':4,'月销':5,'配送费':6,'配送方式':7,'菜单':[8,11],'评价':12,'差评率':[13,14],'活动':[15,18],'活动丰富度':19};
   ANALYSIS_ROWS.forEach(label => {
-    row++;
-    ws.getRow(row).height = 16.5;
-    setCell(row,2,label,{font:labelFont});
+    row++; ws.getRow(row).height = 16.5; setCell(row,2,label,{font:labelFont});
     const section = analysis[label] || {};
     Object.entries(dimCols).forEach(([dim, col]) => {
       const val = section[dim] || '';
-      if (Array.isArray(col)) {
-        ws.mergeCells(row,col[0],row,col[1]);
-        setCell(row,col[0],val,{font:analysisFont});
-      } else {
-        setCell(row,col,val,{font:analysisFont});
-      }
+      if (Array.isArray(col)) { ws.mergeCells(row,col[0],row,col[1]); setCell(row,col[0],val,{font:analysisFont}); }
+      else { setCell(row,col,val,{font:analysisFont}); }
     });
   });
 
-  // 导出
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
@@ -302,6 +286,7 @@ async function generateExcel() {
 render();
 document.querySelectorAll('td.editable').forEach(td => td.addEventListener('input', checkStatus));
 checkStatus();
+} // end initReport
 </script>
 </body>
 </html>
