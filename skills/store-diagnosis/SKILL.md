@@ -6,9 +6,13 @@ setup: "bash skills/store-diagnosis/setup.sh"
 
 # 竞对数据采集
 
-视频 → 提帧 → 读图 → JSON → 公网链接 → 运营填分析下载Excel。
+## ⚠️ 严格执行以下步骤，禁止自由发挥
 
-**重要：你必须走完全部步骤直到生成链接发给运营。不能只输出文本总结就停下来。**
+**你不能自己生成Excel。你不能自己编表格格式。你不能输出文本总结就停下。**
+
+**你必须按下面5个Step依次执行脚本，最终产出是一个公网链接发给运营。**
+
+**你必须使用 skills/store-diagnosis/ 目录下的工具脚本，不能自己写代码替代。**
 
 ## 执行步骤（必须全部完成）
 
@@ -69,14 +73,22 @@ python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg /tmp/
 
 ### Step 4: 生成链接
 
-把上一步的JSON保存到临时文件，然后运行 deploy.py：
+**必须执行这一步。** 把Step 3的JSON写入文件，然后调用deploy.py：
+
+先用write工具把JSON写到 `/tmp/competitor_data.json`，然后执行：
 
 ```bash
-echo '<你组装的JSON>' > /tmp/competitor_data.json
 python3 skills/store-diagnosis/deploy.py --data /tmp/competitor_data.json
 ```
 
-会输出一个公网链接，类似：`https://sethge.github.io/store-monitor/#NobwRI6X...`
+这个命令会输出一个URL，类似：
+```
+https://sethge.github.io/store-monitor/#NobwRI6X...
+```
+
+**把这个URL记下来，下一步要发给运营。**
+
+如果报错缺少lzstring，先运行：`bash skills/store-diagnosis/setup.sh`
 
 ### Step 5: 发链接给运营
 
@@ -121,6 +133,8 @@ python3 skills/store-diagnosis/deploy.py --data /tmp/competitor_data.json
 
 ## 红线
 
-1. **必须走完Step 1-5。** 不能只输出文本总结就停。最终产出是一个公网链接。
-2. **数据必须是JSON格式。** 不是markdown，不是文本总结，是严格的JSON。
-3. **环境问题自动修。** 跑 setup.sh，不甩给运营。
+1. **必须走完Step 1-5。** 最终产出是一个公网链接。不是Excel文件，不是文本总结，是链接。
+2. **禁止自己生成Excel。** 不能用openpyxl/xlsxwriter自己写Excel。Excel由网页端ExcelJS生成。
+3. **禁止自己编表格格式。** 不能自己设计表格结构。必须用我们的JSON格式+deploy.py。
+4. **数据必须是JSON格式。** 写入 /tmp/competitor_data.json，然后调 deploy.py。
+5. **环境问题自动修。** 跑 setup.sh，不甩给运营。
