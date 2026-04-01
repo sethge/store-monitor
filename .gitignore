@@ -5,3 +5,4 @@ __pycache__/
 brands.txt
 /tmp/
 .DS_Store
+skills/store-diagnosis/config.json

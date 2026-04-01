@@ -58,48 +58,55 @@ def main():
         print("所有视频提帧失败", file=sys.stderr)
         sys.exit(1)
 
-    # Step 2+3: Gemini读图提取数据（如果有API key），否则fallback到OCR
-    # 从config.json或环境变量获取Gemini key
-    from gemini_ocr import get_api_key
-    gemini_key = get_api_key()
-
+    # Step 2+3: 腾讯OCR+Gemini（最准） → 纯Gemini读图 → EasyOCR（fallback）
     competitors = []
-    if gemini_key:
-        print("", file=sys.stderr)
-        print("=" * 50, file=sys.stderr)
-        print("Step 2/3: Gemini读图提取数据", file=sys.stderr)
-        print("=" * 50, file=sys.stderr)
-        from gemini_ocr import read_images_with_gemini
 
-        for name, paths in video_frames.items():
-            print(f"  [{name}] Gemini读图中（{len(paths)}张）...", file=sys.stderr)
+    # 检查可用方案
+    cfg_path = os.path.join(SCRIPT_DIR, 'config.json')
+    cfg = {}
+    if os.path.exists(cfg_path):
+        with open(cfg_path) as f:
+            cfg = json.load(f)
+
+    has_tencent = bool(cfg.get('tencent_secret_id') or os.environ.get('TENCENT_SECRET_ID'))
+    has_gemini = bool(cfg.get('gemini_api_key') or os.environ.get('GEMINI_API_KEY'))
+
+    for name, paths in video_frames.items():
+        result = None
+
+        # 方案1: 腾讯OCR + Gemini语义（最准）
+        if has_tencent and has_gemini:
+            print("", file=sys.stderr)
+            print("=" * 50, file=sys.stderr)
+            print(f"Step 2/3: 腾讯OCR+Gemini分析 [{name}]", file=sys.stderr)
+            print("=" * 50, file=sys.stderr)
             try:
-                result = read_images_with_gemini(gemini_key, paths)
-                competitors.append(result)
-                print(f"  [{name}] ✅ {result.get('店铺名称', '未知')} | 评分{result.get('店铺评分', '?')} | 月销{result.get('月销', '?')} | {len(result.get('热销菜', []))}个热销菜", file=sys.stderr)
+                from tencent_ocr import read_images_with_tencent_gemini
+                result = read_images_with_tencent_gemini(paths)
             except Exception as e:
-                print(f"  [{name}] ❌ Gemini失败: {e}", file=sys.stderr)
-                print(f"  [{name}] 降级到OCR...", file=sys.stderr)
-                # fallback到OCR
-                from ocr_images import ocr_images
-                from parse_ocr import parse_ocr_data
-                ocr_result = ocr_images(paths)
-                result = parse_ocr_data(ocr_result)
-                competitors.append(result)
-    else:
-        print("", file=sys.stderr)
-        print("=" * 50, file=sys.stderr)
-        print("Step 2/3: OCR识别（未设GEMINI_API_KEY，精度较低）", file=sys.stderr)
-        print("=" * 50, file=sys.stderr)
-        from ocr_images import ocr_images
-        from parse_ocr import parse_ocr_data
+                print(f"  ❌ 腾讯OCR+Gemini失败: {e}", file=sys.stderr)
 
-        for name, paths in video_frames.items():
-            print(f"  [{name}] OCR中（{len(paths)}张）...", file=sys.stderr)
+        # 方案2: 纯Gemini读图
+        if not result and has_gemini:
+            print(f"  降级到纯Gemini读图...", file=sys.stderr)
+            try:
+                from gemini_ocr import read_images_with_gemini, get_api_key
+                result = read_images_with_gemini(get_api_key(), paths)
+            except Exception as e:
+                print(f"  ❌ Gemini失败: {e}", file=sys.stderr)
+
+        # 方案3: EasyOCR fallback
+        if not result:
+            print(f"  降级到EasyOCR...", file=sys.stderr)
+            from ocr_images import ocr_images
+            from parse_ocr import parse_ocr_data
             ocr_result = ocr_images(paths)
             result = parse_ocr_data(ocr_result)
+
+        if result:
             competitors.append(result)
-            print(f"  [{name}] {result.get('店铺名称', '未知')} | {len(result.get('热销菜', []))}个热销菜", file=sys.stderr)
+            dishes = result.get('热销菜', [])
+            print(f"  ✅ {result.get('店铺名称','?')} | 评分{result.get('店铺评分','?')} | 月销{result.get('月销','?')} | {len(dishes)}个热销菜", file=sys.stderr)
 
     # 保存JSON
     json_path = "/tmp/competitor_data.json"
