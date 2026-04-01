@@ -29,6 +29,25 @@ NO_PROXY=localhost python3 run_fast.py --watch "品牌1" "品牌2"
 - Chrome调试模式 (`--remote-debugging-port=9222`)
 - 悟空插件（goku文件夹）+ 食亨账号登录
 
+## 环境问题处理原则
+
+**运营遇到任何环境报错，不能让他自己研究，你直接帮他修。**
+
+处理步骤：
+1. 先跑对应skill的 setup.sh：`bash skills/store-diagnosis/setup.sh`
+2. setup.sh 会自动检测并安装所有缺的依赖
+3. 如果 setup.sh 也失败，给运营一行命令让他复制粘贴执行
+4. 装完后自动重新执行刚才失败的操作
+
+常见报错和对应修复：
+- `Cannot find package 'sharp'` → `npm install -g sharp`
+- `No module named 'xxx'` → `pip3 install xxx`
+- `ffmpeg: command not found` → Mac: `brew install ffmpeg` / Linux: `sudo apt install ffmpeg`
+- `command not found: brew` → `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
+- `command not found: node` → Mac: `brew install node` / Linux: `curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs`
+
+总安装脚本：`bash install.sh`（装全部skill依赖）
+
 ## Skill
 输入 `/盯店` 自动执行，支持三种模式：
 - **巡检** — `/盯店` 或 `/盯店 品牌名`，跑一次全量检查

@@ -1,27 +1,48 @@
 #!/bin/bash
 # store-diagnosis skill 环境安装
+# 原则：运营遇到任何环境问题都不应该自己研究，这个脚本负责全部搞定
 # 用法: bash setup.sh
 set -e
 
 echo "=== store-diagnosis 环境检查 ==="
 
-# 1. 检测系统
+# 0. 检测系统
 OS="$(uname -s)"
 echo "系统: $OS"
 
-# 2. Python3
-if command -v python3 &>/dev/null; then
-    PY=$(command -v python3)
-    echo "✓ Python3: $PY ($(python3 --version 2>&1))"
-else
-    echo "✗ Python3 未安装"
-    if [ "$OS" = "Darwin" ]; then
-        echo "  安装方法: brew install python3"
+# 0.1 Mac: 确保有 Homebrew（后面装东西都靠它）
+if [ "$OS" = "Darwin" ]; then
+    if command -v brew &>/dev/null; then
+        echo "✓ Homebrew"
     else
-        echo "  安装方法: sudo apt install python3 python3-pip"
+        echo "正在安装 Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # M1/M2 Mac 需要加到 PATH
+        eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
     fi
-    exit 1
 fi
+
+# 1. Python3
+if command -v python3 &>/dev/null; then
+    echo "✓ Python3: $(python3 --version 2>&1)"
+else
+    echo "正在安装 Python3..."
+    if [ "$OS" = "Darwin" ]; then
+        brew install python3
+    else
+        sudo apt update && sudo apt install -y python3 python3-pip
+    fi
+fi
+
+# 1.1 pip
+python3 -m pip --version &>/dev/null || {
+    echo "正在安装 pip..."
+    if [ "$OS" = "Darwin" ]; then
+        python3 -m ensurepip --upgrade 2>/dev/null || brew install python3
+    else
+        sudo apt install -y python3-pip
+    fi
+}
 
 # 3. ffmpeg
 if command -v ffmpeg &>/dev/null; then
@@ -37,17 +58,26 @@ else
     fi
 fi
 
-# 4. Node.js + sharp（QClaw读图需要）
+# 4. Node.js + npm（QClaw运行环境）
 if command -v node &>/dev/null; then
     echo "✓ Node.js: $(node --version)"
 else
-    echo "✗ Node.js 未安装"
+    echo "正在安装 Node.js..."
     if [ "$OS" = "Darwin" ]; then
-        echo "  正在安装..."
         brew install node
     else
-        echo "  正在安装..."
         curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs
+    fi
+fi
+
+if command -v npm &>/dev/null; then
+    echo "✓ npm: $(npm --version)"
+else
+    echo "正在安装 npm..."
+    if [ "$OS" = "Darwin" ]; then
+        brew install node
+    else
+        sudo apt install -y npm
     fi
 fi
 
@@ -94,15 +124,17 @@ else
     fi
 fi
 
-# 6. 验证
+# 7. 验证全部
 echo ""
 echo "=== 验证 ==="
-python3 -c "
-import xlsxwriter; print('✓ xlsxwriter', xlsxwriter.__version__)
-import lzstring; print('✓ lzstring')
-"
-ffmpeg -version >/dev/null 2>&1 && echo "✓ ffmpeg 可用" || echo "✗ ffmpeg 不可用"
-git --version >/dev/null 2>&1 && echo "✓ git 可用" || echo "✗ git 不可用"
+command -v python3 &>/dev/null && echo "✓ Python3 $(python3 --version 2>&1)" || echo "✗ Python3"
+command -v node &>/dev/null && echo "✓ Node.js $(node --version)" || echo "✗ Node.js"
+command -v npm &>/dev/null && echo "✓ npm $(npm --version)" || echo "✗ npm"
+command -v ffmpeg &>/dev/null && echo "✓ ffmpeg" || echo "✗ ffmpeg"
+command -v git &>/dev/null && echo "✓ git" || echo "✗ git"
+python3 -c "import xlsxwriter" 2>/dev/null && echo "✓ xlsxwriter" || echo "✗ xlsxwriter"
+python3 -c "import lzstring" 2>/dev/null && echo "✓ lzstring" || echo "✗ lzstring"
+node -e "require('sharp')" 2>/dev/null && echo "✓ sharp" || echo "✗ sharp"
 
 echo ""
 echo "✅ 环境就绪！store-diagnosis skill 可以正常使用。"
