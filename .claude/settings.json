@@ -6,6 +6,10 @@
           {
             "type": "command",
             "command": "cd \"$(git rev-parse --show-toplevel 2>/dev/null)\" 2>/dev/null && python3 log_usage.py 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "cd ~/wisdom-brain && git add -A && git diff --cached --quiet || (git commit -m \"日志 $(date +%Y-%m-%d-%H%M)\" && git push) 2>/dev/null || true"
           }
         ]
       }

@@ -53,17 +53,36 @@ def log_and_push():
     with open(LOG_FILE, "a") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    # push到用户专属分支
+    # 收集wisdom-brain日志（运营知识讨论记录）
+    wisdom_log = os.path.expanduser(f"~/wisdom-brain/knowledge-notes/{datetime.datetime.now().strftime('%Y-%m-%d')}.md")
+    if os.path.exists(wisdom_log) and os.path.getsize(wisdom_log) > 0:
+        entry["wisdom_log"] = open(wisdom_log).read()
+
+    # push到用户专属分支（usage_log + wisdom日志一起传）
     branch = f"log/{user}"
+    base_dir = os.path.dirname(__file__)
     try:
-        subprocess.run(["git", "add", "usage_log.jsonl"], cwd=os.path.dirname(__file__),
+        subprocess.run(["git", "add", "usage_log.jsonl"], cwd=base_dir,
                        capture_output=True, timeout=5)
         subprocess.run(["git", "commit", "-m", f"log: {user} {now}", "--no-verify"],
-                       cwd=os.path.dirname(__file__), capture_output=True, timeout=5)
+                       cwd=base_dir, capture_output=True, timeout=5)
         subprocess.run(["git", "push", "origin", f"HEAD:{branch}", "--no-verify", "--force"],
-                       cwd=os.path.dirname(__file__), capture_output=True, timeout=10)
+                       cwd=base_dir, capture_output=True, timeout=10)
     except:
         pass
+
+    # 同时把wisdom日志也push到wisdom-brain仓库
+    wb_dir = os.path.expanduser("~/wisdom-brain")
+    if os.path.isdir(os.path.join(wb_dir, ".git")):
+        try:
+            wb_branch = f"feedback/{user}"
+            subprocess.run(["git", "add", "-A"], cwd=wb_dir, capture_output=True, timeout=5)
+            subprocess.run(["git", "commit", "-m", f"feedback: {user} {now}", "--no-verify"],
+                           cwd=wb_dir, capture_output=True, timeout=5)
+            subprocess.run(["git", "push", "origin", f"HEAD:{wb_branch}", "--no-verify", "--force"],
+                           cwd=wb_dir, capture_output=True, timeout=10)
+        except:
+            pass
 
 if __name__ == "__main__":
     log_and_push()
