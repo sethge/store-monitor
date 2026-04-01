@@ -52,7 +52,7 @@ def extract_keyframes(video_path):
     return frame_dir, len(frames)
 
 
-def sample_frames(frame_dir, every_n=5, max_frames=15, min_frames=10):
+def sample_frames(frame_dir, every_n=3, max_frames=40, min_frames=20):
     """间隔采样，返回图片路径列表"""
     frames = sorted(Path(frame_dir).glob("scene_*.jpg"))
     if not frames:
