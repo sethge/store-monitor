@@ -151,38 +151,28 @@ def read_images_with_gemini(api_key, image_paths, model='gemini-2.5-flash'):
     all_dishes_raw = list(store_result.get("菜品", []))
     time.sleep(2)
 
-    # 阶段2：每帧单独读取菜品（确保不漏）
-    total = len(image_paths)
-    calls_made = 1
-    for i, path in enumerate(image_paths):
-        fname = os.path.basename(path)
-        print(f"    阶段2: [{i+1}/{total}] {fname}", file=sys.stderr)
+    # 阶段2：分批读取菜品（每5帧一批）
+    batch_size = 5
+    batches = [image_paths[i:i+batch_size] for i in range(0, len(image_paths), batch_size)]
 
-        # rate limit: 15 RPM，每4秒1次
-        if calls_made > 0 and calls_made % 14 == 0:
-            print(f"    (等待rate limit恢复...)", file=sys.stderr)
-            time.sleep(30)
-
+    for i, batch in enumerate(batches[1:], 2):  # 跳过第一批（已在阶段1处理）
+        print(f"    阶段2: 批次{i}/{len(batches)}（{len(batch)}张）...", file=sys.stderr)
         try:
-            result = _call_gemini(client, model, [path], DISH_PROMPT)
-            dishes = result.get("菜品", [])
-            all_dishes_raw.extend(dishes)
-            calls_made += 1
-            time.sleep(4)  # 15 RPM = 每4秒1次
+            result = _call_gemini(client, model, batch, DISH_PROMPT)
+            all_dishes_raw.extend(result.get("菜品", []))
         except Exception as e:
             err = str(e)
             if '429' in err or 'RESOURCE_EXHAUSTED' in err:
                 print(f"    rate limit，等60秒...", file=sys.stderr)
                 time.sleep(60)
-                # 重试
                 try:
-                    result = _call_gemini(client, model, [path], DISH_PROMPT)
+                    result = _call_gemini(client, model, batch, DISH_PROMPT)
                     all_dishes_raw.extend(result.get("菜品", []))
-                    calls_made += 1
-                except Exception as e2:
-                    print(f"    {fname} 重试失败: {e2}", file=sys.stderr)
+                except:
+                    print(f"    批次{i}重试失败", file=sys.stderr)
             else:
-                print(f"    {fname} 失败: {e}", file=sys.stderr)
+                print(f"    批次{i}失败: {e}", file=sys.stderr)
+        time.sleep(2)
 
     # 阶段3：合并去重过滤排序
     print(f"    阶段3: 合并{len(all_dishes_raw)}个菜品...", file=sys.stderr)
