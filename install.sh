@@ -81,6 +81,15 @@ command -v ffmpeg &>/dev/null || {
 }
 echo "  ✓ ffmpeg"
 
+# 7. 竞对诊断配置文件
+DIAG_CONFIG="$SCRIPT_DIR/skills/store-diagnosis/config.json"
+if [ ! -f "$DIAG_CONFIG" ]; then
+    echo "  ⚠ 竞对诊断需要 config.json，请联系管理员获取"
+    echo "  文件位置: $DIAG_CONFIG"
+else
+    echo "  ✓ 竞对诊断配置已存在"
+fi
+
 echo ""
 echo "✅ 安装完成！"
 echo ""
