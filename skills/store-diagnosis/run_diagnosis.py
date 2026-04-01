@@ -59,7 +59,9 @@ def main():
         sys.exit(1)
 
     # Step 2+3: Gemini读图提取数据（如果有API key），否则fallback到OCR
-    gemini_key = os.environ.get('GEMINI_API_KEY')
+    # 从config.json或环境变量获取Gemini key
+    from gemini_ocr import get_api_key
+    gemini_key = get_api_key()
 
     competitors = []
     if gemini_key:
