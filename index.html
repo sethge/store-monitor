@@ -68,6 +68,10 @@ if (!COMPETITORS || !COMPETITORS.length) {
   document.getElementById('app').innerHTML = `
     <div class="table-wrap"><table id="reportTable"></table></div>
     <div class="action-bar">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:12px;color:#666;white-space:nowrap;">店铺名:</label>
+        <input id="shopName" type="text" placeholder="输入你的店铺名" style="border:1px solid #ddd;border-radius:4px;padding:6px 10px;font-size:13px;width:150px;">
+      </div>
       <span class="status" id="status"></span>
       <button class="btn-download" id="btnDownload" onclick="handleDownload()">下载Excel</button>
     </div>`;
@@ -206,29 +210,40 @@ async function generateExcel() {
   ws.columns = colWidths.map(w => ({width: w}));
 
   const orangeFill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC000'}};
+  const lightGrayFill = {type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
   const thinBorder = {top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}};
+  const mediumBorder = {top:{style:'medium'},bottom:{style:'medium'},left:{style:'medium'},right:{style:'medium'}};
+  // 外粗内细
+  const topMedium = {top:{style:'medium'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}};
+  const botMedium = {top:{style:'thin'},bottom:{style:'medium'},left:{style:'thin'},right:{style:'thin'}};
   const centerAlign = {horizontal:'center',vertical:'middle',wrapText:true};
   const hdrFont = {bold:true,size:10,color:{argb:'FFFFFFFF'}};
   const dataFont = {size:10};
+  const dataFontBold = {bold:true,size:10};
   const labelFont = {bold:true,size:12};
   const analysisFont = {size:12};
 
   function setCell(r,c,v,opts={}) {
-    const cell = ws.getCell(r,c); cell.value = v; cell.border = thinBorder;
+    const cell = ws.getCell(r,c); cell.value = v;
+    cell.border = opts.border || thinBorder;
     cell.alignment = opts.align || centerAlign;
     if (opts.fill) cell.fill = opts.fill;
     if (opts.font) cell.font = opts.font;
   }
 
-  ws.mergeCells('B1:S1'); setCell(1,2,'基础信息数据表（地址：）',{font:{bold:true,size:10}}); ws.getRow(1).height = 17;
-  ws.mergeCells('B2:E2'); setCell(2,2,'基础',{fill:orangeFill,font:hdrFont});
-  ws.mergeCells('F2:G2'); setCell(2,6,'配送',{fill:orangeFill,font:hdrFont});
-  ws.mergeCells('H2:K2'); setCell(2,8,'菜单',{fill:orangeFill,font:hdrFont});
-  ws.mergeCells('L2:N2'); setCell(2,12,'评论',{fill:orangeFill,font:hdrFont});
-  ws.mergeCells('O2:S2'); setCell(2,15,'活动',{fill:orangeFill,font:hdrFont}); ws.getRow(2).height = 17;
+  // Row 1: 标题（粗边框）
+  ws.mergeCells('B1:S1'); setCell(1,2,'基础信息数据表（地址：）',{font:{bold:true,size:10},border:mediumBorder}); ws.getRow(1).height = 17;
 
+  // Row 2: 分类（粗边框）
+  ws.mergeCells('B2:E2'); setCell(2,2,'基础',{fill:orangeFill,font:hdrFont,border:mediumBorder});
+  ws.mergeCells('F2:G2'); setCell(2,6,'配送',{fill:orangeFill,font:hdrFont,border:mediumBorder});
+  ws.mergeCells('H2:K2'); setCell(2,8,'菜单',{fill:orangeFill,font:hdrFont,border:mediumBorder});
+  ws.mergeCells('L2:N2'); setCell(2,12,'评论',{fill:orangeFill,font:hdrFont,border:mediumBorder});
+  ws.mergeCells('O2:S2'); setCell(2,15,'活动',{fill:orangeFill,font:hdrFont,border:mediumBorder}); ws.getRow(2).height = 17;
+
+  // Row 3: 字段标题（上粗下细）
   const fields = ['','店铺名称','店铺评分','营业时间','月销','实际配送费','配送方式','热销菜名称','菜品月销量','实际价格','折扣力度','商家评论数','差评数','差评率','满减档位','满减档位数','第一档满减力度','第二档满减力度','其他营销活动'];
-  fields.forEach((f,i) => { if(f) setCell(3,i+1,f,{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}}}); });
+  fields.forEach((f,i) => { if(f) setCell(3,i+1,f,{fill:orangeFill,font:{bold:true,size:10,color:{argb:'FFFFFFFF'}},border:topMedium}); });
   ws.getRow(3).height = 32;
 
   let row = 4;
@@ -278,8 +293,14 @@ async function generateExcel() {
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  const ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  saveAs(blob, `竞对分析_${ts}.xlsx`);
+  const shopName = (document.getElementById('shopName')?.value || '').trim();
+  if (!shopName) {
+    alert('请先输入你的店铺名称');
+    btn.textContent = '下载Excel';
+    document.getElementById('shopName')?.focus();
+    return;
+  }
+  saveAs(blob, `${shopName}竞对分析.xlsx`);
   btn.textContent = '下载Excel';
 }
 
