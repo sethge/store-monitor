@@ -9,10 +9,28 @@ setup: "bash skills/store-diagnosis/setup.sh"
 ## ⚠️ 你只需要做两件事
 
 **第一步：提帧+读图**
+
+先提帧：
 ```bash
-python3 skills/store-diagnosis/run_diagnosis.py extract 视频1.mp4 视频2.mp4
+python3 skills/store-diagnosis/extract_frames.py 视频1.mp4 视频2.mp4
 ```
-这个命令会输出base64图片数据。你读取图片内容，提取竞对数据，组装成JSON写入 `/tmp/competitor_data.json`。
+输出采样帧路径（如 `/tmp/store_xxx/scene_001.jpg`）。
+
+然后用 `read` 工具逐张读采样帧图片：
+```
+read /tmp/store_xxx/scene_001.jpg
+read /tmp/store_xxx/scene_006.jpg
+read /tmp/store_xxx/scene_011.jpg
+...
+```
+
+如果 `read` 工具读不了图片（sandbox限制），备选方案：
+```bash
+python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg scene_006.jpg ...
+```
+转base64后作为图片内容读取。
+
+读完图后，提取竞对数据，组装成JSON写入 `/tmp/competitor_data.json`。
 
 **第二步：生成链接**
 ```bash
