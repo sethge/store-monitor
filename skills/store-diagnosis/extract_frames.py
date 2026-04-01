@@ -52,23 +52,24 @@ def extract_keyframes(video_path):
     return frame_dir, len(frames)
 
 
-def sample_frames(frame_dir, every_n=3, max_frames=40, min_frames=20):
-    """间隔采样，返回图片路径列表"""
+def sample_frames(frame_dir, max_frames=30):
+    """前密后疏采样：前半部分每2帧取1张，后半部分每5帧取1张"""
     frames = sorted(Path(frame_dir).glob("scene_*.jpg"))
     if not frames:
         return []
 
-    sampled = frames[::every_n]
+    if len(frames) <= max_frames:
+        return [str(f) for f in frames]
 
-    if len(sampled) < min_frames and len(frames) >= min_frames:
-        step = max(1, len(frames) // min_frames)
-        sampled = frames[::step]
+    mid = len(frames) // 2
+    front = frames[:mid]    # 前半部分（菜单热销区）
+    back = frames[mid:]     # 后半部分（低销量/评价/店铺信息）
+
+    # 前半密集（每2帧取1），后半稀疏（每5帧取1）
+    sampled = list(front[::2]) + list(back[::5])
 
     if len(sampled) > max_frames:
         sampled = sampled[:max_frames]
-
-    if len(frames) <= min_frames:
-        sampled = frames
 
     return [str(f) for f in sampled]
 
