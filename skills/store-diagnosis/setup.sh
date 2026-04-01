@@ -104,7 +104,7 @@ if [ "$OS" = "Darwin" ]; then
     PIP_FLAGS="--break-system-packages"
 fi
 
-for pkg in xlsxwriter lzstring; do
+for pkg in xlsxwriter lzstring easyocr; do
     python3 -c "import $pkg" 2>/dev/null || {
         echo "安装 $pkg..."
         python3 -m pip install $pkg $PIP_FLAGS -q 2>/dev/null || pip3 install $pkg -q

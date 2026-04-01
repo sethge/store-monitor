@@ -16,21 +16,16 @@ python3 skills/store-diagnosis/extract_frames.py 视频1.mp4 视频2.mp4
 ```
 输出采样帧路径（如 `/tmp/store_xxx/scene_001.jpg`）。
 
-然后用 `read` 工具逐张读采样帧图片：
-```
-read /tmp/store_xxx/scene_001.jpg
-read /tmp/store_xxx/scene_006.jpg
-read /tmp/store_xxx/scene_011.jpg
-...
-```
-
-如果 `read` 工具读不了图片（sandbox限制），备选方案：
+然后用OCR读取图片文字：
 ```bash
-python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg scene_006.jpg ...
+python3 skills/store-diagnosis/ocr_images.py /tmp/store_xxx/scene_001.jpg /tmp/store_xxx/scene_006.jpg /tmp/store_xxx/scene_011.jpg ...
 ```
-转base64后作为图片内容读取。
 
-读完图后，提取竞对数据，组装成JSON写入 `/tmp/competitor_data.json`。
+输出JSON，每张图的OCR文字按从上到下排序。你根据OCR文字内容分析提取竞对数据。
+
+如果你的模型支持直接读图片（`read` 工具），也可以用 `read` 直接看图，效果更好。OCR是备选方案。
+
+读完后，组装成JSON写入 `/tmp/competitor_data.json`。
 
 **第二步：生成链接**
 ```bash
