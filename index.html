@@ -65,14 +65,19 @@ if (!COMPETITORS || !COMPETITORS.length) {
       <div class="table-wrap"><table id="reportTable"></table></div>
     </div>
     <div class="action-bar">
-      <div style="display:flex;align-items:center;gap:4px;">
-        <input id="shopName" type="text" placeholder="输入你的店铺名" style="border:1px solid #ddd;border-radius:4px;padding:6px 10px;font-size:14px;width:160px;">
-        <span style="font-size:13px;color:#666;">竞对分析.xlsx</span>
-      </div>
       <span class="status" id="status"></span>
-      <button class="btn-download" onclick="handleDownload()">下载Excel</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <input id="shopName" type="text" placeholder="输入你的店铺名" oninput="syncBtnName()" style="border:1px solid #ddd;border-radius:4px;padding:6px 10px;font-size:13px;width:180px;text-align:right;">
+        <button class="btn-download" id="btnDl" onclick="handleDownload()">下载Excel</button>
+      </div>
     </div>`;
   initReport();
+}
+
+function syncBtnName() {
+  const name = (document.getElementById('shopName')?.value || '').trim();
+  const btn = document.getElementById('btnDl');
+  btn.textContent = name ? `下载 ${name}竞对分析.xlsx` : '下载Excel';
 }
 
 function initReport() {
