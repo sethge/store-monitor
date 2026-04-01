@@ -1,60 +1,104 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-竞对诊断一键流程
+竞对诊断一键流程（全自动，不依赖视觉模型）
 用法:
-  python3 run_diagnosis.py --videos 视频1.mp4 视频2.mp4
-  → 提帧 → 输出采样帧路径 → 等Agent把JSON写到 /tmp/competitor_data.json → 生成链接
+  python3 run_diagnosis.py 视频1.mp4 视频2.mp4 ...
 
-  python3 run_diagnosis.py --generate-link /tmp/competitor_data.json
-  → 直接从JSON生成链接
+全流程: 提帧 → OCR → 解析JSON → 生成公网链接
 """
-import argparse
 import json
 import os
 import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
 
 
-def step_extract(videos):
-    """提帧+采样，返回所有采样帧路径"""
+def main():
+    if len(sys.argv) < 2:
+        print("用法: python3 run_diagnosis.py 视频1.mp4 视频2.mp4 ...", file=sys.stderr)
+        print("      python3 run_diagnosis.py link /tmp/competitor_data.json", file=sys.stderr)
+        sys.exit(1)
+
+    # 子命令: link（直接从JSON生成链接）
+    if sys.argv[1] == 'link' and len(sys.argv) >= 3:
+        from deploy import main as deploy_main
+        sys.argv = ['deploy.py', '--data', sys.argv[2]]
+        deploy_main()
+        return
+
+    # 主流程: 视频 → 链接
+    videos = [os.path.abspath(v) for v in sys.argv[1:]]
+    for v in videos:
+        if not os.path.exists(v):
+            print(f"[错误] 文件不存在: {v}", file=sys.stderr)
+            sys.exit(1)
+
+    # Step 1: 提帧
+    print("=" * 50, file=sys.stderr)
+    print("Step 1/4: 提取关键帧", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
     from extract_frames import extract_keyframes, sample_frames
 
-    all_sampled = {}
-    for video in videos:
-        video = os.path.abspath(video)
-        if not os.path.exists(video):
-            print(f"[跳过] 文件不存在: {video}", file=sys.stderr)
-            continue
+    video_frames = {}
+    for v in videos:
+        name = os.path.basename(v)
+        print(f"  [{name}] 提帧中...", file=sys.stderr)
         try:
-            name = os.path.basename(video)
-            print(f"[提帧] {name}...", file=sys.stderr)
-            frame_dir, total = extract_keyframes(video)
+            frame_dir, total = extract_keyframes(v)
             sampled = sample_frames(frame_dir)
-            print(f"[完成] {name}: {total}帧, 采样{len(sampled)}张", file=sys.stderr)
-            all_sampled[name] = sampled
+            video_frames[name] = sampled
+            print(f"  [{name}] {total}帧, 采样{len(sampled)}张", file=sys.stderr)
         except Exception as e:
-            print(f"[错误] {name}: {e}", file=sys.stderr)
+            print(f"  [{name}] 错误: {e}", file=sys.stderr)
 
-    return all_sampled
+    if not video_frames:
+        print("所有视频提帧失败", file=sys.stderr)
+        sys.exit(1)
 
+    # Step 2: OCR
+    print("", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+    print("Step 2/4: OCR识别文字", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+    from ocr_images import ocr_images
 
-def step_read_images(sampled_paths):
-    """把采样帧转base64输出"""
-    from read_images import read_image_base64
+    all_ocr = {}
+    for name, paths in video_frames.items():
+        print(f"  [{name}] OCR中（{len(paths)}张）...", file=sys.stderr)
+        ocr_result = ocr_images(paths)
+        all_ocr[name] = ocr_result
+        total_texts = sum(len(v) for v in ocr_result.values())
+        print(f"  [{name}] 识别出{total_texts}个文字块", file=sys.stderr)
 
-    results = []
-    for path in sampled_paths:
-        info = read_image_base64(path)
-        if info:
-            results.append(info)
-    return results
+    # Step 3: 解析
+    print("", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+    print("Step 3/4: 解析竞对数据", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+    from parse_ocr import parse_ocr_data
 
+    competitors = []
+    for name, ocr_data in all_ocr.items():
+        print(f"  [{name}] 解析中...", file=sys.stderr)
+        result = parse_ocr_data(ocr_data)
+        competitors.append(result)
+        print(f"  [{name}] {result.get('店铺名称', '未知')} | 评分{result.get('店铺评分', '?')} | 月销{result.get('月销', '?')} | {len(result.get('热销菜', []))}个热销菜", file=sys.stderr)
 
-def step_generate_link(json_path):
-    """从JSON文件生成公网链接"""
+    # 保存JSON
+    json_path = "/tmp/competitor_data.json"
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(competitors, f, ensure_ascii=False, indent=2)
+    print(f"\n  数据已保存: {json_path}", file=sys.stderr)
+
+    # Step 4: 生成链接
+    print("", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+    print("Step 4/4: 生成公网链接", file=sys.stderr)
+    print("=" * 50, file=sys.stderr)
+
     try:
         import lzstring
         def compress(s):
@@ -65,57 +109,15 @@ def step_generate_link(json_path):
             compressed = zlib.compress(s.encode('utf-8'))
             return base64.urlsafe_b64encode(compressed).decode('ascii').rstrip('=')
 
-    with open(json_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    competitors = data if isinstance(data, list) else data.get('competitors', [data])
     json_str = json.dumps(competitors, ensure_ascii=False, separators=(',', ':'))
     encoded = compress(json_str)
-    return f"https://sethge.github.io/store-monitor/#{encoded}"
+    url = f"https://sethge.github.io/store-monitor/#{encoded}"
 
+    print(f"\n  链接已生成", file=sys.stderr)
+    print("", file=sys.stderr)
 
-def main():
-    parser = argparse.ArgumentParser(description='竞对诊断')
-    sub = parser.add_subparsers(dest='cmd')
-
-    # 子命令: extract
-    p1 = sub.add_parser('extract', help='提帧+输出采样帧base64')
-    p1.add_argument('videos', nargs='+', help='视频文件')
-
-    # 子命令: link
-    p2 = sub.add_parser('link', help='从JSON生成公网链接')
-    p2.add_argument('json_file', help='竞对数据JSON文件路径')
-
-    args = parser.parse_args()
-
-    if args.cmd == 'extract':
-        # 提帧
-        all_sampled = step_extract(args.videos)
-        if not all_sampled:
-            print("错误: 所有视频提帧失败", file=sys.stderr)
-            sys.exit(1)
-
-        # 转base64
-        print("\n请根据以下图片提取竞对数据：\n", file=sys.stderr)
-        for video_name, paths in all_sampled.items():
-            print(f"--- {video_name} ---", file=sys.stderr)
-            images = step_read_images(paths)
-            # 输出到stdout供Agent读取
-            print(json.dumps({
-                "video": video_name,
-                "images": images,
-            }, ensure_ascii=False))
-
-        print(f"\n提帧完成。", file=sys.stderr)
-        print(f"请将提取的竞对数据按JSON格式写入 /tmp/competitor_data.json", file=sys.stderr)
-        print(f"然后执行: python3 {__file__} link /tmp/competitor_data.json", file=sys.stderr)
-
-    elif args.cmd == 'link':
-        url = step_generate_link(args.json_file)
-        print(url)
-
-    else:
-        parser.print_help()
+    # 唯一输出到stdout的是链接
+    print(url)
 
 
 if __name__ == '__main__':
