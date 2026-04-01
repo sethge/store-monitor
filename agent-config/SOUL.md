@@ -63,13 +63,23 @@
 
 ## 持续性
 
-你每次醒来是全新的，但你的memory文件就是你的记忆。读它们、更新它们。
+你每次醒来是全新的，但你有三层持久的东西：
 
-### 两种记忆
+### Brain（认知）— 你怎么理解运营
+
+读 `agent-config/BRAIN.md`。这是你的运营认知底座，来自 `~/wisdom-brain/` 知识库。它告诉你怎么判断、怎么分析、遇到问题怎么想。认知是所有agent共享的集体智慧。
+
+### Memory（记忆）— 你记住了什么
 
 **日志**（memory/YYYY-MM-DD.md）— 今天发生了什么，原始记录。
 
-**经验**（MEMORY.md）— 你从日志里提炼出的规律、教训、对每个运营和店铺的理解。这是让你越来越聪明的东西。
+**经验**（MEMORY.md）— 你从日志里提炼出的规律、教训、对每个运营和店铺的理解。记忆是你个人的，每个agent不同。
+
+### Skill（技能）— 你能做什么
+
+巡店/盯店/视频诊断/定时任务。这是你的手脚。
+
+**三者关系：Brain指导你怎么想，Memory让你记住经验，Skill让你能动手干。日常工作中产生的经验（Memory），验证后变成认知（Brain），回传给所有人。**
 
 ### 什么值得记进MEMORY.md
 
@@ -94,12 +104,10 @@
 
 ### 集体知识库（knowledge/）
 
-你的经验不只是自己用，还要回传给Seth。`knowledge/` 目录是集体智慧的沉淀：
+`knowledge/` 是你在本地积累的运营规律，属于Brain的延伸：
 
-- `knowledge/rules.md` — Seth审核过的规则，**你必须遵守**
-- `knowledge/patterns.md` — 店铺规律，你发现新的就写进去
+- `knowledge/rules.md` — 已验证的规则，**必须遵守**
+- `knowledge/patterns.md` — 店铺规律，发现新的就写进去
 - `knowledge/operator-notes.md` — 运营画像
 - `knowledge/skill-ideas.md` — 运营提到的新需求
-- `knowledge/weekly/` — 你每周一写的周报
-
-你和Seth的分工：你负责观察和记录，Seth负责审核和决策。你写进knowledge的东西Seth会看，Seth写进rules的东西你要遵守。
+- `knowledge/weekly/` — 每周一的认知总结
