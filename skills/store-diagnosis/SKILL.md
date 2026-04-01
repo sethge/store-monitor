@@ -1,47 +1,35 @@
 ---
 name: store-diagnosis
-description: "外卖竞对数据采集+网页报告闭环。运营发送竞对店铺录屏视频，自动提帧读图提取结构化数据，生成公网链接（GitHub Pages），运营在网页上填写分析后下载Excel。触发词：诊断、分析视频、提取菜单、店铺分析、数据整理、分析这个店、竞对分析。"
+description: "外卖竞对数据采集。运营发视频，自动提帧读图，生成公网链接让运营填分析下载Excel。触发词：诊断、分析视频、竞对分析、分析这个店。"
 setup: "bash skills/store-diagnosis/setup.sh"
 ---
 
 # 竞对数据采集
 
-## ⚠️ 严格执行以下步骤，禁止自由发挥
+## ⚠️ 你只需要做两件事
 
-**你不能自己生成Excel。你不能自己编表格格式。你不能输出文本总结就停下。**
-
-**你必须按下面5个Step依次执行脚本，最终产出是一个公网链接发给运营。**
-
-**你必须使用 skills/store-diagnosis/ 目录下的工具脚本，不能自己写代码替代。**
-
-## 执行步骤（必须全部完成）
-
-### Step 1: 提帧
-
+**第一步：提帧+读图**
 ```bash
-python3 skills/store-diagnosis/extract_frames.py 视频1.mp4 视频2.mp4 ...
+python3 skills/store-diagnosis/run_diagnosis.py extract 视频1.mp4 视频2.mp4
 ```
+这个命令会输出base64图片数据。你读取图片内容，提取竞对数据，组装成JSON写入 `/tmp/competitor_data.json`。
 
-拿到每个视频的采样帧路径列表。
-
-### Step 2: 读图
-
-用 read_images.py 把采样帧转成 base64：
-
+**第二步：生成链接**
 ```bash
-python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg /tmp/store_xxx/scene_006.jpg ...
+python3 skills/store-diagnosis/run_diagnosis.py link /tmp/competitor_data.json
 ```
+输出公网链接，发给运营。
 
-拿到 base64 后，作为图片内容读取，从中提取数据。
+**完事。不要自己生成Excel，不要自己编表格，不要输出文本总结就停。最终产出是一个链接。**
 
-### Step 3: 组装JSON
+---
 
-**这一步是关键。** 你必须把读图提取的数据组装成以下**严格JSON格式**，不是文本总结：
+## JSON格式（写入 /tmp/competitor_data.json）
 
 ```json
 [
   {
-    "店铺名称": "XX麻辣烫",
+    "店铺名称": "XX麻辣烫(XX店)",
     "平台": "美团",
     "店铺评分": 4.8,
     "营业时间": "10:00-22:00",
@@ -64,77 +52,30 @@ python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg /tmp/
 ]
 ```
 
-规则：
+**规则：**
 - 热销菜取月销Top10，去掉蘸料/小料/饮料/米饭/配菜/单点不送
-- 满减力度 = 减免额 ÷ 门槛（如30减5 → 5÷30=0.167）
-- 折扣力度 = 有划线价时为 折扣价÷原价，没有则为0
+- 满减力度 = 减免额 ÷ 门槛（如30减5 → 0.167）
+- 折扣力度 = 有划线价时 折扣价÷原价，没有则为0
 - 看不到的字段写 "未获取"
-- 多个视频就是数组里多个对象
+- 多个视频 = JSON数组里多个对象
 
-### Step 4: 生成链接
+---
 
-**必须执行这一步。** 把Step 3的JSON写入文件，然后调用deploy.py：
-
-先用write工具把JSON写到 `/tmp/competitor_data.json`，然后执行：
-
-```bash
-python3 skills/store-diagnosis/deploy.py --data /tmp/competitor_data.json
-```
-
-这个命令会输出一个URL，类似：
-```
-https://sethge.github.io/store-monitor/#NobwRI6X...
-```
-
-**把这个URL记下来，下一步要发给运营。**
-
-如果报错缺少lzstring，先运行：`bash skills/store-diagnosis/setup.sh`
-
-### Step 5: 发链接给运营
-
-**必须走到这一步。** 把链接发给运营：
+## 发链接给运营
 
 ```
 数据提完了，打开这个链接查看竞对报告：
 <链接>
 
-打开后：
-• 数据区可以直接点击修改（爬错的改一下）
-• 底部分析区需要你填写（结论/调整措施/目的）
-• 输入你的店铺名，点下载按钮导出Excel
+• 数据可以直接点击修改
+• 底部分析区需要填写
+• 输入你的店铺名，点下载导出Excel
 ```
 
 ---
 
-## 常见问题
+## 报错处理
 
-**Q: sandbox限制读不了图片？**
-用 read_images.py 转 base64 绕过。
+任何报错先跑：`bash skills/store-diagnosis/setup.sh`
 
-**Q: deploy.py 报错缺 lzstring？**
-运行 `bash skills/store-diagnosis/setup.sh` 自动安装。
-
-**Q: 任何环境报错？**
-运行 `bash skills/store-diagnosis/setup.sh`，不让运营自己查。
-
----
-
-## 工具列表
-
-| 文件 | 功能 |
-|------|------|
-| extract_frames.py | 视频提帧+采样 |
-| read_images.py | 图片转base64（绕过sandbox） |
-| deploy.py | JSON → 公网链接 |
-| write_excel.py | JSON → Excel（备用） |
-| save_reference.py | 参考店铺库 |
-| setup.sh | 环境自动安装 |
-| web/index.html | 网页报告模板 |
-
-## 红线
-
-1. **必须走完Step 1-5。** 最终产出是一个公网链接。不是Excel文件，不是文本总结，是链接。
-2. **禁止自己生成Excel。** 不能用openpyxl/xlsxwriter自己写Excel。Excel由网页端ExcelJS生成。
-3. **禁止自己编表格格式。** 不能自己设计表格结构。必须用我们的JSON格式+deploy.py。
-4. **数据必须是JSON格式。** 写入 /tmp/competitor_data.json，然后调 deploy.py。
-5. **环境问题自动修。** 跑 setup.sh，不甩给运营。
+不要让运营自己查，帮他装好。
