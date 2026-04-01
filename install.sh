@@ -56,7 +56,30 @@ python3 -c "import playwright" 2>/dev/null || {
     pip3 install playwright
     playwright install chromium
 }
-echo "  ✓ Python依赖OK"
+echo "  ✓ playwright"
+
+python3 -c "import xlsxwriter" 2>/dev/null || {
+    echo "安装xlsxwriter（竞对分析Excel）..."
+    pip3 install xlsxwriter --break-system-packages 2>/dev/null || pip3 install xlsxwriter
+}
+echo "  ✓ xlsxwriter"
+
+python3 -c "import lzstring" 2>/dev/null || {
+    echo "安装lzstring（竞对链接生成）..."
+    pip3 install lzstring --break-system-packages 2>/dev/null || pip3 install lzstring
+}
+echo "  ✓ lzstring"
+
+# 6. ffmpeg（竞对视频提帧）
+command -v ffmpeg &>/dev/null || {
+    echo "安装ffmpeg..."
+    if [ "$(uname -s)" = "Darwin" ]; then
+        brew install ffmpeg
+    else
+        sudo apt update && sudo apt install -y ffmpeg
+    fi
+}
+echo "  ✓ ffmpeg"
 
 echo ""
 echo "✅ 安装完成！"
