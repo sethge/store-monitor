@@ -30,7 +30,17 @@ setup: "bash skills/store-diagnosis/setup.sh"
 python3 skills/store-diagnosis/extract_frames.py 视频1.mp4 视频2.mp4 ...
 ```
 
-**Step 2** — Agent自己看sampled里的图片，提取结构化JSON。
+**Step 2** — 读取采样图片。
+
+如果你能直接读取图片文件，直接读。如果sandbox限制了图片传输，用read_images.py把图片转成base64：
+
+```bash
+python3 skills/store-diagnosis/read_images.py /tmp/store_xxx/scene_001.jpg /tmp/store_xxx/scene_005.jpg ...
+```
+
+输出JSON数组，每项包含 `file`、`mime`、`base64` 字段。拿到base64后作为图片内容传给模型读取。
+
+**Step 3** — 从图片中提取结构化JSON。
 
 提取规则：
 - 基础：店铺名称、平台、评分、营业时间、月销
@@ -100,6 +110,7 @@ Agent把链接发给运营：
 | 文件 | 功能 |
 |------|------|
 | extract_frames.py | 视频提帧+采样，输出JSON到stdout |
+| read_images.py | 图片转base64（绕过sandbox限制） |
 | deploy.py | 竞对数据JSON → 生成公网链接 |
 | web/index.html | 网页版竞对报告（GitHub Pages托管） |
 | write_excel.py | 服务端Excel生成（备用，Agent本地用） |
