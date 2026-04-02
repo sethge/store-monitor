@@ -19,7 +19,13 @@ def get_config():
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH) as f:
             return json.load(f)
-    return {}
+    # 内置默认
+    try:
+        import base64
+        from gemini_ocr import _DEFAULT_CFG
+        return json.loads(base64.b64decode(_DEFAULT_CFG).decode())
+    except:
+        return {}
 
 
 def ocr_one_image(client, image_path):

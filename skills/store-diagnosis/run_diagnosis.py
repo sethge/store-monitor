@@ -61,15 +61,12 @@ def main():
     # Step 2+3: 腾讯OCR+Gemini（最准） → 纯Gemini读图 → EasyOCR（fallback）
     competitors = []
 
-    # 检查可用方案
-    cfg_path = os.path.join(SCRIPT_DIR, 'config.json')
-    cfg = {}
-    if os.path.exists(cfg_path):
-        with open(cfg_path) as f:
-            cfg = json.load(f)
+    # 检查可用方案（从内置配置或config.json读取）
+    from gemini_ocr import _load_config, get_api_key
+    cfg = _load_config()
 
     has_tencent = bool(cfg.get('tencent_secret_id') or os.environ.get('TENCENT_SECRET_ID'))
-    has_gemini = bool(cfg.get('gemini_api_key') or os.environ.get('GEMINI_API_KEY'))
+    has_gemini = bool(get_api_key())
 
     for name, paths in video_frames.items():
         result = None

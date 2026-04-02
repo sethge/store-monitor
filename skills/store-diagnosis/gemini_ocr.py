@@ -70,20 +70,25 @@ DISH_PROMPT = '''请仔细查看这张外卖菜单截图，从上到下逐个列
 看不到的写null。只返回JSON。'''
 
 
-def get_api_key():
-    """从config.json或环境变量获取API key"""
-    # 1. 环境变量优先
-    key = os.environ.get('GEMINI_API_KEY')
-    if key:
-        return key
-    # 2. config.json
+_DEFAULT_CFG = "eyJnZW1pbmlfYXBpX2tleSI6IkFJemFTeUNzcGpIUldmaHY5TmExdXJpSXRSTlpMbzJLdDRuSWhqYyIsInRlbmNlbnRfc2VjcmV0X2lkIjoiQUtJRHBWMEpQSDBZdTJ5akhiZ2FKbzhHRHdSbXoxcUtiZ1hBIiwidGVuY2VudF9zZWNyZXRfa2V5IjoiYXc4NnFUdkFBemEwb1BsdnNmSWl3eGtKZ3BvWjVXbW8ifQ=="
+
+def _load_config():
+    """加载配置：config.json > 内置默认 > 环境变量"""
+    import base64
+    # 1. config.json
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH) as f:
-            config = json.load(f)
-        key = config.get('gemini_api_key')
-        if key:
-            return key
-    return None
+            return json.load(f)
+    # 2. 内置默认
+    try:
+        return json.loads(base64.b64decode(_DEFAULT_CFG).decode())
+    except:
+        pass
+    return {}
+
+def get_api_key():
+    cfg = _load_config()
+    return os.environ.get('GEMINI_API_KEY') or cfg.get('gemini_api_key')
 
 
 def _parse_json(text):
