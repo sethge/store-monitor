@@ -2,14 +2,16 @@
 # 盯店巡检一键启动
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# 优先用 Chromium（不自动更新），没有就用 Chrome
+# 只用 Chromium（Chrome 会强制自动更新导致插件不兼容）
 if [ -d "/Applications/Chromium.app" ]; then
     CHROME="/Applications/Chromium.app/Contents/MacOS/Chromium"
-elif [ -d "/Applications/Google Chrome.app" ]; then
-    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 else
-    echo "❌ 没找到 Chromium 或 Chrome，请先安装"
-    exit 1
+    echo "❌ 没找到 Chromium，正在安装..."
+    brew install --cask chromium 2>/dev/null || {
+        echo "安装失败，请手动下载: https://github.com/nicehash/Chromium/releases"
+        exit 1
+    }
+    CHROME="/Applications/Chromium.app/Contents/MacOS/Chromium"
 fi
 PORT=9222
 

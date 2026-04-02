@@ -3,13 +3,15 @@ chcp 65001 >nul
 title 盯店巡检
 
 set SCRIPT_DIR=%~dp0
-:: 优先 Chromium，没有就用 Chrome
-if exist "C:\Program Files\Chromium\Application\chrome.exe" (
-    set CHROME="C:\Program Files\Chromium\Application\chrome.exe"
-) else if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
+:: 只用 Chromium（Chrome会强制更新导致插件不兼容）
+if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
     set CHROME="%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+) else if exist "C:\Program Files\Chromium\Application\chrome.exe" (
+    set CHROME="C:\Program Files\Chromium\Application\chrome.exe"
 ) else (
-    set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+    echo ❌ 没找到 Chromium，请下载安装: https://github.com/nicehash/Chromium/releases
+    pause
+    exit /b 1
 )
 set PORT=9222
 
