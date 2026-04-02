@@ -2,15 +2,17 @@
 chcp 65001 >nul
 echo.
 echo   ================================
-echo   食亨智慧运营 — 一键安装
+echo   食亨智慧运��� — 一键安装
 echo   ================================
 echo.
 
 set INSTALL_DIR=%USERPROFILE%\.qclaw\workspace\store-monitor
+set PIP_MIRROR=-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+set GIT_MIRROR=https://ghfast.top
 
 :: 检查 QClaw
 if not exist "%USERPROFILE%\.qclaw" (
-    echo ❌ 没找到 QClaw，请先安装 QClaw
+    echo   ❌ 没找到 QClaw，请先安装 QClaw
     pause
     exit /b 1
 )
@@ -18,22 +20,23 @@ if not exist "%USERPROFILE%\.qclaw" (
 :: 检查 git
 where git >nul 2>&1
 if %errorlevel% neq 0 (
-    echo 安装 git...
-    echo 请先下载安装 Git: https://git-scm.com/download/win
-    echo 安装完后重新双击这个文件
+    echo   ❌ 没找到 git
+    echo   请下载安装: https://git-scm.com/download/win
     start https://git-scm.com/download/win
     pause
     exit /b 1
 )
 
 :: 检查 python
+set PYTHON=python
 where python >nul 2>&1
 if %errorlevel% neq 0 (
+    set PYTHON=python3
     where python3 >nul 2>&1
     if %errorlevel% neq 0 (
-        echo 安装 Python...
-        echo 请先下载安装 Python: https://www.python.org/downloads/
-        echo 安装时勾选 "Add Python to PATH"
+        echo   ❌ 没找到 Python
+        echo   请下载安装: https://www.python.org/downloads/
+        echo   安装时务必勾选 "Add Python to PATH"
         start https://www.python.org/downloads/
         pause
         exit /b 1
@@ -49,42 +52,26 @@ if exist "%INSTALL_DIR%\.git" (
     git pull origin feature/watch-mode
 ) else (
     echo 下载代码...
-    git clone -b feature/watch-mode https://github.com/sethge/store-monitor.git "%INSTALL_DIR%"
+    git clone -b feature/watch-mode %GIT_MIRROR%/https://github.com/sethge/store-monitor.git "%INSTALL_DIR%" 2>nul || (
+        git clone -b feature/watch-mode https://github.com/sethge/store-monitor.git "%INSTALL_DIR%"
+    )
     cd /d "%INSTALL_DIR%"
 )
 
-:: 安装 Brain（运营知识库）
-echo 安装Brain（运营知识库）...
+:: 安装 Brain
+echo 安装Brain...
 if not exist "%USERPROFILE%\wisdom-brain\.git" (
-    git clone https://github.com/sethge/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul
-    if %errorlevel% equ 0 (
-        echo   ✓ wisdom-brain 已克隆
-    ) else (
-        echo   ⚠ wisdom-brain 克隆失败，请检查网络
+    git clone %GIT_MIRROR%/https://github.com/sethge/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul || (
+        git clone https://github.com/sethge/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul
     )
+    echo   ✓ wisdom-brain
 ) else (
     cd /d "%USERPROFILE%\wisdom-brain" && git pull --quiet 2>nul
     echo   ✓ wisdom-brain 已更新
     cd /d "%INSTALL_DIR%"
 )
 
-:: 安装 agent 配置
-echo 安装agent配置...
-set WORKSPACE=%USERPROFILE%\.qclaw\workspace
-for %%f in (SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md) do (
-    if not exist "%WORKSPACE%\%%f" (
-        copy "agent-config\%%f" "%WORKSPACE%\%%f" >nul
-        echo   ✓ %%f
-    ) else (
-        echo   ⏭ %%f（已存在）
-    )
-)
-if not exist "%WORKSPACE%\knowledge" (
-    xcopy /E /I /Q "agent-config\knowledge" "%WORKSPACE%\knowledge" >nul
-    echo   ✓ knowledge/
-)
-
-:: 安装 skills（覆盖旧文件，确保最新）
+:: 安装 skills（覆盖旧文件）
 echo 安装skills...
 set SKILLS_DIR=%USERPROFILE%\.qclaw\skills
 if not exist "%SKILLS_DIR%" mkdir "%SKILLS_DIR%"
@@ -99,49 +86,74 @@ if exist "skills\SKILL.md" (
     echo   ✓ SKILL.md
 )
 
-:: Python 依赖
+:: agent 配置
+echo 安装agent配置...
+set WORKSPACE=%USERPROFILE%\.qclaw\workspace
+for %%f in (SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md) do (
+    if not exist "%WORKSPACE%\%%f" (
+        copy "agent-config\%%f" "%WORKSPACE%\%%f" >nul
+        echo   ✓ %%f
+    ) else (
+        echo   ⏭ %%f
+    )
+)
+if not exist "%WORKSPACE%\knowledge" (
+    xcopy /E /I /Q "agent-config\knowledge" "%WORKSPACE%\knowledge" >nul
+    echo   ✓ knowledge/
+)
+
+:: Python 依赖（清华镜像）
 echo 检查Python依赖...
-python -c "import playwright" 2>nul || (
-    echo 安装 playwright...
-    pip install playwright
+%PYTHON% -c "import playwright" 2>nul || (
+    echo   安装 playwright...
+    %PYTHON% -m pip install %PIP_MIRROR% playwright 2>nul
     playwright install chromium
 )
 echo   ✓ playwright
 
-python -c "import xlsxwriter" 2>nul || (
-    pip install xlsxwriter 2>nul
+for %%p in (xlsxwriter lzstring) do (
+    %PYTHON% -c "import %%p" 2>nul || (
+        %PYTHON% -m pip install %PIP_MIRROR% %%p 2>nul
+    )
+    echo   ✓ %%p
 )
-echo   ✓ xlsxwriter
 
-python -c "import lzstring" 2>nul || (
-    pip install lzstring 2>nul
-)
-echo   ✓ lzstring
-
-python -c "from google import genai" 2>nul || (
-    pip install google-genai 2>nul
-)
-echo   ✓ google-genai
-
-python -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>nul || (
-    pip install tencentcloud-sdk-python 2>nul
+%PYTHON% -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>nul || (
+    echo   安装腾讯云OCR SDK...
+    %PYTHON% -m pip install %PIP_MIRROR% tencentcloud-sdk-python 2>nul
 )
 echo   ✓ tencentcloud-sdk
 
-:: 初始化 memory 目录
+%PYTHON% -c "from google import genai" 2>nul || (
+    echo   安装 google-genai...
+    %PYTHON% -m pip install %PIP_MIRROR% google-genai 2>nul
+)
+echo   ✓ google-genai
+
+:: memory 目录
 if not exist "memory\interactions" mkdir "memory\interactions"
 if not exist "memory\pending_review" mkdir "memory\pending_review"
 echo   ✓ memory目录
 
-:: ffmpeg（可选，竞对诊断用）
+:: ffmpeg
 where ffmpeg >nul 2>&1
 if %errorlevel% neq 0 (
-    echo   ⚠ ffmpeg 未安装（竞对诊断需要）
-    echo   下载地址: https://www.gyan.dev/ffmpeg/builds/
-    echo   下载后解压，把 bin\ffmpeg.exe 放到 C:\Windows\ 下
-) else (
-    echo   ✓ ffmpeg
+    echo   安装 ffmpeg...
+    :: 尝试用 winget 装
+    winget install --id Gyan.FFmpeg -e --source winget >nul 2>&1
+    where ffmpeg >nul 2>&1
+    if %errorlevel% neq 0 (
+        :: winget 失败，尝试用 choco
+        where choco >nul 2>&1 && choco install ffmpeg -y >nul 2>&1
+        where ffmpeg >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo   ⚠ ffmpeg 自动安装失败
+            echo   请手动下载: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+            echo   解压后把 bin\ffmpeg.exe 复制到 C:\Windows\
+        )
+    )
 )
+where ffmpeg >nul 2>&1 && echo   ✓ ffmpeg
 
 echo.
 echo   ================================

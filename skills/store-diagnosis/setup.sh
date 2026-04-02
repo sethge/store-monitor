@@ -1,146 +1,101 @@
 #!/bin/bash
-# store-diagnosis skill 环境安装
-# 原则：运营遇到任何环境问题都不应该自己研究，这个脚本负责全部搞定
-# 用法: bash setup.sh
+# store-diagnosis skill 环境安装（国内镜像，不依赖梯子）
 set -e
 
 echo "=== store-diagnosis 环境检查 ==="
 
-# 0. 检测系统
 OS="$(uname -s)"
-echo "系统: $OS"
+PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
+PIP_CMD="pip3 install $PIP_MIRROR --break-system-packages"
 
-# 0.1 Mac: 确保有 Homebrew（后面装东西都靠它）
+# brew 镜像
 if [ "$OS" = "Darwin" ]; then
-    if command -v brew &>/dev/null; then
-        echo "✓ Homebrew"
-    else
-        echo "正在安装 Homebrew..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        # M1/M2 Mac 需要加到 PATH
+    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
+    export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
+    export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+fi
+
+# Homebrew
+if [ "$OS" = "Darwin" ]; then
+    command -v brew &>/dev/null || {
+        echo "安装 Homebrew（中科大镜像）..."
+        /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
         eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
-    fi
+    }
 fi
 
-# 1. Python3
-if command -v python3 &>/dev/null; then
-    echo "✓ Python3: $(python3 --version 2>&1)"
-else
-    echo "正在安装 Python3..."
-    if [ "$OS" = "Darwin" ]; then
-        brew install python3
-    else
-        sudo apt update && sudo apt install -y python3 python3-pip
-    fi
-fi
+# Python3
+command -v python3 &>/dev/null || {
+    echo "安装 Python3..."
+    [ "$OS" = "Darwin" ] && brew install python3 || sudo apt install -y python3 python3-pip
+}
+echo "✓ Python3"
 
-# 1.1 pip
+# pip
 python3 -m pip --version &>/dev/null || {
-    echo "正在安装 pip..."
-    if [ "$OS" = "Darwin" ]; then
-        python3 -m ensurepip --upgrade 2>/dev/null || brew install python3
-    else
-        sudo apt install -y python3-pip
-    fi
+    python3 -m ensurepip --upgrade 2>/dev/null || {
+        [ "$OS" = "Darwin" ] && brew install python3 || sudo apt install -y python3-pip
+    }
 }
 
-# 3. ffmpeg
-if command -v ffmpeg &>/dev/null; then
-    echo "✓ ffmpeg: $(ffmpeg -version 2>&1 | head -1)"
-else
-    echo "✗ ffmpeg 未安装"
-    if [ "$OS" = "Darwin" ]; then
-        echo "  正在安装..."
-        brew install ffmpeg
-    else
-        echo "  正在安装..."
-        sudo apt update && sudo apt install -y ffmpeg
-    fi
-fi
+# ffmpeg
+command -v ffmpeg &>/dev/null || {
+    echo "安装 ffmpeg..."
+    [ "$OS" = "Darwin" ] && brew install ffmpeg || sudo apt install -y ffmpeg
+}
+echo "✓ ffmpeg"
 
-# 4. Node.js + npm（QClaw运行环境）
-if command -v node &>/dev/null; then
-    echo "✓ Node.js: $(node --version)"
-else
-    echo "正在安装 Node.js..."
+# Node.js
+command -v node &>/dev/null || {
+    echo "安装 Node.js..."
     if [ "$OS" = "Darwin" ]; then
         brew install node
     else
+        curl -fsSL https://npmmirror.com/mirrors/node/latest-v20.x/SHASUMS256.txt >/dev/null 2>&1
         curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs
     fi
-fi
+}
+echo "✓ Node.js"
 
-if command -v npm &>/dev/null; then
-    echo "✓ npm: $(npm --version)"
-else
-    echo "正在安装 npm..."
-    if [ "$OS" = "Darwin" ]; then
-        brew install node
-    else
-        sudo apt install -y npm
-    fi
-fi
-
-# sharp（QClaw Agent读取图片需要）
-if node -e "require('sharp')" 2>/dev/null; then
-    echo "✓ sharp"
-else
+# sharp
+node -e "require('sharp')" 2>/dev/null || {
     echo "安装 sharp..."
-    npm install -g sharp 2>/dev/null || {
-        # 有些环境需要从源码编译
-        if [ "$OS" = "Darwin" ]; then
-            brew install vips 2>/dev/null
-        else
-            sudo apt install -y libvips-dev 2>/dev/null
-        fi
-        npm install -g sharp
+    npm install -g sharp --registry=https://registry.npmmirror.com 2>/dev/null || {
+        [ "$OS" = "Darwin" ] && brew install vips 2>/dev/null || sudo apt install -y libvips-dev 2>/dev/null
+        npm install -g sharp --registry=https://registry.npmmirror.com
     }
-    echo "✓ sharp 已安装"
-fi
+}
+echo "✓ sharp"
 
-# 5. Python依赖
-PIP_FLAGS=""
-if [ "$OS" = "Darwin" ]; then
-    PIP_FLAGS="--break-system-packages"
-fi
-
-for pkg in xlsxwriter lzstring easyocr; do
+# Python 依赖
+for pkg in xlsxwriter lzstring; do
     python3 -c "import $pkg" 2>/dev/null || {
         echo "安装 $pkg..."
-        python3 -m pip install $pkg $PIP_FLAGS -q 2>/dev/null || pip3 install $pkg -q
+        $PIP_CMD $pkg 2>/dev/null || pip3 install $PIP_MIRROR $pkg
     }
     echo "✓ $pkg"
 done
 
-# 5. git（deploy.py 需要 push 到 gh-pages）
-if command -v git &>/dev/null; then
-    echo "✓ git: $(git --version)"
-else
-    echo "✗ git 未安装"
-    if [ "$OS" = "Darwin" ]; then
-        echo "  安装方法: xcode-select --install"
-    else
-        echo "  安装方法: sudo apt install -y git"
-    fi
-fi
+# 腾讯云 OCR
+python3 -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
+    echo "安装腾讯云OCR SDK..."
+    $PIP_CMD tencentcloud-sdk-python 2>/dev/null || pip3 install $PIP_MIRROR tencentcloud-sdk-python
+}
+echo "✓ tencentcloud-sdk"
 
-# 7. 验证全部
-echo ""
-echo "=== 验证 ==="
-command -v python3 &>/dev/null && echo "✓ Python3 $(python3 --version 2>&1)" || echo "✗ Python3"
-command -v node &>/dev/null && echo "✓ Node.js $(node --version)" || echo "✗ Node.js"
-command -v npm &>/dev/null && echo "✓ npm $(npm --version)" || echo "✗ npm"
-command -v ffmpeg &>/dev/null && echo "✓ ffmpeg" || echo "✗ ffmpeg"
-command -v git &>/dev/null && echo "✓ git" || echo "✗ git"
-python3 -c "import xlsxwriter" 2>/dev/null && echo "✓ xlsxwriter" || echo "✗ xlsxwriter"
-python3 -c "import lzstring" 2>/dev/null && echo "✓ lzstring" || echo "✗ lzstring"
-node -e "require('sharp')" 2>/dev/null && echo "✓ sharp" || echo "✗ sharp"
+# Gemini
+python3 -c "from google import genai" 2>/dev/null || {
+    echo "安装 google-genai..."
+    $PIP_CMD google-genai 2>/dev/null || pip3 install $PIP_MIRROR google-genai
+}
+echo "✓ google-genai"
+
+# git
+command -v git &>/dev/null || {
+    [ "$OS" = "Darwin" ] && xcode-select --install 2>/dev/null || sudo apt install -y git
+}
+echo "✓ git"
 
 echo ""
-echo "✅ 环境就绪！store-diagnosis skill 可以正常使用。"
-echo ""
-echo "工具列表："
-echo "  extract_frames.py — 视频提帧+采样"
-echo "  deploy.py         — 生成公网链接"
-echo "  write_excel.py    — JSON→Excel（备用）"
-echo "  save_reference.py — 参考店铺库"
+echo "✅ store-diagnosis 环境就绪"

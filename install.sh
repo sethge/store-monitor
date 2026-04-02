@@ -1,5 +1,6 @@
 #!/bin/bash
 # 食亨智慧运营 — Agent安装脚本
+# 所有下载走国内镜像，不依赖梯子
 # 用法: cd store-monitor && bash install.sh
 
 set -e
@@ -8,30 +9,43 @@ QCLAW_DIR="$HOME/.qclaw"
 
 echo "安装食亨智慧运营Agent..."
 
-# 1. 检查QClaw
+# ─── 0. 国内镜像配置 ───
+PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
+PIP_CMD="pip3 install $PIP_MIRROR --break-system-packages"
+GIT_MIRROR="https://ghfast.top"  # GitHub 加速
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
+    export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
+    export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+fi
+
+# ─── 1. 检查QClaw ───
 if [ ! -d "$QCLAW_DIR" ]; then
     echo "❌ 没找到QClaw，请先安装QClaw"
     exit 1
 fi
 echo "✓ QClaw已安装"
 
-# 2. 安装Brain（集体知识库）
+# ─── 2. 安装Brain（集体知识库）───
 echo "安装Brain（运营知识库）..."
 if [ ! -d "$HOME/wisdom-brain" ]; then
+    # 先试加速镜像，失败用原地址
+    git clone "${GIT_MIRROR}/https://github.com/sethge/wisdom-brain.git" "$HOME/wisdom-brain" 2>/dev/null || \
     git clone https://github.com/sethge/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
         echo "  ✓ wisdom-brain 已克隆" || \
-        echo "  ⚠ wisdom-brain 克隆失败，请检查网络"
+        echo "  ⚠ wisdom-brain 克隆失败（不影响基础功能）"
 else
     cd "$HOME/wisdom-brain" && git pull --quiet 2>/dev/null
     echo "  ✓ wisdom-brain 已更新"
 fi
-# 链接到项目目录
 if [ ! -L "$SCRIPT_DIR/wisdom-brain" ]; then
     ln -sf "$HOME/wisdom-brain" "$SCRIPT_DIR/wisdom-brain"
     echo "  ✓ 链接 wisdom-brain"
 fi
 
-# 3. 安装skills（软链接，git pull自动更新）
+# ─── 3. 安装skills（软链接，git pull自动更新）───
 echo "安装skills..."
 mkdir -p "$QCLAW_DIR/skills"
 for skill in store-patrol store-alert store-diagnosis ops-scheduler setup; do
@@ -41,14 +55,13 @@ for skill in store-patrol store-alert store-diagnosis ops-scheduler setup; do
         echo "  ✓ $skill → 链接"
     fi
 done
-# 主 SKILL.md（巡检）
 if [ -f "$SCRIPT_DIR/skills/SKILL.md" ]; then
     rm -f "$QCLAW_DIR/skills/SKILL.md"
     ln -sf "$SCRIPT_DIR/skills/SKILL.md" "$QCLAW_DIR/skills/SKILL.md"
     echo "  ✓ SKILL.md → 链接"
 fi
 
-# 3. 安装agent配置（不覆盖已有的）
+# ─── 4. 安装agent配置（不覆盖已有的）───
 echo "安装agent配置..."
 WORKSPACE="$QCLAW_DIR/workspace"
 for f in SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md; do
@@ -56,38 +69,47 @@ for f in SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md; do
         cp "$SCRIPT_DIR/agent-config/$f" "$WORKSPACE/"
         echo "  ✓ $f"
     else
-        echo "  ⏭ $f（已存在，跳过。用 --force 覆盖）"
+        echo "  ⏭ $f（已存在，跳过）"
     fi
 done
-
-# knowledge目录
 if [ ! -d "$WORKSPACE/knowledge" ] || [ "$1" = "--force" ]; then
     cp -r "$SCRIPT_DIR/agent-config/knowledge" "$WORKSPACE/"
     echo "  ✓ knowledge/"
 fi
-
-# 4. 链接store-monitor到workspace（如果不在的话）
 if [ ! -d "$WORKSPACE/store-monitor" ]; then
     ln -s "$SCRIPT_DIR" "$WORKSPACE/store-monitor"
-    echo "  ✓ 链接store-monitor到workspace"
+    echo "  ✓ 链接store-monitor"
 fi
 
-# 5. 配置国内镜像（pip + brew）
-PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
-PIP_CMD="pip3 install $PIP_MIRROR --break-system-packages"
-# brew 镜像
+# ─── 5. Homebrew（Mac）───
 if [ "$(uname -s)" = "Darwin" ]; then
-    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
-    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
-    export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
-    export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+    command -v brew &>/dev/null || {
+        echo "安装 Homebrew（中科大镜像）..."
+        /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
+        eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
+    }
 fi
 
-# 6. Python依赖
+# ─── 6. ffmpeg ───
+command -v ffmpeg &>/dev/null || {
+    echo "安装ffmpeg..."
+    if [ "$(uname -s)" = "Darwin" ]; then
+        brew install ffmpeg
+    else
+        sudo apt update && sudo apt install -y ffmpeg 2>/dev/null
+    fi
+}
+echo "  ✓ ffmpeg"
+
+# ─── 7. Python依赖（全部清华镜像）───
 echo "检查Python依赖..."
+
+# playwright + chromium
 python3 -c "import playwright" 2>/dev/null || {
     echo "安装playwright..."
     $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
+    # Chromium 用淘宝镜像下载
+    PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
     playwright install chromium
 }
 echo "  ✓ playwright"
@@ -100,39 +122,26 @@ for pkg in xlsxwriter lzstring; do
     echo "  ✓ $pkg"
 done
 
-# 7. ffmpeg（竞对视频提帧）
-command -v ffmpeg &>/dev/null || {
-    echo "安装ffmpeg..."
-    if [ "$(uname -s)" = "Darwin" ]; then
-        brew install ffmpeg
-    else
-        sudo apt update && sudo apt install -y ffmpeg 2>/dev/null
-    fi
-}
-echo "  ✓ ffmpeg"
-
-# 8. 视频诊断依赖
+# 腾讯云 OCR SDK
 python3 -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
     echo "安装腾讯云OCR SDK..."
     $PIP_CMD tencentcloud-sdk-python 2>/dev/null || pip3 install $PIP_MIRROR tencentcloud-sdk-python
 }
 echo "  ✓ tencentcloud-sdk"
 
-# 9. 学习引擎依赖
-echo "检查学习引擎依赖..."
+# Gemini SDK
 python3 -c "from google import genai" 2>/dev/null || {
     echo "安装google-genai..."
     $PIP_CMD google-genai 2>/dev/null || pip3 install $PIP_MIRROR google-genai
 }
 echo "  ✓ google-genai"
 
-# 9. 初始化memory目录
+# ─── 8. 初始化memory目录 ───
 mkdir -p "$SCRIPT_DIR/memory/interactions"
 mkdir -p "$SCRIPT_DIR/memory/pending_review"
 echo "  ✓ memory目录"
 
-# 10. 注册内置定时任务（heartbeat）
-echo "注册heartbeat定时任务..."
+# ─── 9. 注册heartbeat定时任务 ───
 HEARTBEAT_CRON="$SCRIPT_DIR/.heartbeat_cron.json"
 cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 {
@@ -144,7 +153,7 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
     "wakeMode": "now",
     "payload": {
       "kind": "agentTurn",
-      "message": "现在是下班时间，做今天的heartbeat。\n\n1. 检查 memory/interactions/ 里有没有新的交互日志（对比 memory/.last_digest 的日期）\n2. 有新交互 → 运行 cd /Users/seth/.qclaw/workspace/store-monitor && python3 learn.py digest\n3. digest 有发现 → 运行 python3 learn.py submit\n4. 如果今天是周一 → 额外运行 python3 learn.py weekly\n5. 没有新交互 → 什么都不用做\n\n把结果简要告诉Seth。",
+      "message": "现在是下班时间，做今天的heartbeat。\n\n1. 检查 memory/interactions/ 里有没有新的交互日志（对比 memory/.last_digest 的日期）\n2. 有新交互 → 运行 cd ~/.qclaw/workspace/store-monitor && python3 learn.py digest\n3. digest 有发现 → 运行 python3 learn.py submit\n4. 如果今天是周一 → 额外运行 python3 learn.py weekly\n5. 没有新交互 → 什么都不用做",
       "deliver": true,
       "channel": "wechat-access",
       "bestEffortDeliver": true
@@ -152,7 +161,7 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
   }
 }
 CRONEOF
-echo "  ✓ heartbeat定时任务配置已生成: .heartbeat_cron.json"
+echo "  ✓ heartbeat定时任务"
 
 echo ""
 echo "✅ 安装完成！"
@@ -164,4 +173,3 @@ echo "  3. 打开 bi.shihengtech.com 登录食亨"
 echo "  4. 重启QClaw让它加载新skills"
 echo ""
 echo "之后在微信里跟agent说话就行了。"
-echo "heartbeat（每天17:30自动总结）已内置，不需要额外配置。"
