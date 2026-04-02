@@ -94,7 +94,20 @@ if [ "$(uname -s)" = "Darwin" ]; then
     }
 fi
 
-# ─── 6. ffmpeg（可选，有就用，没有自动用opencv替代）───
+# ─── 6. 浏览器（Chromium优先，不自动更新）───
+if [ "$(uname -s)" = "Darwin" ]; then
+    if [ -d "/Applications/Chromium.app" ]; then
+        echo "  ✓ Chromium 已安装"
+    elif command -v brew &>/dev/null; then
+        echo "安装 Chromium（不会自动更新，比Chrome稳定）..."
+        brew install --cask chromium 2>/dev/null && echo "  ✓ Chromium 已安装" || \
+        echo "  ⚠ Chromium 安装失败，请手动下载: https://github.com/nicehash/Chromium/releases"
+    else
+        echo "  ⚠ 请安装 Chromium: https://github.com/nicehash/Chromium/releases"
+    fi
+fi
+
+# ─── 7. ffmpeg（可选，有就用，没有自动用opencv替代）───
 command -v ffmpeg &>/dev/null && echo "  ✓ ffmpeg" || {
     echo "  ⏭ ffmpeg 未安装（自动使用opencv替代，不影响功能）"
 }
