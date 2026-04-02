@@ -38,11 +38,10 @@
       "js": ["content_script.js"],
       "all_frames": true,
       "run_at": "document_start",
-      "match_about_blank": false
+      "match_origin_as_fallback": true
     }
   ],
   "host_permissions": ["*://*/*"],
-  "optional_host_permissions": [],
   "externally_connectable": {
     "matches": ["*://*/*"]
   },
@@ -57,7 +56,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:8000; object-src 'self';",
-    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://127.0.0.1:8000; object-src 'self';"
   }
 }
