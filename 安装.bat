@@ -84,6 +84,21 @@ if not exist "%WORKSPACE%\knowledge" (
     echo   ✓ knowledge/
 )
 
+:: 安装 skills（覆盖旧文件，确保最新）
+echo 安装skills...
+set SKILLS_DIR=%USERPROFILE%\.qclaw\skills
+if not exist "%SKILLS_DIR%" mkdir "%SKILLS_DIR%"
+for %%s in (store-alert store-diagnosis ops-scheduler setup) do (
+    if exist "skills\%%s" (
+        xcopy /E /I /Y /Q "skills\%%s" "%SKILLS_DIR%\%%s" >nul
+        echo   ✓ %%s
+    )
+)
+if exist "skills\SKILL.md" (
+    copy /Y "skills\SKILL.md" "%SKILLS_DIR%\SKILL.md" >nul
+    echo   ✓ SKILL.md
+)
+
 :: Python 依赖
 echo 检查Python依赖...
 python -c "import playwright" 2>nul || (
@@ -107,6 +122,11 @@ python -c "from google import genai" 2>nul || (
     pip install google-genai 2>nul
 )
 echo   ✓ google-genai
+
+python -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>nul || (
+    pip install tencentcloud-sdk-python 2>nul
+)
+echo   ✓ tencentcloud-sdk
 
 :: 初始化 memory 目录
 if not exist "memory\interactions" mkdir "memory\interactions"
