@@ -1,6 +1,7 @@
 data/
 __pycache__/
 *.png
+!goku/icons/*.png
 *.pyc
 brands.txt
 /tmp/
