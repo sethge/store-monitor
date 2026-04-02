@@ -48,7 +48,7 @@ if (Test-Path "$INSTALL_DIR\.git") {
     git pull origin feature/watch-mode
 } else {
     Write-Host "下载代码..."
-    git clone -b feature/watch-mode https://github.com/sethge/store-monitor.git $INSTALL_DIR
+    git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git $INSTALL_DIR
     Set-Location $INSTALL_DIR
 }
 

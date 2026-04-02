@@ -52,8 +52,8 @@ if exist "%INSTALL_DIR%\.git" (
     git pull origin feature/watch-mode
 ) else (
     echo 下载代码...
-    git clone -b feature/watch-mode %GIT_MIRROR%/https://github.com/sethge/store-monitor.git "%INSTALL_DIR%" 2>nul || (
-        git clone -b feature/watch-mode https://github.com/sethge/store-monitor.git "%INSTALL_DIR%"
+    git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git "%INSTALL_DIR%" 2>nul || (
+        git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git "%INSTALL_DIR%"
     )
     cd /d "%INSTALL_DIR%"
 )
@@ -61,8 +61,8 @@ if exist "%INSTALL_DIR%\.git" (
 :: 安装 Brain
 echo 安装Brain...
 if not exist "%USERPROFILE%\wisdom-brain\.git" (
-    git clone %GIT_MIRROR%/https://github.com/sethge/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul || (
-        git clone https://github.com/sethge/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul
+    git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul || (
+        git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul
     )
     echo   ✓ wisdom-brain
 ) else (

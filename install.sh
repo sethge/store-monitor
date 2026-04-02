@@ -32,8 +32,8 @@ echo "✓ QClaw已安装"
 echo "安装Brain（运营知识库）..."
 if [ ! -d "$HOME/wisdom-brain" ]; then
     # 先试加速镜像，失败用原地址
-    git clone "${GIT_MIRROR}/https://github.com/sethge/wisdom-brain.git" "$HOME/wisdom-brain" 2>/dev/null || \
-    git clone https://github.com/sethge/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
+    git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null || \
+    git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
         echo "  ✓ wisdom-brain 已克隆" || \
         echo "  ⚠ wisdom-brain 克隆失败（不影响基础功能）"
 else

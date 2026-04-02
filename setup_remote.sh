@@ -39,7 +39,7 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     git pull origin feature/watch-mode
 else
     echo "下载代码..."
-    git clone -b feature/watch-mode https://github.com/sethge/store-monitor.git "$INSTALL_DIR"
+    git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
 
