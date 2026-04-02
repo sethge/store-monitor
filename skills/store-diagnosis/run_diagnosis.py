@@ -111,10 +111,10 @@ def main():
         json.dump(competitors, f, ensure_ascii=False, indent=2)
     print(f"\n  数据已保存: {json_path}", file=sys.stderr)
 
-    # Step 4: 生成链接
+    # Step 4: 生成链接（本地服务器，不依赖外部平台）
     print("", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
-    print("Step 4/4: 生成公网链接", file=sys.stderr)
+    print("Step 4/4: 生成链接", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
 
     try:
@@ -129,9 +129,34 @@ def main():
 
     json_str = json.dumps(competitors, ensure_ascii=False, separators=(',', ':'))
     encoded = compress(json_str)
-    url = f"https://sethgeshiheng.gitee.io/store-monitor/#{encoded}"
 
-    print(f"\n  链接已生成", file=sys.stderr)
+    # 启动本地服务器
+    import threading, socket
+    from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+    web_dir = str(SCRIPT_DIR / "web")
+    port = 18890
+    for p in range(port, port + 100):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(('127.0.0.1', p))
+            s.close()
+            port = p
+            break
+        except OSError:
+            continue
+
+    def serve():
+        os.chdir(web_dir)
+        handler = SimpleHTTPRequestHandler
+        handler.log_message = lambda *a: None
+        HTTPServer(('127.0.0.1', port), handler).serve_forever()
+
+    threading.Thread(target=serve, daemon=True).start()
+
+    url = f"http://127.0.0.1:{port}/index.html#{encoded}"
+
+    print(f"\n  链接已生成（本地服务器端口 {port}）", file=sys.stderr)
     print("", file=sys.stderr)
 
     # 唯一输出到stdout的是链接
