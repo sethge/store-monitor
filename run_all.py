@@ -334,16 +334,10 @@ async def main():
     print(f"共 {len(enabled_stores)} 家店铺")
     print(f"{'#'*50}")
 
-    try:
-        ws_url = get_ws_url(port)
-    except Exception as e:
-        print(f"❌ Chrome未连接: {e}")
-        return
-
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
     try:
-        browser = await pw.chromium.connect_over_cdp(ws_url)
-        context = browser.contexts[0]
+        browser, context = await launch_browser(pw, port)
         page = context.pages[0]
 
         results = []

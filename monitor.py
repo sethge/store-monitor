@@ -646,19 +646,13 @@ async def run_check():
     print(f"开始巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*50}")
 
-    try:
-        ws_url = get_ws_url()
-    except Exception as e:
-        print(f"❌ 连接Chrome失败: {e}")
-        return
-
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
     try:
-        browser = await pw.chromium.connect_over_cdp(ws_url)
-        context = browser.contexts[0]
+        browser, context = await launch_browser(pw)
         page = context.pages[0]
 
-        print(f"✅ 已连接Chrome - {await page.title()}")
+        print(f"✅ 已连接浏览器 - {await page.title()}")
 
         # 检测是否有饿了么页面，有则一并巡检
         has_eleme = any('ele.me' in p.url for p in context.pages)

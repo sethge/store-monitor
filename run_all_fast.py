@@ -30,15 +30,9 @@ async def get_all_brands(ext):
 
 
 async def main():
-    r = subprocess.run(["curl","--noproxy","localhost","-s","http://localhost:9222/json/version"], capture_output=True, text=True, timeout=5)
-    if r.returncode != 0:
-        print("❌ Chrome调试端口未响应，请先启动Chrome调试模式")
-        return
-
-    ws = json.loads(r.stdout)["webSocketDebuggerUrl"]
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    b = await pw.chromium.connect_over_cdp(ws)
-    ctx = b.contexts[0]
+    b, ctx = await launch_browser(pw)
 
     ext = await get_ext(ctx)
     brands = await get_all_brands(ext)

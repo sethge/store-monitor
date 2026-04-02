@@ -700,33 +700,9 @@ async def main():
         return
 
     port = int(os.environ.get("CHROME_PORT", "9222"))
-    r = subprocess.run(["curl","--noproxy","localhost","-s",f"http://localhost:{port}/json/version"], capture_output=True, text=True, timeout=5)
-    if r.returncode != 0 or not r.stdout:
-        # 自动启动干净Chrome
-        print(f"Chrome调试端口{port}未响应，自动启动...")
-        chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        ext_path = str(Path(__file__).parent / "goku")
-        user_dir = f"/tmp/store-monitor-chrome-{port}"
-        # 清理旧目录避免同步扩展
-        import shutil
-        shutil.rmtree(user_dir, ignore_errors=True)
-        subprocess.Popen([
-            chrome_path,
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={user_dir}",
-            f"--disable-extensions-except={ext_path}",
-            f"--load-extension={ext_path}",
-            "--no-first-run",
-            "--disable-default-apps",
-            "--disable-sync",
-            "--no-default-browser-check"
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        await asyncio.sleep(4)
-        r = subprocess.run(["curl","--noproxy","localhost","-s",f"http://localhost:{port}/json/version"], capture_output=True, text=True, timeout=5)
-    ws = json.loads(r.stdout)["webSocketDebuggerUrl"]
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    b = await pw.chromium.connect_over_cdp(ws)
-    ctx = b.contexts[0]
+    b, ctx = await launch_browser(pw, port)
 
     if args.watch_once:
         # === 单轮预警模式（cron调度用，跑一轮就退出） ===

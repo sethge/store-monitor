@@ -1,49 +1,51 @@
 #!/bin/bash
-# 盯店巡检一键启动
+# 盯店巡检 — 手动启动浏览器（一般不需要，agent会自动启动）
+# 仅在需要手动调试时使用
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT=9222
 
-# ===== 1. 找浏览器 =====
-if [ -d "/Applications/Chromium.app" ]; then
-    BROWSER="Chromium"
-elif [ -d "/Applications/Google Chrome.app" ]; then
-    BROWSER="Google Chrome"
-else
-    echo "❌ 没找到浏览器，请先安装 Chromium"
+# 检查是否已有浏览器在跑
+if curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
+    echo "✓ 浏览器已在运行 (端口$PORT)"
+    exit 0
+fi
+
+echo "启动浏览器..."
+# 用playwright自带的chromium
+CHROME_BIN=$(python3 -c "
+import glob, os
+paths = glob.glob(os.path.expanduser('~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'))
+if paths: print(sorted(paths)[-1])
+" 2>/dev/null)
+
+if [ -z "$CHROME_BIN" ]; then
+    echo "❌ 没找到playwright自带的chromium，请先运行: playwright install chromium"
     exit 1
 fi
-echo "浏览器: $BROWSER"
 
-# ===== 2. 确保调试端口开着 =====
-if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
-    echo "启动浏览器..."
-    # 创建用户目录（避免路径不存在）
-    USER_DATA="$HOME/chromium-debug"
-    mkdir -p "$USER_DATA"
-    # 直接跑二进制，open -a 传参不可靠
-    if [ "$BROWSER" = "Chromium" ]; then
-        /Applications/Chromium.app/Contents/MacOS/Chromium --remote-debugging-port=$PORT --user-data-dir="$USER_DATA" --proxy-server=direct:// &
-    else
-        /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=$PORT --user-data-dir="$USER_DATA" --proxy-server=direct:// &
+EXT_PATH="$SCRIPT_DIR/goku"
+USER_DATA="$HOME/chromium-debug"
+mkdir -p "$USER_DATA"
+
+"$CHROME_BIN" \
+    --remote-debugging-port=$PORT \
+    --user-data-dir="$USER_DATA" \
+    --disable-extensions-except="$EXT_PATH" \
+    --load-extension="$EXT_PATH" \
+    --no-first-run \
+    --disable-default-apps \
+    --disable-sync \
+    --no-default-browser-check &
+
+for i in $(seq 1 15); do
+    sleep 1
+    if curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
+        echo "✓ 浏览器就绪 (端口$PORT)"
+        exit 0
     fi
-    # 等浏览器启动
-    for i in $(seq 1 15); do
-        sleep 1
-        if curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
-            echo "✓ 调试端口已连接"
-            break
-        fi
-        echo "  等待浏览器启动...($i)"
-    done
-fi
+    echo "  等待启动...($i)"
+done
 
-# 最终确认
-if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
-    echo "❌ 浏览器调试端口启动失败"
-    echo "请手动关掉所有浏览器窗口，再重新运行"
-    exit 1
-fi
-
-echo "✓ 浏览器就绪"
-echo ""
+echo "❌ 启动失败"
+exit 1

@@ -324,11 +324,9 @@ async def run_brand(ctx, brand):
 async def main():
     brands = sys.argv[1:] if len(sys.argv)>1 else ["仙云居小笼包（宝山店）"]
 
-    r = subprocess.run(["curl","--noproxy","localhost","-s","http://localhost:9222/json/version"], capture_output=True, text=True, timeout=5)
-    ws = json.loads(r.stdout)["webSocketDebuggerUrl"]
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    b = await pw.chromium.connect_over_cdp(ws)
-    ctx = b.contexts[0]
+    b, ctx = await launch_browser(pw)
 
     t0 = time.time()
     print(f"盯店巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')} | {len(brands)}个品牌")

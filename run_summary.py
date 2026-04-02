@@ -85,11 +85,9 @@ async def main():
         print("用法: python3 run_summary.py 品牌1 品牌2 ...")
         return
 
-    r = subprocess.run(["curl","--noproxy","localhost","-s","http://localhost:9222/json/version"], capture_output=True, text=True, timeout=5)
-    ws = json.loads(r.stdout)["webSocketDebuggerUrl"]
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    b = await pw.chromium.connect_over_cdp(ws)
-    ctx = b.contexts[0]
+    b, ctx = await launch_browser(pw)
 
     t0 = time.time()
     print(f"盯店快速巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')} | {len(brands)}个品牌")

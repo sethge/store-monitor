@@ -92,26 +92,9 @@ if [ "$(uname -s)" = "Darwin" ]; then
     }
 fi
 
-# ─── 6. 浏览器（Chromium优先，不自动更新）───
-COS_BASE="https://11-store-report-1255918156.cos.ap-shanghai.myqcloud.com/tools"
-
-if [ "$(uname -s)" = "Darwin" ]; then
-    if [ -d "/Applications/Chromium.app" ]; then
-        echo "  ✓ Chromium 已安装"
-    else
-        echo "安装 Chromium（从国内下载，不会自动更新）..."
-        curl -L --noproxy "*" "$COS_BASE/chromium_27957.zip" -o /tmp/chromium-mac.zip --max-time 600 -# && \
-        unzip -q -o /tmp/chromium-mac.zip -d /tmp/chromium-install/ && \
-        cp -R /tmp/chromium-install/chrome-mac/Chromium.app /Applications/ && \
-        chmod +x /Applications/Chromium.app/Contents/MacOS/Chromium && \
-        rm -rf /tmp/chromium-mac.zip /tmp/chromium-install/ && \
-        echo "  ✓ Chromium 已安装到 /Applications/" || \
-        echo "  ⚠ Chromium 安装失败，请联系管理员"
-    fi
-else
-    # Windows 在 安装.bat 里处理
-    echo "  ⏭ Windows 浏览器在 安装.bat 中处理"
-fi
+# ─── 6. 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
+# 不需要单独安装浏览器，playwright install chromium 会自动下载
+echo "  ✓ 浏览器由playwright自带（不受系统Chrome升级影响）"
 
 # ─── 7. ffmpeg（可选，有就用，没有自动用opencv替代）───
 command -v ffmpeg &>/dev/null && echo "  ✓ ffmpeg" || {
@@ -128,15 +111,22 @@ python3 -c "import cv2" 2>/dev/null || {
 }
 echo "  ✓ opencv"
 
-# playwright（锁定1.44.0，1.58.0跟CDP有兼容问题）
-PLAYWRIGHT_VER="1.44.0"
-python3 -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
-    echo "安装playwright==$PLAYWRIGHT_VER..."
-    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || pip3 install $PIP_MIRROR "playwright==$PLAYWRIGHT_VER"
-    PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
-    playwright install chromium
+# playwright + 自带chromium（版本锁定，不受系统Chrome升级影响）
+python3 -c "import playwright" 2>/dev/null || {
+    echo "安装playwright..."
+    $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
 }
-echo "  ✓ playwright ($PLAYWRIGHT_VER)"
+# 确保chromium已下载
+python3 -c "
+from playwright._impl._driver import compute_driver_executable
+import subprocess, os
+drv = compute_driver_executable()
+# 检查chromium是否已安装
+r = subprocess.run([str(drv[0]), 'install', '--dry-run', 'chromium'], capture_output=True, text=True)
+" 2>/dev/null
+PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
+playwright install chromium 2>/dev/null || echo "  ⚠ chromium下载跳过（可能已存在）"
+echo "  ✓ playwright + chromium"
 
 for pkg in xlsxwriter lzstring cos-python-sdk-v5; do
     python3 -c "import $pkg" 2>/dev/null || {
@@ -187,23 +177,12 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 CRONEOF
 echo "  ✓ heartbeat定时任务"
 
-# ─── 10. 禁止Chrome自动更新（146跟悟空插件不兼容）───
-if [ "$(uname -s)" = "Darwin" ]; then
-    defaults write com.google.Keystone.Agent checkInterval 0 2>/dev/null
-    defaults write com.google.Chrome DisableAutoUpdate -bool true 2>/dev/null
-    sudo rm -rf /Library/Google/GoogleSoftwareUpdate 2>/dev/null
-    rm -rf ~/Library/Google/GoogleSoftwareUpdate 2>/dev/null
-    echo "  ✓ Chrome自动更新已禁止"
-fi
-
 echo ""
 echo "✅ 安装完成！"
 echo ""
 echo "接下来需要手动做："
-echo "  1. 安装 Chromium（推荐，不会自动更新）或用 Chrome 145"
-echo "  2. 双击「盯店巡检.command」启动浏览器"
-echo "  3. 加载悟空插件（chrome://extensions → 加载 goku 文件夹）"
-echo "  4. 打开 bi.shihengtech.com 登录食亨"
-echo "  5. 重启QClaw"
+echo "  1. 打开 bi.shihengtech.com 登录食亨"
+echo "  2. 重启QClaw"
 echo ""
 echo "之后在微信里跟agent说话就行了。"
+echo "（浏览器会自动启动，悟空插件自动加载，不需要手动操作）"

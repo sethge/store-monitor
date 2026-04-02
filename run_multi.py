@@ -189,11 +189,9 @@ def print_mt_report(name, scores, msgs, acts):
 
 
 async def main():
-    result = subprocess.run(["curl","--noproxy","localhost","-s","http://localhost:9222/json/version"], capture_output=True, text=True, timeout=5)
-    ws_url = json.loads(result.stdout)["webSocketDebuggerUrl"]
+    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    browser = await pw.chromium.connect_over_cdp(ws_url)
-    ctx = browser.contexts[0]
+    browser, ctx = await launch_browser(pw)
 
     import monitor
     from monitor_eleme import scrape_eleme, format_eleme_report

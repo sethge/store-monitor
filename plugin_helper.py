@@ -8,6 +8,7 @@ from collections import defaultdict
 KNOWN_EXT_IDS = [
     "ghppggbdmkaicdgohkkdaebbpcochkfe",
     "kocmiihdllcmbjanolpggoafghdfnglg",
+    "imnjpdamkohlnjmnlfngaoogfnahlldd",
 ]
 EXT_ID = KNOWN_EXT_IDS[0]
 
