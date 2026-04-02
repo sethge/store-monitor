@@ -21,8 +21,12 @@ if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null
     # 创建用户目录（避免路径不存在）
     USER_DATA="$HOME/chromium-debug"
     mkdir -p "$USER_DATA"
-    # 用 open -a 启动，避免路径空格问题
-    open -a "$BROWSER" --args --remote-debugging-port=$PORT --user-data-dir="$USER_DATA" --proxy-server=direct://
+    # 直接跑二进制，open -a 传参不可靠
+    if [ "$BROWSER" = "Chromium" ]; then
+        /Applications/Chromium.app/Contents/MacOS/Chromium --remote-debugging-port=$PORT --user-data-dir="$USER_DATA" --proxy-server=direct:// &
+    else
+        /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=$PORT --user-data-dir="$USER_DATA" --proxy-server=direct:// &
+    fi
     # 等浏览器启动
     for i in $(seq 1 15); do
         sleep 1
