@@ -61,17 +61,21 @@ if [ -f "$SCRIPT_DIR/skills/SKILL.md" ]; then
     echo "  ✓ SKILL.md → 链接"
 fi
 
-# ─── 4. 安装agent配置（不覆盖已有的）───
+# ─── 4. 安装agent配置（人格文件强制覆盖，确保是我们的风格）───
 echo "安装agent配置..."
 WORKSPACE="$QCLAW_DIR/workspace"
-for f in SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md; do
-    if [ ! -f "$WORKSPACE/$f" ] || [ "$1" = "--force" ]; then
-        cp "$SCRIPT_DIR/agent-config/$f" "$WORKSPACE/"
-        echo "  ✓ $f"
-    else
-        echo "  ⏭ $f（已存在，跳过）"
-    fi
+# 人格文件必须覆盖（SOUL/BRAIN/USER/HEARTBEAT），不然QClaw默认风格会覆盖我们的
+for f in SOUL.md BRAIN.md USER.md HEARTBEAT.md; do
+    cp "$SCRIPT_DIR/agent-config/$f" "$WORKSPACE/"
+    echo "  ✓ $f（已覆盖）"
 done
+# MEMORY.md 不覆盖（运营个人记忆）
+if [ ! -f "$WORKSPACE/MEMORY.md" ]; then
+    cp "$SCRIPT_DIR/agent-config/MEMORY.md" "$WORKSPACE/"
+    echo "  ✓ MEMORY.md（新建）"
+else
+    echo "  ⏭ MEMORY.md（保留个人记忆）"
+fi
 if [ ! -d "$WORKSPACE/knowledge" ] || [ "$1" = "--force" ]; then
     cp -r "$SCRIPT_DIR/agent-config/knowledge" "$WORKSPACE/"
     echo "  ✓ knowledge/"
