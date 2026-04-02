@@ -3,7 +3,14 @@ chcp 65001 >nul
 title 盯店巡检
 
 set SCRIPT_DIR=%~dp0
-set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+:: 优先 Chromium，没有就用 Chrome
+if exist "C:\Program Files\Chromium\Application\chrome.exe" (
+    set CHROME="C:\Program Files\Chromium\Application\chrome.exe"
+) else if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
+    set CHROME="%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+) else (
+    set CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"
+)
 set PORT=9222
 
 :: ===== 1. 检查Python =====
