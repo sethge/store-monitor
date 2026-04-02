@@ -11,12 +11,18 @@ if ! command -v python3 &>/dev/null; then
     brew install python
 fi
 
-python3 -c "import playwright" 2>/dev/null
+python3 -c "import playwright; assert playwright.__version__=='1.44.0'" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "安装Playwright..."
-    pip3 install --break-system-packages playwright
-    playwright install chromium
+    echo "安装Playwright 1.44.0..."
+    pip3 install --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn playwright==1.44.0
+    PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || playwright install chromium
 fi
+
+# ===== 禁止Chrome自动更新 =====
+defaults write com.google.Keystone.Agent checkInterval 0 2>/dev/null
+defaults write com.google.Chrome DisableAutoUpdate -bool true 2>/dev/null
+sudo rm -rf /Library/Google/GoogleSoftwareUpdate 2>/dev/null
+rm -rf ~/Library/Google/GoogleSoftwareUpdate 2>/dev/null
 
 # ===== 2. 启动Chrome调试模式 =====
 if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then

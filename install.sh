@@ -168,6 +168,15 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 CRONEOF
 echo "  ✓ heartbeat定时任务"
 
+# ─── 10. 禁止Chrome自动更新（146跟悟空插件不兼容）───
+if [ "$(uname -s)" = "Darwin" ]; then
+    defaults write com.google.Keystone.Agent checkInterval 0 2>/dev/null
+    defaults write com.google.Chrome DisableAutoUpdate -bool true 2>/dev/null
+    sudo rm -rf /Library/Google/GoogleSoftwareUpdate 2>/dev/null
+    rm -rf ~/Library/Google/GoogleSoftwareUpdate 2>/dev/null
+    echo "  ✓ Chrome自动更新已禁止"
+fi
+
 echo ""
 echo "✅ 安装完成！"
 echo ""
