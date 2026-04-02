@@ -72,52 +72,57 @@ if [ ! -d "$WORKSPACE/store-monitor" ]; then
     echo "  ✓ 链接store-monitor到workspace"
 fi
 
-# 5. Python依赖
+# 5. 配置国内镜像（pip + brew）
+PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
+PIP_CMD="pip3 install $PIP_MIRROR --break-system-packages"
+# brew 镜像
+if [ "$(uname -s)" = "Darwin" ]; then
+    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
+    export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
+    export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+fi
+
+# 6. Python依赖
 echo "检查Python依赖..."
 python3 -c "import playwright" 2>/dev/null || {
     echo "安装playwright..."
-    pip3 install playwright
+    $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
     playwright install chromium
 }
 echo "  ✓ playwright"
 
-python3 -c "import xlsxwriter" 2>/dev/null || {
-    echo "安装xlsxwriter（竞对分析Excel）..."
-    pip3 install xlsxwriter --break-system-packages 2>/dev/null || pip3 install xlsxwriter
-}
-echo "  ✓ xlsxwriter"
+for pkg in xlsxwriter lzstring; do
+    python3 -c "import $pkg" 2>/dev/null || {
+        echo "安装 $pkg..."
+        $PIP_CMD $pkg 2>/dev/null || pip3 install $PIP_MIRROR $pkg
+    }
+    echo "  ✓ $pkg"
+done
 
-python3 -c "import lzstring" 2>/dev/null || {
-    echo "安装lzstring（竞对链接生成）..."
-    pip3 install lzstring --break-system-packages 2>/dev/null || pip3 install lzstring
-}
-echo "  ✓ lzstring"
-
-# 6. ffmpeg（竞对视频提帧）
+# 7. ffmpeg（竞对视频提帧）
 command -v ffmpeg &>/dev/null || {
     echo "安装ffmpeg..."
     if [ "$(uname -s)" = "Darwin" ]; then
         brew install ffmpeg
     else
-        sudo apt update && sudo apt install -y ffmpeg
+        sudo apt update && sudo apt install -y ffmpeg 2>/dev/null
     fi
 }
 echo "  ✓ ffmpeg"
 
-# 7. 竞对诊断配置文件
-DIAG_CONFIG="$SCRIPT_DIR/skills/store-diagnosis/config.json"
-if [ ! -f "$DIAG_CONFIG" ]; then
-    echo "  ⚠ 竞对诊断需要 config.json，请联系管理员获取"
-    echo "  文件位置: $DIAG_CONFIG"
-else
-    echo "  ✓ 竞对诊断配置已存在"
-fi
+# 8. 视频诊断依赖
+python3 -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
+    echo "安装腾讯云OCR SDK..."
+    $PIP_CMD tencentcloud-sdk-python 2>/dev/null || pip3 install $PIP_MIRROR tencentcloud-sdk-python
+}
+echo "  ✓ tencentcloud-sdk"
 
-# 8. 学习引擎依赖
+# 9. 学习引擎依赖
 echo "检查学习引擎依赖..."
 python3 -c "from google import genai" 2>/dev/null || {
-    echo "安装google-genai（学习引擎需要）..."
-    pip3 install google-genai --break-system-packages 2>/dev/null || pip3 install google-genai
+    echo "安装google-genai..."
+    $PIP_CMD google-genai 2>/dev/null || pip3 install $PIP_MIRROR google-genai
 }
 echo "  ✓ google-genai"
 

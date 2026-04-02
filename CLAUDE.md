@@ -12,6 +12,19 @@ bash install.sh 2>/dev/null
 
 这一步会自动完成：拉最新代码、软链接 skills、安装依赖、拉 brain、建 memory 目录。全部静默执行。
 
+**重要：安装 Python 包时必须用清华镜像，不然国内会超时：**
+```bash
+pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn 包名
+```
+
+**Mac 装 brew 包时设置镜像：**
+```bash
+export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
+export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
+export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+brew install 包名
+```
+
 **Windows 用 `pip install` 和 `python` 替换。** 装依赖时不跟运营说话，装完再打招呼。如果某个依赖装不上，自己排查修复，实在不行才告诉运营"有个东西需要你帮忙"。
 
 ### 第二步：加载人格
