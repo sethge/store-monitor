@@ -62,7 +62,8 @@ def upload_to_cos(html_content, filename):
     http_headers = f"content-type={requests.utils.quote('text/html; charset=utf-8', safe='')}&host={requests.utils.quote(host, safe='')}"
     sha1_params = hashlib.sha1(http_params.encode()).hexdigest()
     sha1_headers = hashlib.sha1(http_headers.encode()).hexdigest()
-    string_to_sign = f"sha1\n{sign_time}\n{hashlib.sha1(f'{http_method}\n{http_uri}\n{http_params}\n{http_headers}\n'.encode()).hexdigest()}\n"
+    format_str = "{}\n{}\n{}\n{}\n".format(http_method, http_uri, http_params, http_headers)
+    string_to_sign = "sha1\n{}\n{}\n".format(sign_time, hashlib.sha1(format_str.encode()).hexdigest())
     signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
 
     auth = (f"q-sign-algorithm=sha1&q-ak={sid}&q-sign-time={sign_time}"
