@@ -4,13 +4,19 @@ import json
 import subprocess
 from collections import defaultdict
 
-EXT_ID = "kocmiihdllcmbjanolpggoafghdfnglg"
+# 悟空插件ID（手动加载时Chrome会分配新ID，这里列已知的，自动检测兜底）
+KNOWN_EXT_IDS = [
+    "ghppggbdmkaicdgohkkdaebbpcochkfe",
+    "kocmiihdllcmbjanolpggoafghdfnglg",
+]
+EXT_ID = KNOWN_EXT_IDS[0]
 
 
 async def get_ext(ctx):
-    # 先找已打开的悟空页面（按已知ID或页面内容匹配）
+    # 先找已打开的悟空页面（按已知ID匹配）
     for p in ctx.pages:
-        if EXT_ID in p.url: return p
+        for eid in KNOWN_EXT_IDS:
+            if eid in p.url: return p
     # 兜底：找任何chrome-extension页面，检查是否是悟空（含"品牌选择"文字）
     for p in ctx.pages:
         if 'chrome-extension://' in p.url:
@@ -21,13 +27,14 @@ async def get_ext(ctx):
             except:
                 pass
     # 尝试用已知ID打开
-    p = await ctx.new_page()
-    try:
-        await p.goto(f"chrome-extension://{EXT_ID}/index.html", wait_until="commit", timeout=10000)
-        await asyncio.sleep(2)
-        return p
-    except:
-        await p.close()
+    for eid in KNOWN_EXT_IDS:
+        p = await ctx.new_page()
+        try:
+            await p.goto(f"chrome-extension://{eid}/index.html", wait_until="commit", timeout=10000)
+            await asyncio.sleep(2)
+            return p
+        except:
+            await p.close()
     raise Exception("找不到悟空插件，请在Chrome中手动打开悟空插件页面")
 
 
