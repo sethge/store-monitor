@@ -2,7 +2,15 @@
 # 盯店巡检一键启动
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+# 优先用 Chromium（不自动更新），没有就用 Chrome
+if [ -d "/Applications/Chromium.app" ]; then
+    CHROME="/Applications/Chromium.app/Contents/MacOS/Chromium"
+elif [ -d "/Applications/Google Chrome.app" ]; then
+    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+else
+    echo "❌ 没找到 Chromium 或 Chrome，请先安装"
+    exit 1
+fi
 PORT=9222
 
 # ===== 1. 检查+安装依赖 =====
