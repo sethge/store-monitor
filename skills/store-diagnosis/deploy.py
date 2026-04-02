@@ -121,18 +121,9 @@ def main():
         f'const COMPETITORS = {json_str};'
     )
 
-    # CDN 换国内源
+    # CDN 换国内源（jsdelivr国内不稳定）
     embedded_html = embedded_html.replace(
-        'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
-        'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'
-    )
-    embedded_html = embedded_html.replace(
-        'https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js',
-        'https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js'
-    )
-    embedded_html = embedded_html.replace(
-        'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js',
-        'https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js'
+        'https://cdn.jsdelivr.net', 'https://unpkg.com'
     )
 
     # 文件名（纯ASCII，避免中文URL在微信/浏览器里出问题）

@@ -4,9 +4,26 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>竞对分析报告</title>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script>
+// exceljs和file-saver只在下载时需要，异步加载不阻塞页面渲染
+function loadExcelDeps() {
+  return new Promise(function(resolve, reject) {
+    if (window.ExcelJS) { resolve(); return; }
+    var s1 = document.createElement('script');
+    s1.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s1.onload = function() {
+      var s2 = document.createElement('script');
+      s2.src = 'https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js';
+      s2.onload = resolve;
+      s2.onerror = function() { reject('FileSaver加载失败'); };
+      document.head.appendChild(s2);
+    };
+    s1.onerror = function() { reject('ExcelJS加载失败'); };
+    document.head.appendChild(s1);
+  });
+}
+</script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; }
@@ -168,7 +185,9 @@ window.handleDownload=async function(){
 
 async function generateExcel(){
   document.querySelector('.btn-download').onclick=window.handleDownload;
-  const btn=document.querySelector('.btn-download'); btn.textContent='生成中...';
+  const btn=document.querySelector('.btn-download'); btn.textContent='加载中...';
+  try { await loadExcelDeps(); } catch(e) { alert('Excel组件加载失败，请检查网络后重试'); btn.textContent='下载Excel'; return; }
+  btn.textContent='生成中...';
 
   const competitors=JSON.parse(JSON.stringify(COMPETITORS));
   document.querySelectorAll('td[data-comp][data-field]').forEach(td=>{
