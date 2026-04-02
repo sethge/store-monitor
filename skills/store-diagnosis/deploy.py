@@ -58,18 +58,23 @@ def upload_to_cos(html_content, filename):
     http_method = "put"
     http_uri = f"/{encoded_key}"
 
-    # 签名
+    # 签名（header列表必须按字母序排列）
     sign_key = hmac.new(skey.encode(), sign_time.encode(), hashlib.sha1).hexdigest()
     http_params = ""
-    http_headers = f"content-type={requests.utils.quote('text/html; charset=utf-8', safe='')}&host={requests.utils.quote(host, safe='')}"
-    sha1_params = hashlib.sha1(http_params.encode()).hexdigest()
-    sha1_headers = hashlib.sha1(http_headers.encode()).hexdigest()
+    header_list = "content-disposition;content-type;host"
+    http_headers = "{cd}={cdv}&{ct}={ctv}&host={hv}".format(
+        cd="content-disposition",
+        cdv=requests.utils.quote("inline", safe=''),
+        ct="content-type",
+        ctv=requests.utils.quote("text/html; charset=utf-8", safe=''),
+        hv=requests.utils.quote(host, safe=''),
+    )
     format_str = "{}\n{}\n{}\n{}\n".format(http_method, http_uri, http_params, http_headers)
     string_to_sign = "sha1\n{}\n{}\n".format(sign_time, hashlib.sha1(format_str.encode()).hexdigest())
     signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
 
     auth = (f"q-sign-algorithm=sha1&q-ak={sid}&q-sign-time={sign_time}"
-            f"&q-key-time={sign_time}&q-header-list=content-type;host"
+            f"&q-key-time={sign_time}&q-header-list={header_list}"
             f"&q-url-param-list=&q-signature={signature}")
 
     # 绕过代理上传
@@ -78,6 +83,7 @@ def upload_to_cos(html_content, filename):
     resp = session.put(url, data=html_content.encode('utf-8'), headers={
         'Host': host,
         'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': 'inline',
         'Authorization': auth,
     }, timeout=30)
 
@@ -141,20 +147,13 @@ def main():
     local_path = save_local(competitors, local_filename)
     print(f"  数据已保存: {local_path}", file=sys.stderr)
 
-    # 2. 上传 COS
-    print(f"  上传报告...", file=sys.stderr)
-    url = upload_to_cos(embedded_html, filename)
-
-    if url:
-        print(url)
-        print(f"  ✅ 报告已上传", file=sys.stderr)
-    else:
-        # COS 失败，保存到桌面兜底
-        desktop_path = os.path.expanduser(f"~/Desktop/竞对分析_{filename}")
-        with open(desktop_path, 'w', encoding='utf-8') as f:
-            f.write(embedded_html)
-        print(desktop_path)
-        print(f"  ⚠ 上传失败，报告已保存到桌面", file=sys.stderr)
+    # 2. 保存HTML到桌面（双击打开，不依赖任何外部服务）
+    desktop_filename = "竞对分析_{}_{}.html".format(name_str, ts)
+    desktop_path = os.path.expanduser("~/Desktop/{}".format(desktop_filename))
+    with open(desktop_path, 'w', encoding='utf-8') as f:
+        f.write(embedded_html)
+    print(desktop_path)
+    print(f"  ✅ 报告已保存到桌面，双击打开", file=sys.stderr)
 
 
 if __name__ == '__main__':
