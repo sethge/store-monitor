@@ -82,7 +82,9 @@ def upload_to_cos(html_content, filename):
     }, timeout=30)
 
     if resp.status_code in (200, 204):
-        return url
+        # 返回静态网站域名（浏览器直接渲染），上传用的是普通API域名
+        website_host = f"{COS_BUCKET}.cos-website.{COS_REGION}.myqcloud.com"
+        return f"https://{website_host}/{encoded_key}"
     else:
         print(f"  上传失败: {resp.status_code} {resp.text[:200]}", file=sys.stderr)
         return None
