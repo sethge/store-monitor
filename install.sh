@@ -90,25 +90,25 @@ if [ "$(uname -s)" = "Darwin" ]; then
     }
 fi
 
-# ─── 6. ffmpeg ───
-command -v ffmpeg &>/dev/null || {
-    echo "安装ffmpeg..."
-    if [ "$(uname -s)" = "Darwin" ]; then
-        brew install ffmpeg
-    else
-        sudo apt update && sudo apt install -y ffmpeg 2>/dev/null
-    fi
+# ─── 6. ffmpeg（可选，有就用，没有自动用opencv替代）───
+command -v ffmpeg &>/dev/null && echo "  ✓ ffmpeg" || {
+    echo "  ⏭ ffmpeg 未安装（自动使用opencv替代，不影响功能）"
 }
-echo "  ✓ ffmpeg"
 
 # ─── 7. Python依赖（全部清华镜像）───
 echo "检查Python依赖..."
 
-# playwright + chromium
+# opencv（视频提帧，替代 ffmpeg）
+python3 -c "import cv2" 2>/dev/null || {
+    echo "安装opencv..."
+    $PIP_CMD opencv-python-headless 2>/dev/null || pip3 install $PIP_MIRROR opencv-python-headless
+}
+echo "  ✓ opencv"
+
+# playwright + chromium（巡检用）
 python3 -c "import playwright" 2>/dev/null || {
     echo "安装playwright..."
     $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
-    # Chromium 用淘宝镜像下载
     PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
     playwright install chromium
 }

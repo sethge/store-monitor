@@ -129,7 +129,7 @@ def main():
 
     json_str = json.dumps(competitors, ensure_ascii=False, separators=(',', ':'))
     encoded = compress(json_str)
-    url = f"https://sethge.github.io/store-monitor/#{encoded}"
+    url = f"https://sethgeshiheng.gitee.io/store-monitor/#{encoded}"
 
     print(f"\n  链接已生成", file=sys.stderr)
     print("", file=sys.stderr)

@@ -20,7 +20,7 @@ except ImportError:
         compressed = zlib.compress(s.encode('utf-8'))
         return base64.urlsafe_b64encode(compressed).decode('ascii').rstrip('=')
 
-BASE_URL = "https://sethge.github.io/store-monitor/"
+BASE_URL = "https://sethgeshiheng.gitee.io/store-monitor/"
 
 def main():
     parser = argparse.ArgumentParser(description='生成竞对分析链接')

@@ -1,0 +1,16 @@
+{
+  "action": "add",
+  "job": {
+    "name": "heartbeat-每日总结",
+    "schedule": { "kind": "cron", "expr": "30 17 * * *", "tz": "Asia/Shanghai" },
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "现在是下班时间，做今天的heartbeat。\n\n1. 检查 memory/interactions/ 里有没有新的交互日志（对比 memory/.last_digest 的日期）\n2. 有新交互 → 运行 cd /Users/seth/.qclaw/workspace/store-monitor && python3 learn.py digest\n3. digest 有发现 → 运行 python3 learn.py submit\n4. 如果今天是周一 → 额外运行 python3 learn.py weekly\n5. 没有新交互 → 什么都不用做\n\n把结果简要告诉Seth。",
+      "deliver": true,
+      "channel": "wechat-access",
+      "bestEffortDeliver": true
+    }
+  }
+}

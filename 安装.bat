@@ -104,9 +104,19 @@ if not exist "%WORKSPACE%\knowledge" (
 
 :: Python 依赖（清华镜像）
 echo 检查Python依赖...
+
+:: opencv（视频提帧，替代ffmpeg）
+%PYTHON% -c "import cv2" 2>nul || (
+    echo   安装 opencv...
+    %PYTHON% -m pip install %PIP_MIRROR% opencv-python-headless 2>nul
+)
+echo   ✓ opencv
+
+:: playwright
 %PYTHON% -c "import playwright" 2>nul || (
     echo   安装 playwright...
     %PYTHON% -m pip install %PIP_MIRROR% playwright 2>nul
+    set PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
     playwright install chromium
 )
 echo   ✓ playwright
@@ -135,13 +145,8 @@ if not exist "memory\interactions" mkdir "memory\interactions"
 if not exist "memory\pending_review" mkdir "memory\pending_review"
 echo   ✓ memory目录
 
-:: ffmpeg
+:: ffmpeg（可选，有就用）
 where ffmpeg >nul 2>&1
-if %errorlevel% neq 0 (
-    echo   安装 ffmpeg...
-    :: 尝试用 winget 装
-    winget install --id Gyan.FFmpeg -e --source winget >nul 2>&1
-    where ffmpeg >nul 2>&1
     if %errorlevel% neq 0 (
         :: winget 失败，尝试用 choco
         where choco >nul 2>&1 && choco install ffmpeg -y >nul 2>&1
