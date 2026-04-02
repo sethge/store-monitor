@@ -112,10 +112,10 @@ echo 检查Python依赖...
 )
 echo   ✓ opencv
 
-:: playwright
-%PYTHON% -c "import playwright" 2>nul || (
-    echo   安装 playwright...
-    %PYTHON% -m pip install %PIP_MIRROR% playwright 2>nul
+:: playwright（锁定1.44.0，新版跟CDP不兼容）
+%PYTHON% -c "import playwright; assert playwright.__version__=='1.44.0'" 2>nul || (
+    echo   安装 playwright==1.44.0...
+    %PYTHON% -m pip install %PIP_MIRROR% playwright==1.44.0 2>nul
     set PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
     playwright install chromium
 )

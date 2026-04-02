@@ -109,14 +109,15 @@ python3 -c "import cv2" 2>/dev/null || {
 }
 echo "  ✓ opencv"
 
-# playwright + chromium（巡检用）
-python3 -c "import playwright" 2>/dev/null || {
-    echo "安装playwright..."
-    $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
+# playwright（锁定1.44.0，1.58.0跟CDP有兼容问题）
+PLAYWRIGHT_VER="1.44.0"
+python3 -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
+    echo "安装playwright==$PLAYWRIGHT_VER..."
+    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || pip3 install $PIP_MIRROR "playwright==$PLAYWRIGHT_VER"
     PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
     playwright install chromium
 }
-echo "  ✓ playwright"
+echo "  ✓ playwright ($PLAYWRIGHT_VER)"
 
 for pkg in xlsxwriter lzstring cos-python-sdk-v5; do
     python3 -c "import $pkg" 2>/dev/null || {
