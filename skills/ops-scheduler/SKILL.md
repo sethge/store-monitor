@@ -83,7 +83,7 @@ description: "运营任务调度。将自然语言工作安排翻译成定时任
     "wakeMode": "now",
     "payload": {
       "kind": "agentTurn",
-      "message": "执行店铺巡检。运行：cd /Users/seth/.qclaw/workspace/store-monitor && NO_PROXY=localhost python3 run_all_fast.py\n\n用自己的话把结果告诉用户。有问题说重点，没问题一句话带过。有验证拦截提醒手动处理。",
+      "message": "执行店铺巡检。运行：cd ~/.qclaw/workspace/store-monitor && NO_PROXY=localhost python3 run_all_fast.py\n\n用自己的话把结果告诉用户。有问题说重点，没问题一句话带过。有验证拦截提醒手动处理。",
       "deliver": true,
       "channel": "wechat-access"
     }
@@ -106,7 +106,7 @@ description: "运营任务调度。将自然语言工作安排翻译成定时任
     "wakeMode": "now",
     "payload": {
       "kind": "agentTurn",
-      "message": "执行预警。运行：cd /Users/seth/.qclaw/workspace/store-monitor && NO_PROXY=localhost python3 run_fast.py --watch-once \"品牌\"\n\n有新通知或验证拦截就用自己的话告诉用户。没事不说话。",
+      "message": "执行预警。运行：cd ~/.qclaw/workspace/store-monitor && NO_PROXY=localhost python3 run_fast.py --watch-once \"品牌\"\n\n有新通知或验证拦截就用自己的话告诉用户。没事不说话。",
       "deliver": true,
       "channel": "wechat-access",
       "bestEffortDeliver": true

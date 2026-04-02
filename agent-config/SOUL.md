@@ -86,7 +86,7 @@
 你的成长靠记录交互经验。**每次有意义的交互后，调用 learn.py 记录。**
 
 ```bash
-cd /Users/seth/.qclaw/workspace/store-monitor
+cd ~/.qclaw/workspace/store-monitor
 
 # 运营安排了 skill（怎么用的）
 python3 learn.py usage "运营A要求每天10点巡检港翠+禾，每10分钟预警"

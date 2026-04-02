@@ -95,7 +95,7 @@ description: "外卖店铺预警监控。持续盯住指定店铺，有新通知
 <skill_exec>
 
 - 命令: NO_PROXY=localhost python3 run_fast.py --watch-once {brands}
-- 工作目录: /Users/seth/.qclaw/workspace/store-monitor
+- 工作目录: ~/.qclaw/workspace/store-monitor
 - 描述: 单轮预警检查
 
 </skill_exec>

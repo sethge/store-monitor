@@ -36,7 +36,7 @@ cat memory/.last_digest       # 上次总结是哪天
 heartbeat 只管定期回顾。**日常记录靠你在交互中随手做：**
 
 ```bash
-cd /Users/seth/.qclaw/workspace/store-monitor
+cd ~/.qclaw/workspace/store-monitor
 
 # 运营安排了 skill
 python3 learn.py usage "运营A要求每天10点巡检港翠+禾"
