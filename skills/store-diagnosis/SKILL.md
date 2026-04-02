@@ -62,12 +62,11 @@ python3 skills/store-diagnosis/deploy.py --data /tmp/competitor_data.json
 
 输出一个本地链接，发给运营。
 
-## 发链接给运营
+## 告诉运营
 
 ```
-数据提完了，打开这个链接查看竞对报告：
-<链接>
-
+报告生成好了，在桌面上：<文件名>.html
+双击打开就能看。
 • 数据可以直接点击修改
 • 底部分析区需要填写
 • 输入你的店铺名，点下载导出Excel

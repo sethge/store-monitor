@@ -111,56 +111,15 @@ def main():
         json.dump(competitors, f, ensure_ascii=False, indent=2)
     print(f"\n  数据已保存: {json_path}", file=sys.stderr)
 
-    # Step 4: 生成链接（本地服务器，不依赖外部平台）
+    # Step 4: 生成报告文件（桌面HTML，双击打开）
     print("", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
-    print("Step 4/4: 生成链接", file=sys.stderr)
+    print("Step 4/4: 生成报告", file=sys.stderr)
     print("=" * 50, file=sys.stderr)
 
-    try:
-        import lzstring
-        def compress(s):
-            return lzstring.LZString().compressToEncodedURIComponent(s)
-    except ImportError:
-        import base64, zlib
-        def compress(s):
-            compressed = zlib.compress(s.encode('utf-8'))
-            return base64.urlsafe_b64encode(compressed).decode('ascii').rstrip('=')
-
-    json_str = json.dumps(competitors, ensure_ascii=False, separators=(',', ':'))
-    encoded = compress(json_str)
-
-    # 启动本地服务器
-    import threading, socket
-    from http.server import HTTPServer, SimpleHTTPRequestHandler
-
-    web_dir = str(SCRIPT_DIR / "web")
-    port = 18890
-    for p in range(port, port + 100):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(('127.0.0.1', p))
-            s.close()
-            port = p
-            break
-        except OSError:
-            continue
-
-    def serve():
-        os.chdir(web_dir)
-        handler = SimpleHTTPRequestHandler
-        handler.log_message = lambda *a: None
-        HTTPServer(('127.0.0.1', port), handler).serve_forever()
-
-    threading.Thread(target=serve, daemon=True).start()
-
-    url = f"http://127.0.0.1:{port}/index.html#{encoded}"
-
-    print(f"\n  链接已生成（本地服务器端口 {port}）", file=sys.stderr)
-    print("", file=sys.stderr)
-
-    # 唯一输出到stdout的是链接
-    print(url)
+    from deploy import main as deploy_main
+    sys.argv = ['deploy.py', '--data', json_path]
+    deploy_main()
 
 
 if __name__ == '__main__':

@@ -1,54 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成竞对分析链接
-方案：本地临时服务器，不依赖任何外部平台
-用法: python3 deploy.py --data '<json或文件路径>'
-输出: 本地链接（自动打开浏览器）
+生成竞对分析报告（自包含HTML文件，双击打开，不需要服务器）
+用法: python3 deploy.py --data /tmp/competitor_data.json
+输出: HTML文件路径
 """
-import argparse, json, os, sys, threading, time
+import argparse, json, os, sys
 from pathlib import Path
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from datetime import datetime
 
-try:
-    import lzstring
-    def compress(s):
-        return lzstring.LZString().compressToEncodedURIComponent(s)
-except ImportError:
-    import base64, zlib
-    def compress(s):
-        compressed = zlib.compress(s.encode('utf-8'))
-        return base64.urlsafe_b64encode(compressed).decode('ascii').rstrip('=')
-
-WEB_DIR = Path(__file__).parent / "web"
-PORT = 18890
-
-
-def find_free_port():
-    """找一个可用端口"""
-    import socket
-    for port in range(PORT, PORT + 100):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.bind(('127.0.0.1', port))
-            s.close()
-            return port
-        except OSError:
-            continue
-    return PORT
-
-
-def start_server(port):
-    """在后台启动本地服务器"""
-    os.chdir(str(WEB_DIR))
-    handler = SimpleHTTPRequestHandler
-    handler.log_message = lambda *args: None  # 静默日志
-    server = HTTPServer(('127.0.0.1', port), handler)
-    server.serve_forever()
+SCRIPT_DIR = Path(__file__).parent
+TEMPLATE = SCRIPT_DIR / "web" / "index.html"
 
 
 def main():
-    parser = argparse.ArgumentParser(description='生成竞对分析链接')
+    parser = argparse.ArgumentParser(description='生成竞对分析报告')
     parser.add_argument('--data', required=True, help='竞对JSON数据（文件路径或内联JSON）')
     args = parser.parse_args()
 
@@ -63,31 +29,44 @@ def main():
         print("错误: 无竞对数据", file=sys.stderr)
         sys.exit(1)
 
-    json_str = json.dumps(competitors, ensure_ascii=False, separators=(',', ':'))
-    encoded = compress(json_str)
+    # 读模板
+    template_html = TEMPLATE.read_text(encoding='utf-8')
 
-    port = find_free_port()
+    # 把数据直接嵌入HTML（替换掉从URL hash读数据的逻辑）
+    json_str = json.dumps(competitors, ensure_ascii=False, indent=2)
 
-    # 启动本地服务器
-    t = threading.Thread(target=start_server, args=(port,), daemon=True)
-    t.start()
-    time.sleep(0.3)
+    # 替换 loadData 函数，直接返回嵌入的数据
+    embedded_html = template_html.replace(
+        'const COMPETITORS = loadData();',
+        f'const COMPETITORS = {json_str};'
+    )
 
-    url = f"http://127.0.0.1:{port}/index.html#{encoded}"
+    # CDN 换国内源
+    embedded_html = embedded_html.replace(
+        'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+        'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'
+    )
+    embedded_html = embedded_html.replace(
+        'https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js',
+        'https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js'
+    )
+    embedded_html = embedded_html.replace(
+        'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js',
+        'https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js'
+    )
 
-    # 输出链接
-    print(url)
+    # 生成文件名
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
+    name_str = '+'.join(shop_names)[:30]
+    output_path = os.path.expanduser(f"~/Desktop/竞对分析_{name_str}_{ts}.html")
 
-    # 如果是直接运行（不是被其他脚本调用），自动打开浏览器并保持服务器运行
-    if os.isatty(sys.stdout.fileno()):
-        import webbrowser
-        webbrowser.open(url)
-        print(f"\n服务器运行中（端口 {port}）。运营用完后按 Ctrl+C 关闭。", file=sys.stderr)
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            pass
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(embedded_html)
+
+    print(output_path)
+    print(f"报告已保存到桌面", file=sys.stderr)
 
 
 if __name__ == '__main__':
