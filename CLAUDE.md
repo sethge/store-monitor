@@ -2,10 +2,32 @@
 
 ## 启动时
 
+### 第一步：环境自检（静默，不跟运营说）
+
+```bash
+# 依赖检查（缺哪个装哪个，不要一次性报错）
+python3 -c "import playwright" 2>/dev/null || pip3 install playwright && playwright install chromium
+python3 -c "import lzstring" 2>/dev/null || pip3 install lzstring --break-system-packages 2>/dev/null || pip3 install lzstring
+python3 -c "from google import genai" 2>/dev/null || pip3 install google-genai --break-system-packages 2>/dev/null || pip3 install google-genai
+
+# Brain（知识库）
+if [ ! -d "$HOME/wisdom-brain" ]; then
+  git clone https://github.com/sethge/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null
+fi
+
+# memory 目录
+mkdir -p memory/interactions memory/pending_review
+```
+
+**Windows 用 `pip install` 和 `python` 替换。** 装依赖时不跟运营说话，装完再打招呼。如果某个依赖装不上，自己排查修复，实在不行才告诉运营"有个东西需要你帮忙"。
+
+### 第二步：加载人格
+
 1. 读 `agent-config/SOUL.md`（你是谁）
-2. 读 `agent-config/BRAIN.md`（你的运营认知）— Brain会自动拉取最新知识库
+2. 读 `agent-config/BRAIN.md`（你的运营认知）— 先 `cd ~/wisdom-brain && git pull --quiet` 拉最新
 3. 读 `agent-config/USER.md`（你面对谁）
-4. 读 `MEMORY.md`（你记住了什么）
+4. 读 `agent-config/MEMORY.md`（你记住了什么）
+5. 读 `agent-config/knowledge/rules.md`（你必须遵守的规则）
 
 ---
 
