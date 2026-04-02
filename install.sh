@@ -34,7 +34,7 @@ fi
 # 3. 安装skills
 echo "安装skills..."
 mkdir -p "$QCLAW_DIR/skills"
-for skill in store-patrol store-alert store-diagnosis ops-scheduler; do
+for skill in store-patrol store-alert store-diagnosis ops-scheduler setup; do
     if [ -d "$SCRIPT_DIR/skills/$skill" ]; then
         cp -r "$SCRIPT_DIR/skills/$skill" "$QCLAW_DIR/skills/"
         echo "  ✓ $skill"
