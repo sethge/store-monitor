@@ -111,22 +111,15 @@ python3 -c "import cv2" 2>/dev/null || {
 }
 echo "  ✓ opencv"
 
-# playwright + 自带chromium（版本锁定，不受系统Chrome升级影响）
-python3 -c "import playwright" 2>/dev/null || {
-    echo "安装playwright..."
-    $PIP_CMD playwright 2>/dev/null || pip3 install $PIP_MIRROR playwright
+# playwright 1.44.0 + 自带chromium（版本锁定，不受系统Chrome升级影响）
+PLAYWRIGHT_VER="1.44.0"
+python3 -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
+    echo "安装playwright==$PLAYWRIGHT_VER..."
+    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || pip3 install $PIP_MIRROR "playwright==$PLAYWRIGHT_VER"
+    PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
+    playwright install chromium
 }
-# 确保chromium已下载
-python3 -c "
-from playwright._impl._driver import compute_driver_executable
-import subprocess, os
-drv = compute_driver_executable()
-# 检查chromium是否已安装
-r = subprocess.run([str(drv[0]), 'install', '--dry-run', 'chromium'], capture_output=True, text=True)
-" 2>/dev/null
-PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
-playwright install chromium 2>/dev/null || echo "  ⚠ chromium下载跳过（可能已存在）"
-echo "  ✓ playwright + chromium"
+echo "  ✓ playwright ($PLAYWRIGHT_VER)"
 
 for pkg in xlsxwriter lzstring cos-python-sdk-v5; do
     python3 -c "import $pkg" 2>/dev/null || {

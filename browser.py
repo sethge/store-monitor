@@ -46,6 +46,7 @@ async def launch(pw, port=9222):
         ],
     )
     await asyncio.sleep(3)
-    browser = ctx.browser
     print(f"✅ 浏览器已启动 (端口{port})")
-    return browser, ctx
+    # launch_persistent_context 返回的是 context，没有独立的 browser 对象
+    # 调用方用 pw.stop() 清理，所以返回 ctx 两次保持接口兼容
+    return ctx, ctx
