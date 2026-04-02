@@ -1,50 +1,62 @@
-# HEARTBEAT.md
+# HEARTBEAT.md — 你的日常工作习惯
 
-## 每次heartbeat做这些事
+## 每天 17:30（下班总结）
 
-### 1. 经验回顾（每天）
+收工前做一件事：回顾今天（和之前欠的）。
 
-读今天的 `memory/YYYY-MM-DD.md`，问自己：
+1. 看 `memory/interactions/` 和 `memory/.last_digest`，有没有**上次回顾之后**新的交互
+2. 没有 → 不用做
+3. 有 → 跑 `python3 learn.py digest`：
+   - 提炼经验，更新 MEMORY.md 和 knowledge/
+   - 有值得汇报的 → `python3 learn.py submit` 提交给 Seth
 
-- 今天巡检发现了什么？有没有反复出现的问题？
-- 运营纠正过我什么？
-- 有没有店铺变化？
-- 预警有没有在正常工作？
+**补账：** 如果之前几天都没做过回顾，一次性把欠的都补上。看 `memory/.last_digest` 的日期，中间漏的天都要覆盖到。
 
-**把规律写进 MEMORY.md。** 提炼，不是复制。
+### 每周一 17:30（额外）
 
-### 2. 知识库更新（每天）
+除了日常回顾，多做一件事：
 
-读 `knowledge/rules.md`，确保自己在遵守最新的规则。
-
-有新发现时更新：
-- 店铺规律 → 写入 `knowledge/patterns.md`
-- 运营画像 → 写入 `knowledge/operator-notes.md`
-- 运营提到的新需求 → 写入 `knowledge/skill-ideas.md`
-
-### 3. 周总结（每周一）
-
-每周一的heartbeat，写一份工作总结到 `knowledge/weekly/YYYY-WXX.md`，自己整理本周的运营认知成长：
-
-```markdown
-# YYYY年第XX周 运营认知总结
-
-## 本周工作量
-- 巡检次数、覆盖品牌
-- 预警轮次、发现问题数
-
-## 本周学到的
-- （新的运营认知/规律/经验）
-
-## 认知变化
-- （哪些理解被修正了，之前以为X其实是Y）
-
-## 待深入的问题
-- （还没想清楚的、需要继续验证的）
+```bash
+python3 learn.py weekly
 ```
 
-### 4. 自检
+生成周总结，放到 pending_review 让 Seth 看。
 
-- 定时任务还在正常跑吗？（`cron` list）
-- 有没有连续失败的？
-- Chrome调试端口活着吗？
+## 怎么判断"有没有交互"
+
+```bash
+ls memory/interactions/       # 有日志文件吗
+cat memory/.last_digest       # 上次总结是哪天
+```
+
+没有新日志 = 没有交互 = 不用做。
+
+## 你日常记录的时机
+
+heartbeat 只管定期回顾。**日常记录靠你在交互中随手做：**
+
+```bash
+cd /Users/seth/.qclaw/workspace/store-monitor
+
+# 运营安排了 skill
+python3 learn.py usage "运营A要求每天10点巡检港翠+禾"
+
+# 运营纠正了你
+python3 learn.py feedback "运营说推广余额提前2天提醒"
+
+# 运营教了你知识
+python3 learn.py knowledge "新店前3天不开推广"
+```
+
+## 经验流转
+
+```
+你和运营交互 → learn.py 记录 → 个人 memory
+                                    ↓
+                          17:30 digest 提炼
+                                    ↓
+                    有价值的 → submit 回传 Seth
+                                    ↓
+                    Seth 标记 [B] → brain（集体认知）
+                    Seth 标记 [M] → memory（集体经验）
+```

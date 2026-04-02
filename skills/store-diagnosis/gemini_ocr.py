@@ -70,7 +70,7 @@ DISH_PROMPT = '''请仔细查看这张外卖菜单截图，从上到下逐个列
 看不到的写null。只返回JSON。'''
 
 
-_DEFAULT_CFG = "eyJnZW1pbmlfYXBpX2tleSI6IkFJemFTeUNzcGpIUldmaHY5TmExdXJpSXRSTlpMbzJLdDRuSWhqYyIsInRlbmNlbnRfc2VjcmV0X2lkIjoiQUtJRHBWMEpQSDBZdTJ5akhiZ2FKbzhHRHdSbXoxcUtiZ1hBIiwidGVuY2VudF9zZWNyZXRfa2V5IjoiYXc4NnFUdkFBemEwb1BsdnNmSWl3eGtKZ3BvWjVXbW8ifQ=="
+_DEFAULT_CFG = "eyJnZW1pbmlfYXBpX2tleSI6IkFJemFTeUFaNHpVZHdFTWNScGVjaFhvaXRqNl9FYnZlUENqNEUxOCIsInRlbmNlbnRfc2VjcmV0X2lkIjoiQUtJRHBWMEpQSDBZdTJ5akhiZ2FKbzhHRHdSbXoxcUtiZ1hBIiwidGVuY2VudF9zZWNyZXRfa2V5IjoiYXc4NnFUdkFBemEwb1BsdnNmSWl3eGtKZ3BvWjVXbW8ifQ=="
 
 def _load_config():
     """加载配置：config.json > 内置默认 > 环境变量"""

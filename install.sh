@@ -90,6 +90,42 @@ else
     echo "  ✓ 竞对诊断配置已存在"
 fi
 
+# 8. 学习引擎依赖
+echo "检查学习引擎依赖..."
+python3 -c "from google import genai" 2>/dev/null || {
+    echo "安装google-genai（学习引擎需要）..."
+    pip3 install google-genai --break-system-packages 2>/dev/null || pip3 install google-genai
+}
+echo "  ✓ google-genai"
+
+# 9. 初始化memory目录
+mkdir -p "$SCRIPT_DIR/memory/interactions"
+mkdir -p "$SCRIPT_DIR/memory/pending_review"
+echo "  ✓ memory目录"
+
+# 10. 注册内置定时任务（heartbeat）
+echo "注册heartbeat定时任务..."
+HEARTBEAT_CRON="$SCRIPT_DIR/.heartbeat_cron.json"
+cat > "$HEARTBEAT_CRON" << 'CRONEOF'
+{
+  "action": "add",
+  "job": {
+    "name": "heartbeat-每日总结",
+    "schedule": { "kind": "cron", "expr": "30 17 * * *", "tz": "Asia/Shanghai" },
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "现在是下班时间，做今天的heartbeat。\n\n1. 检查 memory/interactions/ 里有没有新的交互日志（对比 memory/.last_digest 的日期）\n2. 有新交互 → 运行 cd /Users/seth/.qclaw/workspace/store-monitor && python3 learn.py digest\n3. digest 有发现 → 运行 python3 learn.py submit\n4. 如果今天是周一 → 额外运行 python3 learn.py weekly\n5. 没有新交互 → 什么都不用做\n\n把结果简要告诉Seth。",
+      "deliver": true,
+      "channel": "wechat-access",
+      "bestEffortDeliver": true
+    }
+  }
+}
+CRONEOF
+echo "  ✓ heartbeat定时任务配置已生成: .heartbeat_cron.json"
+
 echo ""
 echo "✅ 安装完成！"
 echo ""
@@ -100,3 +136,4 @@ echo "  3. 打开 bi.shihengtech.com 登录食亨"
 echo "  4. 重启QClaw让它加载新skills"
 echo ""
 echo "之后在微信里跟agent说话就行了。"
+echo "heartbeat（每天17:30自动总结）已内置，不需要额外配置。"
