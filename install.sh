@@ -15,7 +15,23 @@ if [ ! -d "$QCLAW_DIR" ]; then
 fi
 echo "✓ QClaw已安装"
 
-# 2. 安装skills
+# 2. 安装Brain（集体知识库）
+echo "安装Brain（运营知识库）..."
+if [ ! -d "$HOME/wisdom-brain" ]; then
+    git clone https://github.com/sethge/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
+        echo "  ✓ wisdom-brain 已克隆" || \
+        echo "  ⚠ wisdom-brain 克隆失败，请检查网络"
+else
+    cd "$HOME/wisdom-brain" && git pull --quiet 2>/dev/null
+    echo "  ✓ wisdom-brain 已更新"
+fi
+# 链接到项目目录
+if [ ! -L "$SCRIPT_DIR/wisdom-brain" ]; then
+    ln -sf "$HOME/wisdom-brain" "$SCRIPT_DIR/wisdom-brain"
+    echo "  ✓ 链接 wisdom-brain"
+fi
+
+# 3. 安装skills
 echo "安装skills..."
 mkdir -p "$QCLAW_DIR/skills"
 for skill in store-patrol store-alert store-diagnosis ops-scheduler; do
@@ -28,7 +44,7 @@ done
 # 3. 安装agent配置（不覆盖已有的）
 echo "安装agent配置..."
 WORKSPACE="$QCLAW_DIR/workspace"
-for f in SOUL.md USER.md HEARTBEAT.md MEMORY.md; do
+for f in SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md; do
     if [ ! -f "$WORKSPACE/$f" ] || [ "$1" = "--force" ]; then
         cp "$SCRIPT_DIR/agent-config/$f" "$WORKSPACE/"
         echo "  ✓ $f"
