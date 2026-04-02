@@ -118,7 +118,7 @@ python3 -c "import playwright" 2>/dev/null || {
 }
 echo "  ✓ playwright"
 
-for pkg in xlsxwriter lzstring; do
+for pkg in xlsxwriter lzstring cos-python-sdk-v5; do
     python3 -c "import $pkg" 2>/dev/null || {
         echo "安装 $pkg..."
         $PIP_CMD $pkg 2>/dev/null || pip3 install $PIP_MIRROR $pkg

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成竞对分析报告（自包含HTML文件，双击打开，不需要服务器）
+生成竞对分析报告 → 上传腾讯云COS → 返回公网链接
+同时保存JSON数据到本地（积累店铺数据库）
 用法: python3 deploy.py --data /tmp/competitor_data.json
-输出: HTML文件路径
+输出: 公网链接
 """
 import argparse, json, os, sys
 from pathlib import Path
@@ -11,6 +12,86 @@ from datetime import datetime
 
 SCRIPT_DIR = Path(__file__).parent
 TEMPLATE = SCRIPT_DIR / "web" / "index.html"
+DATA_DIR = SCRIPT_DIR.parent.parent / "memory" / "diagnosis"
+
+# 腾讯云 COS 配置
+COS_BUCKET = "11-store-report-1255918156"
+COS_REGION = "ap-shanghai"
+
+
+def _load_cos_keys():
+    """从内置配置或环境变量获取腾讯云密钥"""
+    import re, base64
+    # 复用 gemini_ocr.py 里的配置
+    gemini_ocr = SCRIPT_DIR / "gemini_ocr.py"
+    if gemini_ocr.exists():
+        content = gemini_ocr.read_text()
+        m = re.search(r'_DEFAULT_CFG\s*=\s*"([^"]+)"', content)
+        if m:
+            cfg = json.loads(base64.b64decode(m.group(1)).decode())
+            return cfg.get('tencent_secret_id'), cfg.get('tencent_secret_key')
+    config_path = SCRIPT_DIR / "config.json"
+    if config_path.exists():
+        cfg = json.load(open(config_path))
+        return cfg.get('tencent_secret_id'), cfg.get('tencent_secret_key')
+    return os.environ.get('TENCENT_SECRET_ID'), os.environ.get('TENCENT_SECRET_KEY')
+
+
+def upload_to_cos(html_content, filename):
+    """上传HTML到腾讯云COS（纯requests，不依赖SDK）"""
+    import hashlib, hmac, time
+    import requests
+
+    sid, skey = _load_cos_keys()
+    if not sid or not skey:
+        return None
+
+    key = f"reports/{filename}"
+    host = f"{COS_BUCKET}.cos.{COS_REGION}.myqcloud.com"
+    url = f"https://{host}/{key}"
+
+    # 腾讯云签名 v5
+    now = int(time.time())
+    sign_time = f"{now - 60};{now + 3600}"
+    http_method = "put"
+    http_uri = f"/{key}"
+
+    # 签名
+    sign_key = hmac.new(skey.encode(), sign_time.encode(), hashlib.sha1).hexdigest()
+    http_params = ""
+    http_headers = f"content-type={requests.utils.quote('text/html; charset=utf-8', safe='')}&host={requests.utils.quote(host, safe='')}"
+    sha1_params = hashlib.sha1(http_params.encode()).hexdigest()
+    sha1_headers = hashlib.sha1(http_headers.encode()).hexdigest()
+    string_to_sign = f"sha1\n{sign_time}\n{hashlib.sha1(f'{http_method}\n{http_uri}\n{http_params}\n{http_headers}\n'.encode()).hexdigest()}\n"
+    signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
+
+    auth = (f"q-sign-algorithm=sha1&q-ak={sid}&q-sign-time={sign_time}"
+            f"&q-key-time={sign_time}&q-header-list=content-type;host"
+            f"&q-url-param-list=&q-signature={signature}")
+
+    # 绕过代理上传
+    session = requests.Session()
+    session.trust_env = False
+    resp = session.put(url, data=html_content.encode('utf-8'), headers={
+        'Host': host,
+        'Content-Type': 'text/html; charset=utf-8',
+        'Authorization': auth,
+    }, timeout=30)
+
+    if resp.status_code in (200, 204):
+        return url
+    else:
+        print(f"  上传失败: {resp.status_code} {resp.text[:200]}", file=sys.stderr)
+        return None
+
+
+def save_local(competitors, filename):
+    """保存JSON数据到本地（积累店铺数据库）"""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data_file = DATA_DIR / filename.replace('.html', '.json')
+    with open(data_file, 'w', encoding='utf-8') as f:
+        json.dump(competitors, f, ensure_ascii=False, indent=2)
+    return str(data_file)
 
 
 def main():
@@ -29,13 +110,9 @@ def main():
         print("错误: 无竞对数据", file=sys.stderr)
         sys.exit(1)
 
-    # 读模板
+    # 读模板 + 嵌入数据
     template_html = TEMPLATE.read_text(encoding='utf-8')
-
-    # 把数据直接嵌入HTML（替换掉从URL hash读数据的逻辑）
     json_str = json.dumps(competitors, ensure_ascii=False, indent=2)
-
-    # 替换 loadData 函数，直接返回嵌入的数据
     embedded_html = template_html.replace(
         'const COMPETITORS = loadData();',
         f'const COMPETITORS = {json_str};'
@@ -55,18 +132,30 @@ def main():
         'https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js'
     )
 
-    # 生成文件名
+    # 文件名
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
     shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
     name_str = '+'.join(shop_names)[:30]
-    output_path = os.path.expanduser(f"~/Desktop/竞对分析_{name_str}_{ts}.html")
+    filename = f"{name_str}_{ts}.html"
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(embedded_html)
+    # 1. 保存本地数据（积累店铺数据库）
+    local_path = save_local(competitors, filename)
+    print(f"  数据已保存: {local_path}", file=sys.stderr)
 
-    print(output_path)
-    print(f"报告已保存到桌面", file=sys.stderr)
+    # 2. 上传 COS
+    print(f"  上传报告...", file=sys.stderr)
+    url = upload_to_cos(embedded_html, filename)
+
+    if url:
+        print(url)
+        print(f"  ✅ 报告已上传", file=sys.stderr)
+    else:
+        # COS 失败，保存到桌面兜底
+        desktop_path = os.path.expanduser(f"~/Desktop/竞对分析_{filename}")
+        with open(desktop_path, 'w', encoding='utf-8') as f:
+            f.write(embedded_html)
+        print(desktop_path)
+        print(f"  ⚠ 上传失败，报告已保存到桌面", file=sys.stderr)
 
 
 if __name__ == '__main__':
