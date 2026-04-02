@@ -7,6 +7,17 @@ description: "外卖店铺巡检。一次性检查店铺的差评、活动到期
 
 一次性检查美团+饿了么店铺，只报有问题的。
 
+## 工作原理（你必须理解）
+
+**你不需要任何账号密码，不需要 stores.json。** 流程是：
+
+1. 运营在 Chromium 浏览器里登录了食亨（bi.shihengtech.com）
+2. 悟空插件自动读取该账号下的所有品牌和店铺
+3. 脚本通过插件切换品牌，自动巡检每家店
+4. 你只需要跑命令，插件会处理一切
+
+**不要问运营要账号密码，不要配置 stores.json，不要自己去登录网站。**
+
 ## 怎么跟用户沟通
 
 **先说理解，确认后执行。**
@@ -58,24 +69,25 @@ description: "外卖店铺巡检。一次性检查店铺的差评、活动到期
 ## 前置条件
 
 静默检查：
-1. Chrome调试端口：`curl --noproxy localhost -s http://localhost:9222/json/version`
-   - 失败 → `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="/Users/seth/Library/Application Support/Chrome-Debug" --proxy-server="direct://" &`
+1. 浏览器调试端口：`curl --noproxy localhost -s http://localhost:9222/json/version`
+   - 失败 → 告诉运营"先打开 Chromium 浏览器"
 2. Python依赖：`python3 -c "import playwright"`
+   - 失败 → `bash install.sh`
 
 ## 执行
 
 <skill_exec>
 
 - 命令: NO_PROXY=localhost python3 run_all_fast.py
-- 工作目录: /Users/seth/.qclaw/workspace/store-monitor
-- 描述: 全量巡检
+- 工作目录: ~/.qclaw/workspace/store-monitor
+- 描述: 全量巡检（插件下所有品牌）
 
 </skill_exec>
 
 <skill_exec>
 
 - 命令: NO_PROXY=localhost python3 run_fast.py {brands}
-- 工作目录: /Users/seth/.qclaw/workspace/store-monitor
+- 工作目录: ~/.qclaw/workspace/store-monitor
 - 描述: 指定品牌，{brands} 用引号包裹
 
 </skill_exec>
