@@ -46,15 +46,17 @@ def upload_to_cos(html_content, filename):
     if not sid or not skey:
         return None
 
+    from urllib.parse import quote
     key = f"reports/{filename}"
+    encoded_key = quote(key, safe='/')
     host = f"{COS_BUCKET}.cos.{COS_REGION}.myqcloud.com"
-    url = f"https://{host}/{key}"
+    url = f"https://{host}/{encoded_key}"
 
-    # 腾讯云签名 v5
+    # 腾讯云签名 v5（uri必须用编码后的，和实际请求一致）
     now = int(time.time())
     sign_time = f"{now - 60};{now + 3600}"
     http_method = "put"
-    http_uri = f"/{key}"
+    http_uri = f"/{encoded_key}"
 
     # 签名
     sign_key = hmac.new(skey.encode(), sign_time.encode(), hashlib.sha1).hexdigest()
