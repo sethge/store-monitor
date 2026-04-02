@@ -69,8 +69,8 @@ description: "外卖店铺巡检。一次性检查店铺的差评、活动到期
 ## 前置条件
 
 检查调试端口：`curl --noproxy localhost -s http://localhost:9222/json/version`
-- 有返回 → 直接跑巡检
-- 没返回 → 告诉运营"先双击盯店巡检启动浏览器，好了告诉我"。**不要自己启动浏览器。等运营说好了再跑。**
+- 有返回 → 直��跑巡检
+- 没返回 → 跑 `bash ~/.qclaw/workspace/store-monitor/start.sh`，等端口起来再跑巡检
 
 ## 执行
 
