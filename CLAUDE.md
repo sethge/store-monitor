@@ -9,6 +9,11 @@
 python3 -c "import playwright" 2>/dev/null || pip3 install playwright && playwright install chromium
 python3 -c "import lzstring" 2>/dev/null || pip3 install lzstring --break-system-packages 2>/dev/null || pip3 install lzstring
 python3 -c "from google import genai" 2>/dev/null || pip3 install google-genai --break-system-packages 2>/dev/null || pip3 install google-genai
+python3 -c "import xlsxwriter" 2>/dev/null || pip3 install xlsxwriter --break-system-packages 2>/dev/null || pip3 install xlsxwriter
+
+# 视频诊断依赖
+python3 -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || pip3 install tencentcloud-sdk-python --break-system-packages 2>/dev/null || pip3 install tencentcloud-sdk-python
+command -v ffmpeg &>/dev/null || { [ "$(uname -s)" = "Darwin" ] && brew install ffmpeg || sudo apt install -y ffmpeg 2>/dev/null; }
 
 # Brain（知识库）
 if [ ! -d "$HOME/wisdom-brain" ]; then
