@@ -147,13 +147,20 @@ def main():
     local_path = save_local(competitors, local_filename)
     print(f"  数据已保存: {local_path}", file=sys.stderr)
 
-    # 2. 保存HTML到桌面（双击打开，不依赖任何外部服务）
+    # 2. 保存HTML到桌面（运营双击打开）
     desktop_filename = "竞对分析_{}_{}.html".format(name_str, ts)
     desktop_path = os.path.expanduser("~/Desktop/{}".format(desktop_filename))
     with open(desktop_path, 'w', encoding='utf-8') as f:
         f.write(embedded_html)
     print(desktop_path)
     print(f"  ✅ 报告已保存到桌面，双击打开", file=sys.stderr)
+
+    # 3. 同步上传COS（数据备份，不影响主流程）
+    try:
+        upload_to_cos(embedded_html, filename)
+        print(f"  ✅ 已同步到云端备份", file=sys.stderr)
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':
