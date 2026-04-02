@@ -89,7 +89,7 @@ def upload_to_cos(html_content, filename):
 def save_local(competitors, filename):
     """保存JSON数据到本地（积累店铺数据库）"""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    data_file = DATA_DIR / filename.replace('.html', '.json')
+    data_file = DATA_DIR / filename
     with open(data_file, 'w', encoding='utf-8') as f:
         json.dump(competitors, f, ensure_ascii=False, indent=2)
     return str(data_file)
@@ -133,14 +133,17 @@ def main():
         'https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js'
     )
 
-    # 文件名
+    # 文件名（纯ASCII，避免中文URL在微信/浏览器里出问题）
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    import hashlib
     shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
     name_str = '+'.join(shop_names)[:30]
-    filename = f"{name_str}_{ts}.html"
+    name_hash = hashlib.md5(name_str.encode()).hexdigest()[:8]
+    filename = f"report_{name_hash}_{ts}.html"
 
-    # 1. 保存本地数据（积累店铺数据库）
-    local_path = save_local(competitors, filename)
+    # 1. 保存本地数据（中文名方便辨认）
+    local_filename = "{}_{}.json".format(name_str, ts)
+    local_path = save_local(competitors, local_filename)
     print(f"  数据已保存: {local_path}", file=sys.stderr)
 
     # 2. 上传 COS
