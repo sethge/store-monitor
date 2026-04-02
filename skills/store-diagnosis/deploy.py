@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成竞对分析报告 → 上传腾讯云COS → 返回公网链接
-同时保存JSON数据到本地（积累店铺数据库）
+生成竞对分析报告 → 保存到桌面 + JSON数据存本地
 用法: python3 deploy.py --data /tmp/competitor_data.json
-输出: 公网链接
+输出: 桌面HTML路径
 """
 import argparse, json, os, sys
 from pathlib import Path
@@ -13,87 +12,6 @@ from datetime import datetime
 SCRIPT_DIR = Path(__file__).parent
 TEMPLATE = SCRIPT_DIR / "web" / "index.html"
 DATA_DIR = SCRIPT_DIR.parent.parent / "memory" / "diagnosis"
-
-# 腾讯云 COS 配置
-COS_BUCKET = "11-store-report-1255918156"
-COS_REGION = "ap-shanghai"
-
-
-def _load_cos_keys():
-    """从内置配置或环境变量获取腾讯云密钥"""
-    import re, base64
-    # 复用 gemini_ocr.py 里的配置
-    gemini_ocr = SCRIPT_DIR / "gemini_ocr.py"
-    if gemini_ocr.exists():
-        content = gemini_ocr.read_text()
-        m = re.search(r'_DEFAULT_CFG\s*=\s*"([^"]+)"', content)
-        if m:
-            cfg = json.loads(base64.b64decode(m.group(1)).decode())
-            return cfg.get('tencent_secret_id'), cfg.get('tencent_secret_key')
-    config_path = SCRIPT_DIR / "config.json"
-    if config_path.exists():
-        cfg = json.load(open(config_path))
-        return cfg.get('tencent_secret_id'), cfg.get('tencent_secret_key')
-    return os.environ.get('TENCENT_SECRET_ID'), os.environ.get('TENCENT_SECRET_KEY')
-
-
-def upload_to_cos(html_content, filename):
-    """上传HTML到腾讯云COS（纯requests，不依赖SDK）"""
-    import hashlib, hmac, time
-    import requests
-
-    sid, skey = _load_cos_keys()
-    if not sid or not skey:
-        return None
-
-    from urllib.parse import quote
-    key = f"reports/{filename}"
-    encoded_key = quote(key, safe='/')
-    host = f"{COS_BUCKET}.cos.{COS_REGION}.myqcloud.com"
-    url = f"https://{host}/{encoded_key}"
-
-    # 腾讯云签名 v5（uri必须用编码后的，和实际请求一致）
-    now = int(time.time())
-    sign_time = f"{now - 60};{now + 3600}"
-    http_method = "put"
-    http_uri = f"/{encoded_key}"
-
-    # 签名（header列表必须按字母序排列）
-    sign_key = hmac.new(skey.encode(), sign_time.encode(), hashlib.sha1).hexdigest()
-    http_params = ""
-    header_list = "content-disposition;content-type;host"
-    http_headers = "{cd}={cdv}&{ct}={ctv}&host={hv}".format(
-        cd="content-disposition",
-        cdv=requests.utils.quote("inline", safe=''),
-        ct="content-type",
-        ctv=requests.utils.quote("text/html; charset=utf-8", safe=''),
-        hv=requests.utils.quote(host, safe=''),
-    )
-    format_str = "{}\n{}\n{}\n{}\n".format(http_method, http_uri, http_params, http_headers)
-    string_to_sign = "sha1\n{}\n{}\n".format(sign_time, hashlib.sha1(format_str.encode()).hexdigest())
-    signature = hmac.new(sign_key.encode(), string_to_sign.encode(), hashlib.sha1).hexdigest()
-
-    auth = (f"q-sign-algorithm=sha1&q-ak={sid}&q-sign-time={sign_time}"
-            f"&q-key-time={sign_time}&q-header-list={header_list}"
-            f"&q-url-param-list=&q-signature={signature}")
-
-    # 绕过代理上传
-    session = requests.Session()
-    session.trust_env = False
-    resp = session.put(url, data=html_content.encode('utf-8'), headers={
-        'Host': host,
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': 'inline',
-        'Authorization': auth,
-    }, timeout=30)
-
-    if resp.status_code in (200, 204):
-        # 返回静态网站域名（浏览器直接渲染），上传用的是普通API域名
-        website_host = f"{COS_BUCKET}.cos-website.{COS_REGION}.myqcloud.com"
-        return f"https://{website_host}/{encoded_key}"
-    else:
-        print(f"  上传失败: {resp.status_code} {resp.text[:200]}", file=sys.stderr)
-        return None
 
 
 def save_local(competitors, filename):
@@ -126,7 +44,7 @@ def main():
     json_str = json.dumps(competitors, ensure_ascii=False, indent=2)
     embedded_html = template_html.replace(
         'const COMPETITORS = loadData();',
-        f'const COMPETITORS = {json_str};'
+        'const COMPETITORS = {};'.format(json_str)
     )
 
     # CDN 换国内源（jsdelivr国内不稳定）
@@ -134,18 +52,15 @@ def main():
         'https://cdn.jsdelivr.net', 'https://unpkg.com'
     )
 
-    # 文件名（纯ASCII，避免中文URL在微信/浏览器里出问题）
+    # 文件名
     ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    import hashlib
     shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
     name_str = '+'.join(shop_names)[:30]
-    name_hash = hashlib.md5(name_str.encode()).hexdigest()[:8]
-    filename = f"report_{name_hash}_{ts}.html"
 
-    # 1. 保存本地数据（中文名方便辨认）
+    # 1. 保存JSON数据（积累店铺数据库）
     local_filename = "{}_{}.json".format(name_str, ts)
     local_path = save_local(competitors, local_filename)
-    print(f"  数据已保存: {local_path}", file=sys.stderr)
+    print("  数据已保存: {}".format(local_path), file=sys.stderr)
 
     # 2. 保存HTML到桌面（运营双击打开）
     desktop_filename = "竞对分析_{}_{}.html".format(name_str, ts)
@@ -153,14 +68,7 @@ def main():
     with open(desktop_path, 'w', encoding='utf-8') as f:
         f.write(embedded_html)
     print(desktop_path)
-    print(f"  ✅ 报告已保存到桌面，双击打开", file=sys.stderr)
-
-    # 3. 同步上传COS（数据备份，不影响主流程）
-    try:
-        upload_to_cos(embedded_html, filename)
-        print(f"  ✅ 已同步到云端备份", file=sys.stderr)
-    except Exception:
-        pass
+    print("  ✅ 报告已保存到桌面，双击打开", file=sys.stderr)
 
 
 if __name__ == '__main__':
