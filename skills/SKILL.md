@@ -68,11 +68,9 @@ description: "外卖店铺巡检。一次性检查店铺的差评、活动到期
 
 ## 前置条件
 
-静默检查：
-1. 浏览器调试端口：`curl --noproxy localhost -s http://localhost:9222/json/version`
-   - 失败 → 告诉运营"先打开 Chromium 浏览器"
-2. Python依赖：`python3 -c "import playwright"`
-   - 失败 → `bash install.sh`
+检查调试端口：`curl --noproxy localhost -s http://localhost:9222/json/version`
+- 有返回 → 直接跑巡检
+- 没返回 → 告诉运营"先双击盯店巡检启动浏览器，好了告诉我"。**不要自己启动浏览器。等运营说好了再跑。**
 
 ## 执行
 
