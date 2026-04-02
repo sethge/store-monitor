@@ -37,16 +37,23 @@ rm -rf ~/Library/Google/GoogleSoftwareUpdate 2>/dev/null
 # ===== 2. 启动Chrome调试模式 =====
 if ! curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; then
     echo "启动浏览器调试模式..."
-    "$CHROME" --remote-debugging-port=$PORT --user-data-dir="$HOME/Library/Application Support/Chrome-Debug" --proxy-server="direct://" --load-extension="$SCRIPT_DIR/goku" --disable-extensions-except="$SCRIPT_DIR/goku" --disable-features=ExtensionDeveloperModeWarning &
+    # 不用 --load-extension（Chrome 146 已失效），插件首次手动加载后会自动保存
+    "$CHROME" --remote-debugging-port=$PORT --user-data-dir="$HOME/Library/Application Support/Chrome-Debug" --proxy-server="direct://" --disable-features=ExtensionDeveloperModeWarning &
     sleep 3
 
-    # 检查悟空插件
-    if [ ! -d "$HOME/Library/Application Support/Chrome-Debug/Default/Extensions" ] || ! find $HOME/Library/Application Support/Chrome-Debug -path "*/goku*" -print -quit 2>/dev/null | grep -q .; then
+    # 检查悟空插件是否已加载过
+    GOKU_LOADED=false
+    if [ -d "$HOME/Library/Application Support/Chrome-Debug/Default/Extensions" ]; then
+        # 检查扩展目录里有没有悟空
+        find "$HOME/Library/Application Support/Chrome-Debug" -name "manifest.json" -exec grep -l "悟空" {} \; 2>/dev/null | grep -q . && GOKU_LOADED=true
+    fi
+
+    if [ "$GOKU_LOADED" = "false" ]; then
         echo ""
-        echo "⚠️  首次使用需要手动操作："
+        echo "⚠️  首次使用需要手动加载悟空插件（只需一次）："
         echo "  1. 浏览器打开 chrome://extensions/"
-        echo "  2. 开启开发者模式"
-        echo "  3. 加载已解压的扩展程序 → 选择 $SCRIPT_DIR/goku/goku"
+        echo "  2. 开启右上角「开发者模式」"
+        echo "  3. 点「加载已解压的扩展程序」→ 选择: $SCRIPT_DIR/goku"
         echo "  4. 打开 bi.shihengtech.com 登录食亨"
         echo ""
         echo "完成后按回车继续..."
