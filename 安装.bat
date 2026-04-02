@@ -145,6 +145,26 @@ if not exist "memory\interactions" mkdir "memory\interactions"
 if not exist "memory\pending_review" mkdir "memory\pending_review"
 echo   ✓ memory目录
 
+:: 安装 Chromium（不会自动更新）
+set COS_BASE=https://11-store-report-1255918156.cos.ap-shanghai.myqcloud.com/tools
+if not exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
+    if not exist "C:\Program Files\Chromium\Application\chrome.exe" (
+        echo 安装 Chromium...
+        curl -L "%COS_BASE%/Chromium_142391%%20(1).zip" -o "%TEMP%\chromium-win.zip" --max-time 600 -#
+        if exist "%TEMP%\chromium-win.zip" (
+            powershell -Command "Expand-Archive -Force '%TEMP%\chromium-win.zip' '%LOCALAPPDATA%\Chromium'"
+            del "%TEMP%\chromium-win.zip"
+            echo   ✓ Chromium 已安装
+        ) else (
+            echo   ⚠ Chromium 下载失败，请联系管理员
+        )
+    ) else (
+        echo   ✓ Chromium 已安装
+    )
+) else (
+    echo   ✓ Chromium 已安装
+)
+
 :: ffmpeg（可选，有就用）
 where ffmpeg >nul 2>&1
     if %errorlevel% neq 0 (

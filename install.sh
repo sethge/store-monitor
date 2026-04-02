@@ -93,16 +93,24 @@ if [ "$(uname -s)" = "Darwin" ]; then
 fi
 
 # ─── 6. 浏览器（Chromium优先，不自动更新）───
+COS_BASE="https://11-store-report-1255918156.cos.ap-shanghai.myqcloud.com/tools"
+
 if [ "$(uname -s)" = "Darwin" ]; then
     if [ -d "/Applications/Chromium.app" ]; then
         echo "  ✓ Chromium 已安装"
-    elif command -v brew &>/dev/null; then
-        echo "安装 Chromium（不会自动更新，比Chrome稳定）..."
-        brew install --cask chromium 2>/dev/null && echo "  ✓ Chromium 已安装" || \
-        echo "  ⚠ Chromium 安装失败，请手动下载: https://github.com/nicehash/Chromium/releases"
     else
-        echo "  ⚠ 请安装 Chromium: https://github.com/nicehash/Chromium/releases"
+        echo "安装 Chromium（从国内下载，不会自动更新）..."
+        curl -L --noproxy "*" "$COS_BASE/chromium_27957.zip" -o /tmp/chromium-mac.zip --max-time 600 -# && \
+        unzip -q -o /tmp/chromium-mac.zip -d /tmp/chromium-install/ && \
+        cp -R /tmp/chromium-install/chrome-mac/Chromium.app /Applications/ && \
+        chmod +x /Applications/Chromium.app/Contents/MacOS/Chromium && \
+        rm -rf /tmp/chromium-mac.zip /tmp/chromium-install/ && \
+        echo "  ✓ Chromium 已安装到 /Applications/" || \
+        echo "  ⚠ Chromium 安装失败，请联系管理员"
     fi
+else
+    # Windows 在 安装.bat 里处理
+    echo "  ⏭ Windows 浏览器在 安装.bat 中处理"
 fi
 
 # ─── 7. ffmpeg（可选，有就用，没有自动用opencv替代）───
