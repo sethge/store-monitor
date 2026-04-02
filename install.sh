@@ -31,15 +31,22 @@ if [ ! -L "$SCRIPT_DIR/wisdom-brain" ]; then
     echo "  ✓ 链接 wisdom-brain"
 fi
 
-# 3. 安装skills
+# 3. 安装skills（软链接，git pull自动更新）
 echo "安装skills..."
 mkdir -p "$QCLAW_DIR/skills"
 for skill in store-patrol store-alert store-diagnosis ops-scheduler setup; do
     if [ -d "$SCRIPT_DIR/skills/$skill" ]; then
-        cp -r "$SCRIPT_DIR/skills/$skill" "$QCLAW_DIR/skills/"
-        echo "  ✓ $skill"
+        rm -rf "$QCLAW_DIR/skills/$skill"
+        ln -sf "$SCRIPT_DIR/skills/$skill" "$QCLAW_DIR/skills/$skill"
+        echo "  ✓ $skill → 链接"
     fi
 done
+# 主 SKILL.md（巡检）
+if [ -f "$SCRIPT_DIR/skills/SKILL.md" ]; then
+    rm -f "$QCLAW_DIR/skills/SKILL.md"
+    ln -sf "$SCRIPT_DIR/skills/SKILL.md" "$QCLAW_DIR/skills/SKILL.md"
+    echo "  ✓ SKILL.md → 链接"
+fi
 
 # 3. 安装agent配置（不覆盖已有的）
 echo "安装agent配置..."
