@@ -1,6 +1,6 @@
 #!/bin/bash
-# 盯店巡检 — 手动启动浏览器（一般不需要，agent会自动启动）
-# 仅在需要手动调试时使用
+# 盯店巡检 — 启动专用浏览器（双击运行）
+# 优先用系统Chrome，没有就用playwright的chromium
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT=9222
@@ -11,21 +11,27 @@ if curl --noproxy localhost -s http://localhost:$PORT/json/version &>/dev/null; 
     exit 0
 fi
 
-echo "启动浏览器..."
-# 用playwright自带的chromium
-CHROME_BIN=$(python3 -c "
+# 找浏览器：优先系统Chrome，没有就用playwright的chromium
+if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
+    CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    USER_DATA="$HOME/Library/Application Support/Chrome-Debug"
+    echo "启动Chrome调试模式..."
+else
+    CHROME_BIN=$(python3 -c "
 import glob, os
 paths = glob.glob(os.path.expanduser('~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'))
 if paths: print(sorted(paths)[-1])
 " 2>/dev/null)
+    USER_DATA="$HOME/chromium-debug"
+    echo "启动chromium..."
+fi
 
 if [ -z "$CHROME_BIN" ]; then
-    echo "❌ 没找到playwright自带的chromium，请先运行: playwright install chromium"
+    echo "❌ 没找到Chrome或chromium"
     exit 1
 fi
 
 EXT_PATH="$SCRIPT_DIR/goku"
-USER_DATA="$HOME/chromium-debug"
 mkdir -p "$USER_DATA"
 
 "$CHROME_BIN" \
@@ -36,7 +42,8 @@ mkdir -p "$USER_DATA"
     --no-first-run \
     --disable-default-apps \
     --disable-sync \
-    --no-default-browser-check &
+    --no-default-browser-check \
+    --proxy-server="direct://" &
 
 for i in $(seq 1 15); do
     sleep 1
