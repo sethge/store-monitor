@@ -31,11 +31,11 @@ echo "✓ QClaw已安装"
 # ─── 2. 安装Brain（集体知识库，失败不卡住）───
 echo "安装Brain（运营知识库）..."
 if [ ! -d "$HOME/wisdom-brain" ]; then
-    GIT_TERMINAL_PROMPT=0 timeout 30 git clone --quiet https://gitee.com/sethgeshiheng/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
+    GIT_TERMINAL_PROMPT=0 git clone --quiet https://gitee.com/sethgeshiheng/wisdom-brain.git "$HOME/wisdom-brain" 2>/dev/null && \
         echo "  ✓ wisdom-brain 已克隆" || \
         echo "  ⏭ wisdom-brain 跳过（不影响基础功能）"
 else
-    GIT_TERMINAL_PROMPT=0 timeout 10 git -C "$HOME/wisdom-brain" pull --quiet 2>/dev/null
+    GIT_TERMINAL_PROMPT=0 git -C "$HOME/wisdom-brain" pull --quiet 2>/dev/null
     echo "  ✓ wisdom-brain 已更新"
 fi
 if [ ! -L "$SCRIPT_DIR/wisdom-brain" ]; then
