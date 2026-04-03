@@ -1,13 +1,50 @@
-"""浏览器连接模块 — 只连接，不启动。浏览器由运营手动打开。"""
+"""浏览器模块 — 直接跑二进制启动（不用playwright launch，它会加--disable-extensions）"""
+import asyncio
 import subprocess
+import glob
 import json
 import os
+import sys
+from pathlib import Path
 
+EXT_PATH = str(Path(__file__).parent / "goku")
+CHROME_USER_DIR = os.path.expanduser("~/Library/Application Support/Chrome-Debug")
+CHROMIUM_USER_DIR = os.path.expanduser("~/chromium-debug")
 PORT = int(os.environ.get("CHROME_PORT", "9222"))
 
 
+def _find_chrome():
+    """优先系统Chrome"""
+    if sys.platform == "darwin":
+        path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if os.path.exists(path):
+            return path, CHROME_USER_DIR
+    elif sys.platform == "win32":
+        for base in [os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", "")]:
+            path = os.path.join(base, "Google", "Chrome", "Application", "chrome.exe")
+            if os.path.exists(path):
+                return path, os.path.join(os.environ.get("LOCALAPPDATA", ""), "Chrome-Debug")
+    return None, None
+
+
+def _find_pw_chromium():
+    """playwright自带chromium做fallback"""
+    if sys.platform == "darwin":
+        paths = glob.glob(os.path.expanduser(
+            "~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+        ))
+        if paths:
+            return sorted(paths)[-1], CHROMIUM_USER_DIR
+    elif sys.platform == "win32":
+        paths = glob.glob(os.path.join(
+            os.environ.get("LOCALAPPDATA", ""), "ms-playwright", "chromium-*", "chrome-win", "chrome.exe"
+        ))
+        if paths:
+            return sorted(paths)[-1], CHROMIUM_USER_DIR
+    return None, None
+
+
 def _check_port(port):
-    """检查端口是否有CDP响应，返回ws地址或None"""
     try:
         r = subprocess.run(
             ["curl", "--noproxy", "localhost", "-s", f"http://localhost:{port}/json/version"],
@@ -20,48 +57,62 @@ def _check_port(port):
     return None
 
 
-def _has_extension(port):
-    """检查端口上的浏览器是否加载了悟空插件"""
-    try:
-        r = subprocess.run(
-            ["curl", "--noproxy", "localhost", "-s", f"http://localhost:{port}/json/list"],
-            capture_output=True, text=True, timeout=3
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            for p in json.loads(r.stdout):
-                if "chrome-extension://" in p.get("url", ""):
-                    return True
-    except Exception:
-        pass
-    return False
-
-
 async def launch(pw, port=None):
     """
-    连接已有浏览器，返回 (browser, context)。
-    不启动浏览器——运营通过双击start.sh或手动打开。
-    找不到时抛异常，由调用方引导运营操作。
+    启动浏览器并连接。
+    用subprocess.Popen直接跑二进制（不用playwright launch，避免--disable-extensions）。
+    然后用playwright connect_over_cdp连上去操作。
     """
     if port is None:
         port = PORT
 
+    # 1. 已有浏览器在跑 → 直接连
     ws = _check_port(port)
-    if not ws:
-        raise BrowserNotFound("没找到浏览器，请先打开盯店浏览器")
+    if ws:
+        try:
+            browser = await pw.chromium.connect_over_cdp(ws)
+            print(f"✅ 已连接浏览器 (端口{port})")
+            return browser, browser.contexts[0]
+        except Exception:
+            pass
 
-    if not _has_extension(port):
-        raise ExtensionNotFound("浏览器在跑但没看到悟空插件")
+    # 2. 找浏览器二进制
+    binary, user_dir = _find_chrome()
+    label = "Chrome"
+    if not binary:
+        binary, user_dir = _find_pw_chromium()
+        label = "chromium"
+    if not binary:
+        raise Exception("找不到Chrome或chromium，请运行: playwright install chromium")
 
-    browser = await pw.chromium.connect_over_cdp(ws)
-    print(f"✅ 已连接浏览器 (端口{port})")
-    return browser, browser.contexts[0]
+    # 3. 直接跑二进制（不走playwright launch）
+    print(f"启动{label}...")
+    os.makedirs(user_dir, exist_ok=True)
+    subprocess.Popen([
+        binary,
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={user_dir}",
+        f"--disable-extensions-except={EXT_PATH}",
+        f"--load-extension={EXT_PATH}",
+        "--no-first-run",
+        "--disable-default-apps",
+        "--disable-sync",
+        "--no-default-browser-check",
+        "--proxy-server=direct://",
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+    # 4. 等端口就绪
+    for i in range(20):
+        await asyncio.sleep(1)
+        ws = _check_port(port)
+        if ws:
+            try:
+                browser = await pw.chromium.connect_over_cdp(ws)
+                # 等插件加载
+                await asyncio.sleep(3)
+                print(f"✅ {label}已启动 (端口{port})")
+                return browser, browser.contexts[0]
+            except Exception:
+                pass
 
-class BrowserNotFound(Exception):
-    """浏览器未运行"""
-    pass
-
-
-class ExtensionNotFound(Exception):
-    """浏览器在跑但没有插件"""
-    pass
+    raise Exception(f"{label}启动超时")
