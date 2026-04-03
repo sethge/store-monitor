@@ -146,6 +146,17 @@ var __IS_TEST__ = {};
     print(report_url)
     print("  ✅ 报告已上传，在线访问", file=sys.stderr)
 
+    # 5. 自动记录到learn.py（非测试数据）
+    if not test:
+        try:
+            sys.path.insert(0, str(SCRIPT_DIR.parent.parent))
+            from learn import log_interaction
+            shops = ', '.join(c.get('店铺名称', '') for c in competitors)
+            category = competitors[0].get('品类', '未知品类') if competitors else '未知品类'
+            log_interaction("usage", "竞对分析 {}，{}家店，{}".format(category, len(competitors), shops))
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     main()
