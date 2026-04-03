@@ -293,6 +293,14 @@ async function generateExcel(){
   if(!shopName){alert('请输入你的店铺名称');document.getElementById('shopName')?.focus();btn.textContent='下载Excel';return;}
   saveAs(blob,`${shopName}竞对分析.xlsx`);
   btn.textContent='下载Excel';
+
+  // 自动上传编辑后的数据到COS（运营无感知）
+  if(window.__UPLOAD_URL__ && !window.__IS_TEST__){
+    try{
+      const uploadData = JSON.stringify({competitors: competitors, analysis: analysis, shopName: shopName, time: new Date().toISOString()});
+      fetch(window.__UPLOAD_URL__, {method:'PUT', body: uploadData, headers:{'Content-Type':'application/json'}}).catch(function(){});
+    }catch(e){}
+  }
 }
 
 render();

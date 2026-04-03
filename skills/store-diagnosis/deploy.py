@@ -1,26 +1,74 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成竞对分析报告 → 保存到桌面 + JSON数据存本地
+生成竞对分析报告 → 上传COS在线访问 + 运营下载Excel时自动回传数据
 用法: python3 deploy.py --data /tmp/competitor_data.json
-输出: 桌面HTML路径
+输出: 在线URL
 """
-import argparse, json, os, sys
+import argparse, json, os, sys, requests
 from pathlib import Path
 from datetime import datetime
 
 SCRIPT_DIR = Path(__file__).parent
 TEMPLATE = SCRIPT_DIR / "web" / "index.html"
-DATA_DIR = SCRIPT_DIR.parent.parent / "memory" / "diagnosis"
+
+# COS配置（从config.json读取）
+def _load_cos_config():
+    cfg_path = SCRIPT_DIR / "config.json"
+    if cfg_path.exists():
+        with open(cfg_path) as f:
+            return json.load(f)
+    return {}
+
+_COS_CFG = _load_cos_config()
+COS_BUCKET = _COS_CFG.get('cos_bucket', '')
+COS_REGION = _COS_CFG.get('cos_region', '')
+COS_SECRET_ID = _COS_CFG.get('tencent_secret_id', '')
+COS_SECRET_KEY = _COS_CFG.get('tencent_secret_key', '')
+COS_BASE_URL = 'https://{}.cos-website.{}.myqcloud.com'.format(COS_BUCKET, COS_REGION)
 
 
-def save_local(competitors, filename):
-    """保存JSON数据到本地（积累店铺数据库）"""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    data_file = DATA_DIR / filename
-    with open(data_file, 'w', encoding='utf-8') as f:
-        json.dump(competitors, f, ensure_ascii=False, indent=2)
-    return str(data_file)
+def _cos_client():
+    from qcloud_cos import CosConfig, CosS3Client
+    config = CosConfig(Region=COS_REGION, SecretId=COS_SECRET_ID, SecretKey=COS_SECRET_KEY)
+    client = CosS3Client(config)
+    # 绕过代理
+    session = requests.Session()
+    session.trust_env = False
+    client._session = session
+    return client
+
+
+def upload_cos(client, key, body, content_type='text/html; charset=utf-8'):
+    client.put_object(
+        Bucket=COS_BUCKET,
+        Key=key,
+        Body=body if isinstance(body, bytes) else body.encode('utf-8'),
+        ContentType=content_type,
+        ContentDisposition='inline',
+    )
+    return '{}/{}'.format(COS_BASE_URL, key)
+
+
+def presign_put(client, key, expire=7*86400):
+    """生成预签名PUT URL，有效期7天"""
+    return client.get_presigned_url(
+        Method='PUT',
+        Bucket=COS_BUCKET,
+        Key=key,
+        Expired=expire,
+    )
+
+
+def is_test_data(competitors):
+    """过滤测试脏数据"""
+    if not competitors:
+        return True
+    for c in competitors:
+        name = c.get('店铺名称', '')
+        if len(name) < 3 or name in ('测试', 'test', '竞对', 'xxx', '123'):
+            return True
+    return False
 
 
 def main():
@@ -39,7 +87,30 @@ def main():
         print("错误: 无竞对数据", file=sys.stderr)
         sys.exit(1)
 
-    # 读模板 + 嵌入数据
+    # 文件名
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
+    name_str = '+'.join(shop_names)[:30]
+    report_id = '{}_{}'.format(name_str, ts)
+
+    # COS key
+    html_key = 'reports/{}.html'.format(report_id)
+    data_key = 'data/{}.json'.format(report_id)
+
+    # 初始化COS
+    client = _cos_client()
+
+    # 1. 上传初始数据JSON
+    test = is_test_data(competitors)
+    if not test:
+        upload_cos(client, data_key, json.dumps(competitors, ensure_ascii=False, indent=2), 'application/json')
+        print("  数据已上传: {}/{}".format(COS_BASE_URL, data_key), file=sys.stderr)
+
+    # 2. 生成运营编辑后数据的预签名上传URL
+    edited_data_key = 'data/{}_edited.json'.format(report_id)
+    presign_url = presign_put(client, edited_data_key)
+
+    # 3. 读模板 + 嵌入数据 + 嵌入预签名URL
     template_html = TEMPLATE.read_text(encoding='utf-8')
     json_str = json.dumps(competitors, ensure_ascii=False, indent=2)
     embedded_html = template_html.replace(
@@ -47,28 +118,24 @@ def main():
         'const COMPETITORS = {};'.format(json_str)
     )
 
-    # CDN 换国内源（jsdelivr国内不稳定）
+    # CDN 换国内源
     embedded_html = embedded_html.replace(
         'https://cdn.jsdelivr.net', 'https://unpkg.com'
     )
 
-    # 文件名
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    shop_names = [c.get('店铺名称', '竞对') for c in competitors[:3]]
-    name_str = '+'.join(shop_names)[:30]
+    # 嵌入自动上传逻辑（在</body>前插入）
+    upload_script = '''
+<script>
+var __UPLOAD_URL__ = "{}";
+var __IS_TEST__ = {};
+</script>
+'''.format(presign_url.replace('"', '\\"'), 'true' if test else 'false')
+    embedded_html = embedded_html.replace('</body>', upload_script + '</body>')
 
-    # 1. 保存JSON数据（积累店铺数据库）
-    local_filename = "{}_{}.json".format(name_str, ts)
-    local_path = save_local(competitors, local_filename)
-    print("  数据已保存: {}".format(local_path), file=sys.stderr)
-
-    # 2. 保存HTML到桌面（运营双击打开）
-    desktop_filename = "竞对分析_{}_{}.html".format(name_str, ts)
-    desktop_path = os.path.expanduser("~/Desktop/{}".format(desktop_filename))
-    with open(desktop_path, 'w', encoding='utf-8') as f:
-        f.write(embedded_html)
-    print(desktop_path)
-    print("  ✅ 报告已保存到桌面，双击打开", file=sys.stderr)
+    # 4. 上传HTML到COS
+    report_url = upload_cos(client, html_key, embedded_html)
+    print(report_url)
+    print("  ✅ 报告已上传，在线访问", file=sys.stderr)
 
 
 if __name__ == '__main__':
