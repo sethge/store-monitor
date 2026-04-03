@@ -8,11 +8,25 @@ setup: "bash skills/store-diagnosis/setup.sh"
 
 视频 → 提帧 → OCR → **你来分析** → 生成链接 → **带着理解请教运营**。
 
+## 第零步：获取视频
+
+目前不支持直接传视频。运营需要把竞对录屏视频放在电脑上，然后告诉你文件名。
+
+引导话术：
+```
+你把录屏视频放到桌面上，然后告诉我文件名就行。
+比如"桌面上有个 瑞幸.mp4 和 星巴克.mp4"。
+```
+
+运营说了文件名后，拼路径：`~/Desktop/文件名.mp4`。如果运营说放在其他位置，按他说的来。
+
+**多个视频就依次跑，最后合到一份报告里。**
+
 ## 第一步：提帧 + OCR
 
 ```bash
 cd ~/.qclaw/workspace/store-monitor
-python3 skills/store-diagnosis/extract_ocr.py 视频路径.mp4
+python3 skills/store-diagnosis/extract_ocr.py ~/Desktop/视频名.mp4
 ```
 
 这条命令做两件事：提取视频关键帧 + 腾讯云OCR识别文字。
