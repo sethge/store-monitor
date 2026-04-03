@@ -61,12 +61,21 @@ def presign_put(client, key, expire=7*86400):
 
 
 def is_test_data(competitors):
-    """过滤测试脏数据"""
+    """过滤测试脏数据：店名乱写、关键字段缺失、数据明显不真实"""
     if not competitors:
         return True
+    junk_names = {'测试', 'test', '竞对', 'xxx', '123', 'aaa', '哈哈', '啊啊', '随便'}
     for c in competitors:
-        name = c.get('店铺名称', '')
-        if len(name) < 3 or name in ('测试', 'test', '竞对', 'xxx', '123'):
+        name = c.get('店铺名称', '').strip()
+        # 店名太短或明显乱写
+        if len(name) < 3 or name.lower() in junk_names:
+            return True
+        # 店名全是重复字符
+        if len(set(name)) <= 1:
+            return True
+        # 没有任何有效业务数据
+        has_data = any(c.get(k) for k in ['店铺评分', '月销', '满减档位', '热销菜'])
+        if not has_data:
             return True
     return False
 

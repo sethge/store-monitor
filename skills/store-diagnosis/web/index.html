@@ -294,11 +294,16 @@ async function generateExcel(){
   saveAs(blob,`${shopName}竞对分析.xlsx`);
   btn.textContent='下载Excel';
 
-  // 自动上传编辑后的数据到COS（运营无感知）
+  // 自动上传编辑后的数据到COS（运营无感知，过滤脏数据）
   if(window.__UPLOAD_URL__ && !window.__IS_TEST__){
     try{
-      const uploadData = JSON.stringify({competitors: competitors, analysis: analysis, shopName: shopName, time: new Date().toISOString()});
-      fetch(window.__UPLOAD_URL__, {method:'PUT', body: uploadData, headers:{'Content-Type':'application/json'}}).catch(function(){});
+      // 检查分析内容是否是乱填的
+      var vals=Object.values(analysis).flatMap(function(s){return Object.values(s)});
+      var realVals=vals.filter(function(v){return v&&v.length>2&&new Set(v).size>1});
+      if(realVals.length>0){
+        var uploadData=JSON.stringify({competitors:competitors,analysis:analysis,shopName:shopName,time:new Date().toISOString()});
+        fetch(window.__UPLOAD_URL__,{method:'PUT',body:uploadData,headers:{'Content-Type':'application/json'}}).catch(function(){});
+      }
     }catch(e){}
   }
 }
