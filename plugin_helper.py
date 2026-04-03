@@ -6,9 +6,9 @@ from collections import defaultdict
 
 # 悟空插件ID（手动加载时Chrome会分配新ID，这里列已知的，自动检测兜底）
 KNOWN_EXT_IDS = [
+    "imnjpdamkohlnjmnlfngaoogfnahlldd",
     "ghppggbdmkaicdgohkkdaebbpcochkfe",
     "kocmiihdllcmbjanolpggoafghdfnglg",
-    "imnjpdamkohlnjmnlfngaoogfnahlldd",
 ]
 EXT_ID = KNOWN_EXT_IDS[0]
 
@@ -41,9 +41,18 @@ async def get_ext(ctx):
 
 async def pick_brand(ext, brand):
     """搜索并选择品牌，返回 (成功, 状态)"""
+    # 等插件页面就绪（selector出现）
+    for _wait in range(5):
+        ready = await ext.evaluate("() => document.querySelectorAll('.ant-select-selector').length > 0")
+        if ready:
+            break
+        await asyncio.sleep(1)
+    if not ready:
+        return False, "插件未就绪"
+
     await ext.evaluate("() => document.querySelectorAll('button,span').forEach(e=>{if(e.textContent.trim()==='重 置')e.click()})")
     await asyncio.sleep(0.5)
-    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
+    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
     await asyncio.sleep(0.5)
     inputs = await ext.query_selector_all('input.ant-select-selection-search-input')
     target = inputs[-1] if inputs else None

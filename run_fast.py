@@ -19,6 +19,7 @@ from playwright.async_api import async_playwright
 sys.path.insert(0, str(Path(__file__).parent))
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification
 from promo_check import parse_promo_data, check_promo
+from learn import log_interaction
 
 THREE_DAYS = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
 CUTOFF = datetime.now().timestamp() - 3*86400
@@ -745,6 +746,9 @@ async def main():
             try: await pg.close()
             except: pass
         print(f"完成 ({time.time()-t0:.0f}s)")
+        # 自动记录
+        issue_count = sum(len(items) for items in all_notices.values()) if new_keys else 0
+        log_interaction("usage", f"单轮预警 {','.join(brands)}，{issue_count}条新通知，{time.time()-t0:.0f}秒")
 
     elif not args.watch:
         # === 单次模式（和原来完全一样） ===
@@ -755,6 +759,9 @@ async def main():
         print(f"\n摘要\n")
         print_issues(all_issues)
         print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒")
+        # 自动记录
+        issue_count = sum(len(items) for items in all_issues.values())
+        log_interaction("usage", f"巡检 {','.join(brands)}，{issue_count}个问题，{total:.0f}秒")
         await close_store_pages(ctx)
     else:
         # === 预警模式：只看通知，到18:00自动结束 ===
@@ -828,6 +835,7 @@ async def main():
             for _, _, pg in watch_pages:
                 try: await pg.close()
                 except: pass
+        log_interaction("usage", f"盯店预警 {','.join(brands)}，共{round_num}轮，每{interval}分钟")
 
     await pw.stop()
 

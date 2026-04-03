@@ -13,11 +13,17 @@ from playwright.async_api import async_playwright
 
 async def get_all_brands(ext):
     """获取插件下所有品牌列表"""
+    # 等插件就绪
+    for _wait in range(5):
+        ready = await ext.evaluate("() => document.querySelectorAll('.ant-select-selector').length > 0")
+        if ready:
+            break
+        await asyncio.sleep(1)
     # 重置
     await ext.evaluate("() => document.querySelectorAll('button,span').forEach(e=>{if(e.textContent.trim()==='重 置')e.click()})")
     await asyncio.sleep(0.5)
     # 打开下拉
-    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
+    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
     await asyncio.sleep(1)
     # 获取所有品牌
     brands = await ext.evaluate(r"""() => {
@@ -169,6 +175,10 @@ async def main():
         print("✅ 所有店铺运营正常\n")
 
     print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒")
+    # 自动记录
+    from learn import log_interaction
+    issue_count = sum(len(items) for items in all_issues.values())
+    log_interaction("usage", f"全量巡检 {len(brands)}品牌，{issue_count}个问题，{total:.0f}秒")
     await pw.stop()
 
 
