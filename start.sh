@@ -29,11 +29,9 @@ mkdir -p "$USER_DATA"
 "$CHROME" \
     --remote-debugging-port=$PORT \
     --user-data-dir="$USER_DATA" \
-    --disable-extensions-except="$SCRIPT_DIR/goku" \
     --load-extension="$SCRIPT_DIR/goku" \
     --no-first-run \
-    --no-default-browser-check \
-    --proxy-server="direct://" &
+    --no-default-browser-check &
 
 for i in $(seq 1 15); do
     sleep 1

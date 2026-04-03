@@ -26,11 +26,9 @@ async def launch(pw, port=PORT):
         chrome,
         f"--remote-debugging-port={port}",
         f"--user-data-dir={USER_DIR}",
-        f"--disable-extensions-except={EXT_PATH}",
         f"--load-extension={EXT_PATH}",
         "--no-first-run",
         "--no-default-browser-check",
-        "--proxy-server=direct://",
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 等端口就绪
