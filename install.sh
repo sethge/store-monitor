@@ -9,17 +9,52 @@ QCLAW_DIR="$HOME/.qclaw"
 
 echo "安装食亨智慧运营Agent..."
 
-# ─── 0. 国内镜像配置 ───
-PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn"
-PIP_CMD="pip3 install $PIP_MIRROR --break-system-packages"
-GIT_MIRROR="https://ghfast.top"  # GitHub 加速
-
+# ─── 0. Homebrew + Python环境 ───
 if [ "$(uname -s)" = "Darwin" ]; then
     export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
     export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
     export HOMEBREW_BOTTLE_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles"
     export HOMEBREW_API_DOMAIN="https://mirrors.ustc.edu.cn/homebrew-bottles/api"
+
+    # 确保有 Homebrew
+    command -v brew &>/dev/null || {
+        echo "安装 Homebrew（中科大镜像）..."
+        /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
+        eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
+    }
+
+    # 确保有 Homebrew Python（系统python受限，pip install会失败）
+    if ! command -v /opt/homebrew/bin/python3 &>/dev/null; then
+        echo "安装 Homebrew Python3..."
+        brew install python3
+    fi
 fi
+
+# 选Python：优先homebrew，fallback系统
+if command -v /opt/homebrew/bin/python3 &>/dev/null; then
+    PYTHON="/opt/homebrew/bin/python3"
+    PIP="/opt/homebrew/bin/pip3"
+    echo "  ✓ Python: $($PYTHON --version) (Homebrew)"
+else
+    PYTHON="python3"
+    PIP="pip3"
+    echo "  ⚠️ 使用系统Python，部分依赖安装可能受限"
+fi
+
+# PyPI镜像（按优先级：阿里→清华→官方，哪个通用哪个）
+PIP_MIRROR=""
+for mirror in \
+    "-i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com" \
+    "-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn" \
+    ""; do
+    if $PIP install --dry-run $mirror pip &>/dev/null; then
+        PIP_MIRROR="$mirror"
+        [ -z "$mirror" ] && echo "  ✓ PyPI: 官方源" || echo "  ✓ PyPI: ${mirror#*https://}"
+        break
+    fi
+done
+PIP_CMD="$PIP install $PIP_MIRROR"
+GIT_MIRROR="https://ghfast.top"
 
 # ─── 1. 检查QClaw ───
 if [ ! -d "$QCLAW_DIR" ]; then
@@ -83,16 +118,7 @@ if [ ! -d "$WORKSPACE/store-monitor" ]; then
     echo "  ✓ 链接store-monitor"
 fi
 
-# ─── 5. Homebrew（Mac）───
-if [ "$(uname -s)" = "Darwin" ]; then
-    command -v brew &>/dev/null || {
-        echo "安装 Homebrew（中科大镜像）..."
-        /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
-        eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
-    }
-fi
-
-# ─── 6. 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
+# ─── 5. 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
 # 不需要单独安装浏览器，playwright install chromium 会自动下载
 echo "  ✓ 浏览器由playwright自带（不受系统Chrome升级影响）"
 
@@ -105,41 +131,41 @@ command -v ffmpeg &>/dev/null && echo "  ✓ ffmpeg" || {
 echo "检查Python依赖..."
 
 # opencv（视频提帧，替代 ffmpeg）
-python3 -c "import cv2" 2>/dev/null || {
+$PYTHON -c "import cv2" 2>/dev/null || {
     echo "安装opencv..."
-    $PIP_CMD opencv-python-headless 2>/dev/null || pip3 install $PIP_MIRROR opencv-python-headless
+    $PIP_CMD opencv-python-headless 2>/dev/null || $PIP install opencv-python-headless
 }
 echo "  ✓ opencv"
 
 # playwright 1.44.0 + 自带chromium（版本锁定，不受系统Chrome升级影响）
 PLAYWRIGHT_VER="1.44.0"
-python3 -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
+$PYTHON -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
     echo "安装playwright==$PLAYWRIGHT_VER..."
-    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || pip3 install $PIP_MIRROR "playwright==$PLAYWRIGHT_VER"
+    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || $PIP install "playwright==$PLAYWRIGHT_VER"
     PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
     playwright install chromium
 }
 echo "  ✓ playwright ($PLAYWRIGHT_VER)"
 
 for pkg in xlsxwriter lzstring cos-python-sdk-v5; do
-    python3 -c "import $pkg" 2>/dev/null || {
+    $PYTHON -c "import $pkg" 2>/dev/null || {
         echo "安装 $pkg..."
-        $PIP_CMD $pkg 2>/dev/null || pip3 install $PIP_MIRROR $pkg
+        $PIP_CMD $pkg 2>/dev/null || $PIP install $pkg
     }
     echo "  ✓ $pkg"
 done
 
 # 腾讯云 OCR SDK
-python3 -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
+$PYTHON -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
     echo "安装腾讯云OCR SDK..."
-    $PIP_CMD tencentcloud-sdk-python 2>/dev/null || pip3 install $PIP_MIRROR tencentcloud-sdk-python
+    $PIP_CMD tencentcloud-sdk-python 2>/dev/null || $PIP install tencentcloud-sdk-python
 }
 echo "  ✓ tencentcloud-sdk"
 
 # Gemini SDK
-python3 -c "from google import genai" 2>/dev/null || {
+$PYTHON -c "from google import genai" 2>/dev/null || {
     echo "安装google-genai..."
-    $PIP_CMD google-genai 2>/dev/null || pip3 install $PIP_MIRROR google-genai
+    $PIP_CMD google-genai 2>/dev/null || $PIP install google-genai
 }
 echo "  ✓ google-genai"
 
