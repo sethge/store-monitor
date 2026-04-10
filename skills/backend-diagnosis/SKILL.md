@@ -42,6 +42,36 @@ result = await click_store_platform(ext, account)
 
 ## 第四步：读后台数据
 
+**⚠️ 不要新开页面！美团和饿了么后台都是侧边栏导航的单页应用。**
+
+登录后只有一个后台页面，所有数据都在这个页面里通过左侧菜单切换：
+- 经营分析 → 经营数据 / 店铺分
+- 顾客管理
+- 商品管理
+- 活动中心
+- 门店推广
+
+**在同一个页面里点侧边栏切换，不要goto新URL，不要new_page。**
+
+美团后台结构：
+- frame0 = 外壳（含侧边栏菜单）
+- frame1 = 内容区（点击侧边栏后这里的内容会变）
+- 点侧边栏菜单项 → frame1自动加载对应内容 → 读frame1的数据
+
+```python
+# 在frame0里点击侧边栏
+await frame0.evaluate("""(text) => {
+    const all = Array.from(document.querySelectorAll('*'));
+    for(const el of all) {
+        if(el.children.length < 3 && el.textContent.trim() === text) {
+            el.click(); return;
+        }
+    }
+}""", "经营分析")
+await asyncio.sleep(2)
+# 然后读frame1的内容
+```
+
 按外卖公式的每个变量读数据：
 
 **基础指标：** 评分、月售
