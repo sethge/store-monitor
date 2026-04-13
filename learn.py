@@ -569,6 +569,44 @@ def weekly_summary():
         pending.write_text(f"# 周总结待审\n\n{result}")
 
 
+# ─────────────────────────────────
+# 趋势提炼：从 SQLite 写入 patterns.md
+# ─────────────────────────────────
+
+def extract_patterns(days=7):
+    """从巡检快照数据库提炼店铺趋势，写入 knowledge/patterns.md"""
+    try:
+        from patrol_db import format_trend_report
+    except ImportError:
+        print("[patterns] patrol_db.py 不存在", file=sys.stderr)
+        return
+
+    report = format_trend_report(days)
+    patterns_file = KNOWLEDGE_DIR / "patterns.md"
+
+    # 保留已有的手写规律，追加自动趋势
+    existing = patterns_file.read_text() if patterns_file.exists() else ""
+
+    marker = "<!-- AUTO-TREND-START -->"
+    marker_end = "<!-- AUTO-TREND-END -->"
+
+    auto_block = f"{marker}\n{report}\n\n_更新时间: {_now()}_\n{marker_end}"
+
+    if marker in existing:
+        # 替换已有的自动趋势块
+        import re as _re
+        new_text = _re.sub(
+            f"{_re.escape(marker)}.*?{_re.escape(marker_end)}",
+            auto_block, existing, flags=_re.DOTALL)
+    else:
+        # 第一次：追加
+        new_text = existing.rstrip() + f"\n\n{auto_block}\n" if existing.strip() else auto_block + "\n"
+
+    patterns_file.write_text(new_text)
+    print(f"[patterns] 趋势已写入 {patterns_file.name}", file=sys.stderr)
+    print(report, file=sys.stderr)
+
+
 # ─── CLI ───
 
 def main():
@@ -580,6 +618,11 @@ def main():
 
     if cmd == "digest":
         daily_digest()
+        # digest 完自动提炼趋势
+        extract_patterns()
+    elif cmd == "patterns":
+        days = int(sys.argv[2]) if len(sys.argv) > 2 else 7
+        extract_patterns(days)
     elif cmd == "weekly":
         weekly_summary()
     elif cmd == "submit":
@@ -596,7 +639,7 @@ def main():
         log_interaction(cmd, content, operator)
     else:
         print(f"未知命令: {cmd}", file=sys.stderr)
-        print("可用: usage / feedback / knowledge / digest / submit / approve / weekly")
+        print("可用: usage / feedback / knowledge / digest / patterns / submit / approve / weekly")
         sys.exit(1)
 
 

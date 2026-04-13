@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
+from patrol_db import save_snapshot
 
 THREE_DAYS = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
 CUTOFF = datetime.now().timestamp() - 3*86400
@@ -758,7 +759,9 @@ async def main():
         total = time.time() - t0
         print(f"\n摘要\n")
         print_issues(all_issues)
-        print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒")
+        # 存快照到 SQLite
+        saved = save_snapshot(all_issues)
+        print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒 | 已存{saved}条快照")
         # 自动记录
         issue_count = sum(len(items) for items in all_issues.values())
         log_interaction("usage", f"巡检 {','.join(brands)}，{issue_count}个问题，{total:.0f}秒")
