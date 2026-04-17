@@ -9,6 +9,7 @@
 | 店铺诊断 | 诊断XX店、看看XX数据、XX店怎么样、帮我分析 | 通过插件登录后台，读数据做诊断分析 | [backend-diagnosis/SKILL.md](backend-diagnosis/SKILL.md) |
 | 竞对分析 | 分析视频、竞对分析、发视频 | 运营发视频，提帧+OCR+分析+生成报告 | [store-diagnosis/SKILL.md](store-diagnosis/SKILL.md) |
 | 定时任务 | 每天X点、每N分钟、定时、安排、取消、停、改频率 | 自然语言安排定时巡检/预警 | [ops-scheduler/SKILL.md](ops-scheduler/SKILL.md) |
+| 诊断跟进 | 诊断跟进、聊诊断、跟进XX店、看反馈、诊断出来了 | 推送诊断给运营→收反馈→盯TODO→Review效果 | [diagnosis-followup/SKILL.md](diagnosis-followup/SKILL.md) |
 
 ## 重要
 
