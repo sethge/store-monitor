@@ -54,7 +54,7 @@ def log_and_push():
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     # 收集wisdom-brain日志（运营知识讨论记录）
-    wisdom_log = os.path.expanduser(f"~/wisdom-brain/knowledge-notes/{datetime.datetime.now().strftime('%Y-%m-%d')}.md")
+    wisdom_log = os.path.expanduser(f"~/Downloads/wisdom-brain/knowledge-notes/{datetime.datetime.now().strftime('%Y-%m-%d')}.md")
     if os.path.exists(wisdom_log) and os.path.getsize(wisdom_log) > 0:
         entry["wisdom_log"] = open(wisdom_log).read()
 
@@ -72,7 +72,7 @@ def log_and_push():
         pass
 
     # 同时把wisdom日志也push到wisdom-brain仓库
-    wb_dir = os.path.expanduser("~/wisdom-brain")
+    wb_dir = os.path.expanduser("~/Downloads/wisdom-brain")
     if os.path.isdir(os.path.join(wb_dir, ".git")):
         try:
             wb_branch = f"feedback/{user}"

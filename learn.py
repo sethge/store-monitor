@@ -38,7 +38,7 @@ BASE_DIR = Path(__file__).parent
 MEMORY_DIR = BASE_DIR / "memory" / "interactions"
 MEMORY_MD = BASE_DIR / "agent-config" / "MEMORY.md"
 KNOWLEDGE_DIR = BASE_DIR / "agent-config" / "knowledge"
-WISDOM_BRAIN = Path.home() / "wisdom-brain"
+WISDOM_BRAIN = Path.home() / "Downloads" / "wisdom-brain"  # brain-test，回传待审批
 PENDING_DIR = BASE_DIR / "memory" / "pending_review"
 
 LAST_DIGEST_FILE = BASE_DIR / "memory" / ".last_digest"
