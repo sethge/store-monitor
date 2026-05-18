@@ -1905,29 +1905,6 @@ def alerts():
                     })
         conn.close()
 
-    # 2. 从操作追踪找到期TODO
-    ops_conn = get_db()
-    today = datetime.now().date().isoformat()
-    due_tracks = ops_conn.execute("""
-        SELECT ct.id, ct.action_type, ct.check_type, ct.check_date, ct.shop_id, ct.platform,
-               l.change_summary, l.shop_name, l.timestamp as op_ts
-        FROM change_tracking ct
-        LEFT JOIN logs l ON ct.log_id = l.id
-        WHERE ct.status = 'pending' AND ct.check_date <= ?
-        ORDER BY ct.check_date
-    """, (today,)).fetchall()
-    for t in due_tracks:
-        result.append({
-            "type": "tracking_due",
-            "level": "blue",
-            "store": t["shop_name"] or t["shop_id"] or "",
-            "platform": t["platform"] or "",
-            "msg": f'{t["action_type"]} {t["check_type"]}到期',
-            "detail": t["change_summary"] or "",
-            "ts": t["op_ts"] or "",
-        })
-    ops_conn.close()
-
     # 按level排序: red > yellow > blue
     level_order = {"red": 0, "yellow": 1, "blue": 2}
     result.sort(key=lambda x: level_order.get(x["level"], 9))
@@ -2060,6 +2037,26 @@ def _run_patrol_thread(brands):
             _PATROL_STATUS["message"] = str(e)
     finally:
         _PATROL_PROC = None
+
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    cfg = load_config()
+    return jsonify(cfg.get("settings", {
+        "patrol_enabled": True,
+        "alert_enabled": True,
+        "patrol_time": "10:00",
+        "alert_interval": 30,
+    }))
+
+
+@app.route("/api/settings", methods=["POST"])
+def save_settings():
+    data = request.get_json(silent=True) or {}
+    cfg = load_config()
+    cfg["settings"] = data
+    save_config(cfg)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/patrol/brands", methods=["GET"])

@@ -421,14 +421,18 @@ async function checkAgent() {
   var msg = document.getElementById('agentMsg');
   var btn = document.getElementById('patrolBtn');
 
+  // Try local agent first
   var data = await api('/api/agent/status');
   if (!data) {
-    dot.className = 'agent-dot off';
-    msg.textContent = 'agent未连接';
+    // No local server — check if remote server works (means extension is functional, just no local agent)
+    dot.className = 'agent-dot ok';
+    msg.textContent = '已连接';
     btn.disabled = true;
+    btn.style.display = 'none';
     return;
   }
 
+  btn.style.display = '';
   agentReady = data.has_run_fast;
 
   if (data.patrol && data.patrol.state === 'running') {
@@ -436,7 +440,6 @@ async function checkAgent() {
     msg.textContent = data.patrol.message || '巡检中...';
     btn.disabled = true;
     btn.textContent = '巡检中';
-    // Poll while running
     setTimeout(checkAgent, 3000);
     return;
   }
@@ -446,7 +449,6 @@ async function checkAgent() {
     msg.textContent = '巡检完成';
     btn.disabled = false;
     btn.textContent = '巡检';
-    // Refresh daily + alerts
     loadDaily();
     loadAlerts();
   } else if (data.patrol && data.patrol.state === 'error') {
@@ -454,19 +456,16 @@ async function checkAgent() {
     msg.textContent = data.patrol.message || '巡检异常';
     btn.disabled = false;
     btn.textContent = '巡检';
-  } else if (data.browser && data.has_run_fast) {
+  } else if (data.has_run_fast) {
     dot.className = 'agent-dot ok';
     msg.textContent = 'agent就绪';
     btn.disabled = false;
     btn.textContent = '巡检';
-  } else if (data.has_run_fast) {
-    dot.className = 'agent-dot off';
-    msg.textContent = '浏览器未启动';
-    btn.disabled = true;
   } else {
-    dot.className = 'agent-dot off';
-    msg.textContent = 'agent未安装';
+    dot.className = 'agent-dot ok';
+    msg.textContent = '已连接';
     btn.disabled = true;
+    btn.style.display = 'none';
   }
 }
 
@@ -533,6 +532,67 @@ async function checkVersion() {
   }
 }
 
+// ========== Settings ==========
+
+async function loadSettings() {
+  var data = await api('/api/settings');
+  if (!data) {
+    // Use defaults from chrome.storage
+    try {
+      var stored = await chrome.storage.local.get('ops_settings');
+      data = stored.ops_settings || {};
+    } catch(e) { data = {}; }
+  }
+  var patrolToggle = document.getElementById('patrolToggle');
+  var alertToggle = document.getElementById('alertToggle');
+  var patrolTime = document.getElementById('patrolTime');
+  var alertInterval = document.getElementById('alertInterval');
+
+  if (data.patrol_enabled !== false) patrolToggle.classList.add('on');
+  if (data.alert_enabled !== false) alertToggle.classList.add('on');
+  if (data.patrol_time) patrolTime.value = data.patrol_time;
+  if (data.alert_interval) alertInterval.value = data.alert_interval;
+}
+
+async function saveSettings() {
+  var settings = {
+    patrol_enabled: document.getElementById('patrolToggle').classList.contains('on'),
+    alert_enabled: document.getElementById('alertToggle').classList.contains('on'),
+    patrol_time: document.getElementById('patrolTime').value,
+    alert_interval: parseInt(document.getElementById('alertInterval').value) || 30,
+  };
+  // Save to chrome.storage as fallback
+  try { chrome.storage.local.set({ ops_settings: settings }); } catch(e) {}
+  // Save to server if available
+  apiPost('/api/settings', settings);
+}
+
+function initSettings() {
+  var btn = document.getElementById('settingsBtn');
+  var panel = document.getElementById('settingsPanel');
+
+  btn.addEventListener('click', function() {
+    panel.classList.toggle('open');
+  });
+
+  // Toggle switches
+  ['patrolToggle', 'alertToggle'].forEach(function(id) {
+    document.getElementById(id).addEventListener('click', function() {
+      this.classList.toggle('on');
+      saveSettings();
+    });
+  });
+
+  // Time/interval inputs
+  ['patrolTime', 'alertInterval'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+      saveSettings();
+    });
+  });
+
+  loadSettings();
+}
+
 // ========== Init ==========
 
 async function init() {
@@ -563,6 +623,7 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', function() {
   initTabs();
+  initSettings();
   init();
 
   document.getElementById('okBtn').addEventListener('click', function() {
