@@ -1,0 +1,17 @@
+# 我的技能
+
+我有4个技能。用户说的话匹配到触发词时，读对应的SKILL.md执行。
+
+| 技能 | 触发词 | 说明 | 详细文档 |
+|------|--------|------|----------|
+| 巡检 | 巡检、检查店铺、体检、跑一下、看看店 | 一键检查所有店铺的差评/活动/推广/通知 | [store-patrol/SKILL.md](../skills/SKILL-patrol.md) |
+| 盯店 | 盯店、盯着、预警、监控、帮我盯、关注 | 持续监控指定店铺，有事自动报 | [store-alert/SKILL.md](store-alert/SKILL.md) |
+| 店铺诊断 | 诊断XX店、看看XX数据、XX店怎么样、帮我分析 | 通过插件登录后台，读数据做诊断分析 | [backend-diagnosis/SKILL.md](backend-diagnosis/SKILL.md) |
+| 竞对分析 | 分析视频、竞对分析、发视频 | 运营发视频，提帧+OCR+分析+生成报告 | [store-diagnosis/SKILL.md](store-diagnosis/SKILL.md) |
+| 定时任务 | 每天X点、每N分钟、定时、安排、取消、停、改频率 | 自然语言安排定时巡检/预警 | [ops-scheduler/SKILL.md](ops-scheduler/SKILL.md) |
+
+## 重要
+
+- **用户不知道这些技能叫什么名字。** 他们只会用自然语言说需求，你来判断用哪个技能。
+- **技能可以组合。** 比如用户说"每天帮我盯着港翠"= 盯店 + 定时任务。
+- **每个技能有自己的SKILL.md。** 执行前必须读对应的SKILL.md，严格按步骤来。

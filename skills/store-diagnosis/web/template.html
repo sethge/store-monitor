@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>竞对分析报告</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f5f5; padding: 16px; }
+
+.table-wrap { overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+table { border-collapse: collapse; width: 100%; min-width: 1100px; font-size: 11px; }
+th, td { border: 1px solid #ccc; padding: 2px 4px; text-align: center; vertical-align: middle; line-height: 1.3; }
+
+/* 表头样式 - 复刻Excel橙底 */
+.row-title td { background: #fff; font-weight: bold; font-size: 12px; text-align: left; }
+.row-cat td { background: #FFC000; color: #fff; font-weight: bold; font-size: 11px; }
+.row-field td { background: #FFC000; color: #fff; font-weight: bold; font-size: 10px; }
+
+/* 数据行 */
+.row-data td { font-size: 11px; background: #fff; height: 22px; }
+.row-data td.name-cell { text-align: left; font-weight: 500; white-space: nowrap; }
+.row-data td[contenteditable]:focus { outline: 2px solid #FFC000; outline-offset: -2px; background: #fffef5; }
+
+/* 分析区标题行 */
+.row-analysis-header td { background: #FFC000; color: #fff; font-weight: bold; font-size: 11px; }
+
+/* 可编辑单元格 */
+td.editable { background: #fffef5; cursor: text; position: relative; min-width: 80px; height: 22px; }
+td.editable:hover { background: #fff8e1; }
+td.editable:focus { outline: 2px solid #FFC000; outline-offset: -2px; background: #fff; }
+td.editable:empty::before { content: attr(data-placeholder); color: #ccc; font-size: 11px; }
+td.editable.missing { background: #fff3f3; }
+td.editable.missing::after { content: ""; }
+
+/* A列竞对品牌 */
+.a-col { font-size: 11px; font-weight: bold; background: #f9f9f9; width: auto; white-space: nowrap; padding: 2px 6px; }
+
+/* 分析区标签 */
+.analysis-label { font-weight: bold; font-size: 13px; background: #f9f9f9; }
+
+/* 底部操作栏 */
+.action-bar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #ddd; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; margin-top: 16px; border-radius: 8px; box-shadow: 0 -2px 8px rgba(0,0,0,0.05); }
+.status { font-size: 13px; color: #666; }
+.status .warn { color: #e53935; font-weight: 500; }
+.btn { border: none; border-radius: 6px; padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-download { background: #FFC000; color: #fff; }
+.btn-download:hover { background: #e6ac00; }
+</style>
+</head>
+<body>
+
+<div class="table-wrap">
+  <table id="reportTable">
+    <!-- JS渲染 -->
+  </table>
+</div>
+
+<div class="action-bar">
+  <span class="status" id="status">检查中...</span>
+  <button class="btn btn-download" id="btnDownload" onclick="handleDownload()">下载Excel</button>
+</div>
+
+<script>
+const COMPETITORS = __COMPETITORS_JSON__;
+
+const FIELD_COLS = [
+  {key:'B', label:'店铺名称', width:'auto'},
+  {key:'C', label:'店铺评分', width:'60px'},
+  {key:'D', label:'营业时间', width:'80px'},
+  {key:'E', label:'月销', width:'60px'},
+  {key:'F', label:'实际配送费', width:'70px'},
+  {key:'G', label:'配送方式', width:'80px'},
+  {key:'H', label:'热销菜名称', width:'160px'},
+  {key:'I', label:'菜品月销量', width:'60px'},
+  {key:'J', label:'实际价格', width:'60px'},
+  {key:'K', label:'折扣力度', width:'60px'},
+  {key:'L', label:'商家评论数', width:'60px'},
+  {key:'M', label:'差评数', width:'50px'},
+  {key:'N', label:'差评率', width:'50px'},
+  {key:'O', label:'满减档位', width:'120px'},
+  {key:'P', label:'满减档位数', width:'50px'},
+  {key:'Q', label:'第一档满减力度', width:'60px'},
+  {key:'R', label:'第二档满减力度', width:'60px'},
+  {key:'S', label:'其他营销活动', width:'140px'},
+];
+
+// 分析区维度 - 对应列
+const ANALYSIS_DIMS = [
+  {col:'C', label:'店铺评分'},
+  {col:'D', label:'营业时间'},
+  {col:'E', label:'月销'},
+  {col:'F', label:'配送费'},
+  {col:'G', label:'配送方式'},
+  {col:'HK', label:'菜单版块（热销、定价、折扣）', span:4},
+  {col:'L', label:'评价数'},
+  {col:'MN', label:'差评率', span:2},
+  {col:'OR', label:'活动版块（档位、自营销力度）', span:4},
+  {col:'S', label:'活动丰富度'},
+];
+
+const ANALYSIS_ROWS = ['结论', '调整措施', '目的'];
+
+function render() {
+  const table = document.getElementById('reportTable');
+  let html = '';
+
+  // Row 1: 标题
+  html += `<tr class="row-title"><td></td><td colspan="18">基础信息数据表</td></tr>`;
+
+  // Row 2: 分类
+  html += `<tr class="row-cat">
+    <td></td>
+    <td colspan="4">基础</td>
+    <td colspan="2">配送</td>
+    <td colspan="4">菜单</td>
+    <td colspan="3">评论</td>
+    <td colspan="5">活动</td>
+  </tr>`;
+
+  // Row 3: 字段标题
+  html += `<tr class="row-field"><td></td>`;
+  FIELD_COLS.forEach(f => { html += `<td>${f.label}</td>`; });
+  html += `</tr>`;
+
+  // 竞对数据行
+  let totalRows = 0;
+  COMPETITORS.forEach(c => { totalRows += Math.max((c['热销菜']||[]).length, 1); });
+
+  let firstDataRow = true;
+  COMPETITORS.forEach((comp, ci) => {
+    const dishes = comp['热销菜'] || [{'名称':'','月销':'','实际价格':'','折扣力度':''}];
+    const n = dishes.length;
+
+    dishes.forEach((dish, di) => {
+      html += `<tr class="row-data">`;
+      // A列 - 合并所有行
+      if (firstDataRow) {
+        html += `<td class="a-col" rowspan="${totalRows}">竞对品牌</td>`;
+        firstDataRow = false;
+      }
+      // B-G, L-S: 只在竞对首行写，其余rowspan（全部可编辑）
+      if (di === 0) {
+        const rs = n > 1 ? ` rowspan="${n}"` : '';
+        html += `<td${rs} class="name-cell" contenteditable="true" data-comp="${ci}" data-field="店铺名称">${comp['店铺名称']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="店铺评分">${comp['店铺评分']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="营业时间">${comp['营业时间']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="月销">${comp['月销']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="实际配送费">${comp['实际配送费']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="配送方式">${comp['配送方式']||''}</td>`;
+      }
+      // H-K: 每行（可编辑）
+      html += `<td class="name-cell" contenteditable="true" data-comp="${ci}" data-dish="${di}" data-field="名称">${dish['名称']||''}</td>`;
+      html += `<td contenteditable="true" data-comp="${ci}" data-dish="${di}" data-field="月销">${dish['月销']||''}</td>`;
+      html += `<td contenteditable="true" data-comp="${ci}" data-dish="${di}" data-field="实际价格">${dish['实际价格']||''}</td>`;
+      html += `<td contenteditable="true" data-comp="${ci}" data-dish="${di}" data-field="折扣力度">${dish['折扣力度']||''}</td>`;
+      // L-S: 只在竞对首行（可编辑）
+      if (di === 0) {
+        const rs = n > 1 ? ` rowspan="${n}"` : '';
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="评价数">${comp['评价数']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="差评数">${comp['差评数']??''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="差评率">${comp['差评率']!=null?(comp['差评率']*100).toFixed(1)+'%':''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="满减档位">${comp['满减档位']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="满减档位数">${comp['满减档位数']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="第一档满减力度">${comp['第一档满减力度']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="第二档满减力度">${comp['第二档满减力度']||''}</td>`;
+        html += `<td${rs} contenteditable="true" data-comp="${ci}" data-field="其他活动">${comp['其他活动']||''}</td>`;
+      }
+      html += `</tr>`;
+    });
+  });
+
+  // 空行
+  html += `<tr><td colspan="19" style="border:none;height:12px;background:#f5f5f5;"></td></tr>`;
+
+  // 分析区标题行
+  html += `<tr class="row-analysis-header"><td></td><td>竞对分析</td>`;
+  ANALYSIS_DIMS.forEach(d => {
+    const span = d.span ? ` colspan="${d.span}"` : '';
+    html += `<td${span}>${d.label}</td>`;
+  });
+  html += `</tr>`;
+
+  // 结论/调整措施/目的
+  ANALYSIS_ROWS.forEach(label => {
+    html += `<tr>`;
+    html += `<td></td>`;
+    html += `<td class="analysis-label" rowspan="1">${label}</td>`;
+    ANALYSIS_DIMS.forEach(d => {
+      const span = d.span ? ` colspan="${d.span}"` : '';
+      const dimKey = d.col;
+      html += `<td${span} class="editable" contenteditable="true"
+        data-section="${label}" data-dim="${dimKey}"
+        data-placeholder="点击填写"
+        oninput="checkStatus()"></td>`;
+    });
+    html += `</tr>`;
+  });
+
+  table.innerHTML = html;
+}
+
+function checkStatus() {
+  const editables = document.querySelectorAll('td.editable');
+  const empty = [];
+  editables.forEach(td => {
+    td.classList.remove('missing');
+    if (!td.textContent.trim()) {
+      empty.push(`${td.dataset.section} - ${getDimLabel(td.dataset.dim)}`);
+    }
+  });
+
+  const statusEl = document.getElementById('status');
+  if (empty.length === 0) {
+    statusEl.innerHTML = '✅ 全部填写完成，可以下载';
+  } else {
+    statusEl.innerHTML = `还有 <span class="warn">${empty.length}处</span> 未填写`;
+  }
+}
+
+function getDimLabel(dimKey) {
+  const d = ANALYSIS_DIMS.find(x => x.col === dimKey);
+  return d ? d.label : dimKey;
+}
+
+async function handleDownload() {
+  // 检查未填项
+  const editables = document.querySelectorAll('td.editable');
+  const empty = [];
+  editables.forEach(td => {
+    td.classList.remove('missing');
+    if (!td.textContent.trim()) {
+      empty.push(td);
+    }
+  });
+
+  if (empty.length > 0) {
+    // 高亮未填的格子
+    empty.forEach(td => td.classList.add('missing'));
+    const names = empty.map(td => `「${td.dataset.section} - ${getDimLabel(td.dataset.dim)}」`);
+    alert('还有未填写的分析项：\n\n' + names.join('\n') + '\n\n请填写后再下载。');
+    empty[0].focus();
+    return;
+  }
+
+  // 从页面收集修改后的竞对数据
+  const competitors = JSON.parse(JSON.stringify(COMPETITORS)); // 深拷贝
+  document.querySelectorAll('td[data-comp][data-field]').forEach(td => {
+    const ci = parseInt(td.dataset.comp);
+    const field = td.dataset.field;
+    const val = td.textContent.trim();
+    if (td.dataset.dish !== undefined) {
+      // 热销菜字段
+      const di = parseInt(td.dataset.dish);
+      if (competitors[ci] && competitors[ci]['热销菜'] && competitors[ci]['热销菜'][di]) {
+        competitors[ci]['热销菜'][di][field] = val;
+      }
+    } else {
+      // 店铺基础字段
+      if (competitors[ci]) {
+        competitors[ci][field] = val;
+      }
+    }
+  });
+
+  // 收集分析数据
+  const analysis = {};
+  ANALYSIS_ROWS.forEach(s => { analysis[s] = {}; });
+
+  const dimToField = {
+    'C': '店铺评分', 'D': '营业时间', 'E': '月销',
+    'F': '配送费', 'G': '配送方式', 'HK': '菜单',
+    'L': '评价', 'MN': '差评率', 'OR': '活动', 'S': '活动丰富度'
+  };
+
+  document.querySelectorAll('td.editable[data-section]').forEach(td => {
+    const section = td.dataset.section;
+    const dim = td.dataset.dim;
+    const fieldName = dimToField[dim] || dim;
+    if (td.textContent.trim()) {
+      analysis[section][fieldName] = td.textContent.trim();
+    }
+  });
+
+  const btn = document.getElementById('btnDownload');
+  btn.textContent = '生成中...';
+
+  try {
+    const resp = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ competitors, analysis }),
+    });
+    if (!resp.ok) throw new Error('生成失败');
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = resp.headers.get('X-Filename') || '竞对分析.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    btn.textContent = '下载Excel';
+  } catch (e) {
+    alert('生成失败: ' + e.message);
+    btn.textContent = '下载Excel';
+  }
+}
+
+render();
+checkStatus();
+</script>
+</body>
+</html>

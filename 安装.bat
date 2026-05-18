@@ -1,0 +1,196 @@
+@echo off
+chcp 65001 >nul
+echo.
+echo   ================================
+echo   食亨智慧运��� — 一键安装
+echo   ================================
+echo.
+
+set INSTALL_DIR=%USERPROFILE%\.qclaw\workspace\store-monitor
+set PIP_MIRROR=-i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+set GIT_MIRROR=https://ghfast.top
+
+:: 检查 QClaw
+if not exist "%USERPROFILE%\.qclaw" (
+    echo   ❌ 没找到 QClaw，请先安装 QClaw
+    pause
+    exit /b 1
+)
+
+:: 检查 git
+where git >nul 2>&1
+if %errorlevel% neq 0 (
+    echo   ❌ 没找到 git
+    echo   请下载安装: https://git-scm.com/download/win
+    start https://git-scm.com/download/win
+    pause
+    exit /b 1
+)
+
+:: 检查 python
+set PYTHON=python
+where python >nul 2>&1
+if %errorlevel% neq 0 (
+    set PYTHON=python3
+    where python3 >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo   ❌ 没找到 Python
+        echo   请下载安装: https://www.python.org/downloads/
+        echo   安装时务必勾选 "Add Python to PATH"
+        start https://www.python.org/downloads/
+        pause
+        exit /b 1
+    )
+)
+
+:: 克隆或更新代码
+if exist "%INSTALL_DIR%\.git" (
+    echo 更新代码...
+    cd /d "%INSTALL_DIR%"
+    git fetch origin
+    git checkout feature/watch-mode
+    git pull origin feature/watch-mode
+) else (
+    echo 下载代码...
+    git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git "%INSTALL_DIR%" 2>nul || (
+        git clone -b feature/watch-mode https://gitee.com/sethgeshiheng/store-monitor.git "%INSTALL_DIR%"
+    )
+    cd /d "%INSTALL_DIR%"
+)
+
+:: 安装 Brain
+echo 安装Brain...
+if not exist "%USERPROFILE%\wisdom-brain\.git" (
+    git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul || (
+        git clone https://gitee.com/sethgeshiheng/wisdom-brain.git "%USERPROFILE%\wisdom-brain" 2>nul
+    )
+    echo   ✓ wisdom-brain
+) else (
+    cd /d "%USERPROFILE%\wisdom-brain" && git pull --quiet 2>nul
+    echo   ✓ wisdom-brain 已更新
+    cd /d "%INSTALL_DIR%"
+)
+
+:: 安装 skills（覆盖旧文件）
+echo 安装skills...
+set SKILLS_DIR=%USERPROFILE%\.qclaw\skills
+if not exist "%SKILLS_DIR%" mkdir "%SKILLS_DIR%"
+for %%s in (store-alert store-diagnosis ops-scheduler setup) do (
+    if exist "skills\%%s" (
+        xcopy /E /I /Y /Q "skills\%%s" "%SKILLS_DIR%\%%s" >nul
+        echo   ✓ %%s
+    )
+)
+if exist "skills\SKILL.md" (
+    copy /Y "skills\SKILL.md" "%SKILLS_DIR%\SKILL.md" >nul
+    echo   ✓ SKILL.md
+)
+
+:: agent 配置
+echo 安装agent配置...
+set WORKSPACE=%USERPROFILE%\.qclaw\workspace
+for %%f in (SOUL.md BRAIN.md USER.md HEARTBEAT.md MEMORY.md) do (
+    if not exist "%WORKSPACE%\%%f" (
+        copy "agent-config\%%f" "%WORKSPACE%\%%f" >nul
+        echo   ✓ %%f
+    ) else (
+        echo   ⏭ %%f
+    )
+)
+if not exist "%WORKSPACE%\knowledge" (
+    xcopy /E /I /Q "agent-config\knowledge" "%WORKSPACE%\knowledge" >nul
+    echo   ✓ knowledge/
+)
+
+:: Python 依赖（清华镜像）
+echo 检查Python依赖...
+
+:: opencv（视频提帧，替代ffmpeg）
+%PYTHON% -c "import cv2" 2>nul || (
+    echo   安装 opencv...
+    %PYTHON% -m pip install %PIP_MIRROR% opencv-python-headless 2>nul
+)
+echo   ✓ opencv
+
+:: playwright（锁定1.44.0，新版跟CDP不兼容）
+%PYTHON% -c "import playwright; assert playwright.__version__=='1.44.0'" 2>nul || (
+    echo   安装 playwright==1.44.0...
+    %PYTHON% -m pip install %PIP_MIRROR% playwright==1.44.0 2>nul
+    set PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
+    playwright install chromium
+)
+echo   ✓ playwright
+
+for %%p in (xlsxwriter lzstring) do (
+    %PYTHON% -c "import %%p" 2>nul || (
+        %PYTHON% -m pip install %PIP_MIRROR% %%p 2>nul
+    )
+    echo   ✓ %%p
+)
+
+%PYTHON% -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>nul || (
+    echo   安装腾讯云OCR SDK...
+    %PYTHON% -m pip install %PIP_MIRROR% tencentcloud-sdk-python 2>nul
+)
+echo   ✓ tencentcloud-sdk
+
+%PYTHON% -c "from google import genai" 2>nul || (
+    echo   安装 google-genai...
+    %PYTHON% -m pip install %PIP_MIRROR% google-genai 2>nul
+)
+echo   ✓ google-genai
+
+:: memory 目录
+if not exist "memory\interactions" mkdir "memory\interactions"
+if not exist "memory\pending_review" mkdir "memory\pending_review"
+echo   ✓ memory目录
+
+:: 安装 Chromium（不会自动更新）
+set COS_BASE=https://11-store-report-1255918156.cos.ap-shanghai.myqcloud.com/tools
+if not exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
+    if not exist "C:\Program Files\Chromium\Application\chrome.exe" (
+        echo 安装 Chromium...
+        curl -L "%COS_BASE%/Chromium_142391%%20(1).zip" -o "%TEMP%\chromium-win.zip" --max-time 600 -#
+        if exist "%TEMP%\chromium-win.zip" (
+            powershell -Command "Expand-Archive -Force '%TEMP%\chromium-win.zip' '%LOCALAPPDATA%\Chromium'"
+            del "%TEMP%\chromium-win.zip"
+            echo   ✓ Chromium 已安装
+        ) else (
+            echo   ⚠ Chromium 下载失败，请联系管理员
+        )
+    ) else (
+        echo   ✓ Chromium 已安装
+    )
+) else (
+    echo   ✓ Chromium 已安装
+)
+
+:: ffmpeg（可选，有就用）
+where ffmpeg >nul 2>&1
+    if %errorlevel% neq 0 (
+        :: winget 失败，尝试用 choco
+        where choco >nul 2>&1 && choco install ffmpeg -y >nul 2>&1
+        where ffmpeg >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo   ⚠ ffmpeg 自动安装失败
+            echo   请手动下载: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+            echo   解压后把 bin\ffmpeg.exe 复制到 C:\Windows\
+        )
+    )
+)
+where ffmpeg >nul 2>&1 && echo   ✓ ffmpeg
+
+echo.
+echo   ================================
+echo   ✅ 安装完成！
+echo   ================================
+echo.
+echo   接下来：
+echo   1. 双击「盯店巡检.bat」启动 Chrome
+echo   2. Chrome 里加载悟空插件
+echo   3. 打开 bi.shihengtech.com 登录食亨
+echo   4. 重启 QClaw
+echo.
+echo   之后在微信里说「巡检」就行了。
+echo.
+pause

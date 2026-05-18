@@ -1,0 +1,14 @@
+data/
+__pycache__/
+*.png
+!goku/icons/*.png
+*.pyc
+brands.txt
+/tmp/
+.DS_Store
+skills/store-diagnosis/config.json
+stores.json
+memory/interactions/
+memory/pending_review/
+memory/.last_digest
+memory/diagnosis/
