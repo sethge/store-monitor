@@ -353,13 +353,9 @@ async function loadTracking() {
         // 已生成摘要
         card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
       } else if (cp.status === 'pending' && cp.check_date <= today) {
-        // 到期了，待生成
-        card += '<div class="cp-status">待生成</div>' +
-          '<button class="cp-close-btn" data-tid="' + cp.id + '">关闭复盘</button>';
+        card += '<div class="cp-status">待生成</div>';
       } else if (cp.status === 'pending') {
-        // 未到期，等待中
-        card += '<div class="cp-status waiting">等待中</div>' +
-          '<button class="cp-close-btn" data-tid="' + cp.id + '">关闭复盘</button>';
+        card += '<div class="cp-status waiting">等待中</div>';
       }
 
       card += '</div>';
