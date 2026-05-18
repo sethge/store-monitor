@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 EXT_PATH = str(Path(__file__).parent / "goku")
+OPS_LOGGER_PATH = str(Path(__file__).parent / "ops-logger")
 USER_DIR = os.path.expanduser("~/chrome-debug")
 PORT = 9222
 
@@ -26,9 +27,10 @@ async def launch(pw, port=PORT):
         chrome,
         f"--remote-debugging-port={port}",
         f"--user-data-dir={USER_DIR}",
-        f"--load-extension={EXT_PATH}",
+        f"--load-extension={EXT_PATH},{OPS_LOGGER_PATH}",
         "--no-first-run",
         "--no-default-browser-check",
+        "--proxy-server=direct://",
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 等端口就绪

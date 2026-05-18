@@ -412,6 +412,105 @@ function updateBadge(elemId, count) {
   }
 }
 
+// ========== Agent status + Patrol ==========
+
+var agentReady = false;
+
+async function checkAgent() {
+  var dot = document.getElementById('agentDot');
+  var msg = document.getElementById('agentMsg');
+  var btn = document.getElementById('patrolBtn');
+
+  var data = await api('/api/agent/status');
+  if (!data) {
+    dot.className = 'agent-dot off';
+    msg.textContent = 'agent未连接';
+    btn.disabled = true;
+    return;
+  }
+
+  agentReady = data.has_run_fast;
+
+  if (data.patrol && data.patrol.state === 'running') {
+    dot.className = 'agent-dot busy';
+    msg.textContent = data.patrol.message || '巡检中...';
+    btn.disabled = true;
+    btn.textContent = '巡检中';
+    // Poll while running
+    setTimeout(checkAgent, 3000);
+    return;
+  }
+
+  if (data.patrol && data.patrol.state === 'done') {
+    dot.className = 'agent-dot ok';
+    msg.textContent = '巡检完成';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    // Refresh daily + alerts
+    loadDaily();
+    loadAlerts();
+  } else if (data.patrol && data.patrol.state === 'error') {
+    dot.className = 'agent-dot off';
+    msg.textContent = data.patrol.message || '巡检异常';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+  } else if (data.browser && data.has_run_fast) {
+    dot.className = 'agent-dot ok';
+    msg.textContent = 'agent就绪';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+  } else if (data.has_run_fast) {
+    dot.className = 'agent-dot off';
+    msg.textContent = '浏览器未启动';
+    btn.disabled = true;
+  } else {
+    dot.className = 'agent-dot off';
+    msg.textContent = 'agent未安装';
+    btn.disabled = true;
+  }
+}
+
+async function startPatrol() {
+  var btn = document.getElementById('patrolBtn');
+  var dot = document.getElementById('agentDot');
+  var msg = document.getElementById('agentMsg');
+
+  // Check if brands are configured
+  var brandsData = await api('/api/patrol/brands');
+  var brands = (brandsData && brandsData.brands) || [];
+
+  if (!brands.length) {
+    // Ask user to input brands
+    var input = prompt('输入巡检品牌（多个用逗号隔开）\n例如: 禾, 港翠');
+    if (!input) return;
+    brands = input.split(/[,，]/).map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+    if (!brands.length) return;
+    // Save for next time
+    await apiPost('/api/patrol/brands', { brands: brands });
+  }
+
+  btn.disabled = true;
+  btn.textContent = '启动中...';
+  dot.className = 'agent-dot busy';
+
+  var result = await apiPost('/api/patrol/start', { brands: brands });
+  if (result && result.ok) {
+    msg.textContent = result.message || '巡检已启动';
+    btn.textContent = '巡检中';
+    setTimeout(checkAgent, 2000);
+  } else if (result && result.error === 'no_brands') {
+    msg.textContent = '请先设置品牌';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    dot.className = 'agent-dot off';
+  } else {
+    msg.textContent = (result && result.message) || '启动失败';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    dot.className = 'agent-dot off';
+  }
+}
+
 // ========== Version check ==========
 
 async function checkVersion() {
@@ -454,6 +553,7 @@ async function init() {
 
     await discoverServer();
     checkVersion();
+    checkAgent();
     loadDaily();
     loadAlerts();
     loadLogs();
@@ -477,9 +577,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Enter') document.getElementById('okBtn').click();
   });
 
+  document.getElementById('patrolBtn').addEventListener('click', function() {
+    startPatrol();
+  });
+
   // Refresh every 30s
   setInterval(function() {
     loadAlerts();
     loadTracking();
+    checkAgent();
   }, 30000);
 });

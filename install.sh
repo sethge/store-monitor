@@ -118,7 +118,15 @@ if [ ! -d "$WORKSPACE/store-monitor" ]; then
     echo "  ✓ 链接store-monitor"
 fi
 
-# ─── 5. 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
+# ─── 5. 小q助手Chrome扩展（ops-logger）───
+echo "安装小q助手Chrome扩展..."
+if [ -d "$SCRIPT_DIR/ops-logger" ]; then
+    echo "  ✓ 小q助手已就绪（随agent启动自动加载到Chrome）"
+else
+    echo "  ⚠️ ops-logger目录不存在，请检查安装包完整性"
+fi
+
+# ─── 5.5 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
 # 不需要单独安装浏览器，playwright install chromium 会自动下载
 echo "  ✓ 浏览器由playwright自带（不受系统Chrome升级影响）"
 
@@ -206,10 +214,13 @@ echo ""
 echo "  我能帮你："
 echo "  · 巡检 — 一键检查所有店铺的差评、活动、推广"
 echo "  · 盯店 — 持续监控，有问题第一时间告诉你"
+echo "  · 操作记录 — 自动记录你在后台的每一步操作"
+echo "  · 数据复盘 — 操作后T+3/T+7自动跟踪效果"
 echo "  · 竞对分析 — 发个竞对录屏，我帮你提数据出报告"
 echo "  · 定时任务 — 比如「每天10点巡检」，到点自动跑"
 echo ""
-echo "  打开微信，在对话框里跟我说话就行。"
+echo "  Chrome右上角点「小q助手」图标，就能看到巡检结果和操作记录。"
+echo "  复杂操作到微信跟我说话就行。"
 echo "  第一次用的时候我会带你登录食亨，跟着做就好。"
 echo ""
 echo "================================"

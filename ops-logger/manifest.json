@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "3.3.0",
-  "description": "运营助手 — 日报/预警/操作记录/数据复盘",
+  "version": "3.4.0",
+  "description": "运营助手 — 日报/预警/操作记录/数据复盘/巡检控制",
   "permissions": [
     "storage",
     "webRequest",

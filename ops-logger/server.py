@@ -2,7 +2,7 @@
 Ops Logger Server v2.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪
 端口: 5500
 """
-import json, sqlite3, os, re
+import json, sqlite3, os, re, sys
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
 
@@ -2017,6 +2017,122 @@ def _auto_backup():
             _do_backup()
     t = threading.Thread(target=_loop, daemon=True)
     t.start()
+
+# ========== Agent Integration ==========
+
+import subprocess as _sp
+import threading
+
+_PATROL_PROC = None  # running patrol subprocess
+_PATROL_STATUS = {"state": "idle", "started_at": None, "brands": [], "message": ""}
+_PATROL_LOCK = threading.Lock()
+AGENT_DIR = os.path.dirname(os.path.dirname(__file__))  # store-monitor root
+
+
+def _run_patrol_thread(brands):
+    """Run run_fast.py in background thread, update status."""
+    global _PATROL_PROC
+    try:
+        with _PATROL_LOCK:
+            _PATROL_STATUS["state"] = "running"
+            _PATROL_STATUS["message"] = f"巡检中: {', '.join(brands)}"
+        cmd = [sys.executable, os.path.join(AGENT_DIR, "run_fast.py")] + brands
+        proc = _sp.Popen(cmd, stdout=_sp.PIPE, stderr=_sp.STDOUT, cwd=AGENT_DIR, text=True)
+        _PATROL_PROC = proc
+        output_lines = []
+        for line in proc.stdout:
+            output_lines.append(line.rstrip())
+            if len(output_lines) > 50:
+                output_lines = output_lines[-50:]
+            with _PATROL_LOCK:
+                _PATROL_STATUS["message"] = output_lines[-1] if output_lines else ""
+        proc.wait()
+        with _PATROL_LOCK:
+            if proc.returncode == 0:
+                _PATROL_STATUS["state"] = "done"
+                _PATROL_STATUS["message"] = "巡检完成"
+            else:
+                _PATROL_STATUS["state"] = "error"
+                _PATROL_STATUS["message"] = f"巡检异常 (code {proc.returncode})"
+    except Exception as e:
+        with _PATROL_LOCK:
+            _PATROL_STATUS["state"] = "error"
+            _PATROL_STATUS["message"] = str(e)
+    finally:
+        _PATROL_PROC = None
+
+
+@app.route("/api/patrol/brands", methods=["GET"])
+def get_patrol_brands():
+    """Get saved brand list for patrol."""
+    cfg = load_config()
+    return jsonify({"brands": cfg.get("patrol_brands", [])})
+
+
+@app.route("/api/patrol/brands", methods=["POST"])
+def save_patrol_brands():
+    """Save brand list for patrol."""
+    data = request.get_json(silent=True) or {}
+    brands = data.get("brands", [])
+    cfg = load_config()
+    cfg["patrol_brands"] = brands
+    save_config(cfg)
+    return jsonify({"ok": True, "brands": brands})
+
+
+@app.route("/api/patrol/start", methods=["POST"])
+def start_patrol():
+    """Start a patrol run. Body: {"brands": ["品牌1", "品牌2"]}"""
+    global _PATROL_PROC
+    with _PATROL_LOCK:
+        if _PATROL_STATUS["state"] == "running":
+            return jsonify({"ok": False, "error": "patrol_running", "message": "巡检正在进行中"})
+
+    data = request.get_json(silent=True) or {}
+    brands = data.get("brands", [])
+    # "all" means use saved brands
+    if not brands or brands == ["all"]:
+        cfg = load_config()
+        brands = cfg.get("patrol_brands", [])
+    if not brands:
+        return jsonify({"ok": False, "error": "no_brands", "message": "请先设置巡检品牌"})
+
+    with _PATROL_LOCK:
+        _PATROL_STATUS["state"] = "running"
+        _PATROL_STATUS["started_at"] = datetime.now().isoformat()
+        _PATROL_STATUS["brands"] = brands
+        _PATROL_STATUS["message"] = "启动中..."
+
+    t = threading.Thread(target=_run_patrol_thread, args=(brands,), daemon=True)
+    t.start()
+    return jsonify({"ok": True, "message": f"巡检已启动: {', '.join(brands)}"})
+
+
+@app.route("/api/patrol/status")
+def patrol_status():
+    """Get current patrol status."""
+    with _PATROL_LOCK:
+        return jsonify(dict(_PATROL_STATUS))
+
+
+@app.route("/api/agent/status")
+def agent_status():
+    """Check agent health: browser running? server up? run_fast.py exists?"""
+    info = {
+        "server": True,
+        "has_run_fast": os.path.exists(os.path.join(AGENT_DIR, "run_fast.py")),
+        "has_patrol_db": os.path.exists(PATROL_DB),
+        "patrol": dict(_PATROL_STATUS),
+    }
+    # Check if Chrome debug port is listening
+    try:
+        r = _sp.run(["curl", "--noproxy", "localhost", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                      "http://localhost:9222/json/version"], capture_output=True, text=True, timeout=2)
+        info["browser"] = r.stdout.strip() == "200"
+    except Exception:
+        info["browser"] = False
+    return jsonify(info)
+
 
 if __name__ == "__main__":
     init_db()
