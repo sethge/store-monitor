@@ -77,8 +77,9 @@ async function checkForUpdate() {
     if (!res.ok) return;
     const data = await res.json();
     if (data.version && data.version !== VERSION) {
-      console.log("[OpsLogger] Update:", VERSION, "->", data.version, "reloading...");
-      chrome.runtime.reload();
+      console.log("[OpsLogger] Update available:", VERSION, "->", data.version);
+      chrome.action.setBadgeBackgroundColor({ color: "#1565c0" });
+      chrome.action.setBadgeText({ text: "NEW" });
     }
   } catch (e) {}
 }
