@@ -1044,6 +1044,16 @@ def disable_tracking_for_log(log_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/tracking/enable_log/<int:log_id>", methods=["POST"])
+def enable_tracking_for_log(log_id):
+    """Re-enable tracking for a log entry (set disabled back to pending)."""
+    conn = get_db()
+    updated = conn.execute("UPDATE change_tracking SET status='pending' WHERE log_id=? AND status='disabled'", (log_id,)).rowcount
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "updated": updated})
+
+
 @app.route("/api/tracking/due", methods=["GET"])
 def get_due_tracking():
     """Get tracking records that are due today or overdue (for data collection)."""

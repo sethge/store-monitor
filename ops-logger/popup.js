@@ -174,6 +174,23 @@ async function loadAlerts() {
 
 // ========== Tab 3: Logs ==========
 
+var trackingStatusMap = {}; // log_id -> 'pending'|'disabled'|'done'|null
+
+async function loadTrackingStatus() {
+  var data = await api('/api/tracking?limit=500');
+  trackingStatusMap = {};
+  if (data && data.length > 0) {
+    for (var i = 0; i < data.length; i++) {
+      var t = data[i];
+      var prev = trackingStatusMap[t.log_id];
+      // If any tracking for this log is pending, mark as pending
+      if (!prev || t.status === 'pending') {
+        trackingStatusMap[t.log_id] = t.status;
+      }
+    }
+  }
+}
+
 async function loadLogs() {
   var el = document.getElementById('tab-logs');
   var data = await api('/api/logs?limit=50');
@@ -193,6 +210,7 @@ async function loadLogs() {
     }
     return;
   }
+  await loadTrackingStatus();
   renderLogs(el, data);
 }
 
@@ -217,6 +235,22 @@ function renderLogs(el, logs) {
       var shopStr = (l.shop_name || '') + (pname ? ' · ' + pname : '');
       var tagCls = actionTagClass(l.action_type);
 
+      var logId = l.id;
+      var tStatus = logId ? trackingStatusMap[logId] : null;
+      var trackBtn = '';
+      if (logId) {
+        if (tStatus === 'pending') {
+          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">追踪中</button>';
+        } else if (tStatus === 'disabled') {
+          trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">已关闭</button>';
+        } else if (tStatus === 'done' || tStatus === 'effective' || tStatus === 'ineffective' || tStatus === 'observe') {
+          trackBtn = '<span class="track-toggle done">已完成</span>';
+        } else {
+          // No tracking exists (e.g. skipped action types)
+          trackBtn = '';
+        }
+      }
+
       html += '<div class="log-item">' +
         '<div class="log-time">' + fmtHM(l.timestamp) + '</div>' +
         '<div class="log-body">' +
@@ -226,6 +260,7 @@ function renderLogs(el, logs) {
           '</div>' +
           (shopStr ? '<div class="log-meta">' + esc(shopStr) + '</div>' : '') +
         '</div>' +
+        trackBtn +
       '</div>';
     }
   }
@@ -329,8 +364,22 @@ async function doFeedback(id, feedback) {
   loadAlerts();
 }
 
-// Make doFeedback accessible from onclick
+async function toggleTracking(logId, enable) {
+  if (enable) {
+    await apiPost('/api/tracking/enable_log/' + logId, {});
+  } else {
+    await apiPost('/api/tracking/disable_log/' + logId, {});
+  }
+  await loadTrackingStatus();
+  var el = document.getElementById('tab-logs');
+  var data = await api('/api/logs?limit=50');
+  if (data && data.length > 0) renderLogs(el, data);
+  loadTracking();
+}
+
+// Make functions accessible from onclick
 window.doFeedback = doFeedback;
+window.toggleTracking = toggleTracking;
 
 // ========== Badge ==========
 
