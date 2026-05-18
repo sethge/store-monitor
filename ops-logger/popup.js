@@ -281,76 +281,96 @@ function actionTagClass(t) {
 async function loadTracking() {
   var el = document.getElementById('tab-tracking');
 
-  var dueData = await api('/api/tracking/due');
-  var allData = await api('/api/tracking?limit=30');
-
-  var dueItems = dueData || [];
+  var allData = await api('/api/tracking?limit=200');
   var allItems = allData || [];
 
-  updateBadge('trackBadge', dueItems.length);
-
-  if (dueItems.length === 0 && allItems.length === 0) {
+  if (allItems.length === 0) {
     el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
+    updateBadge('trackBadge', 0);
     return;
   }
 
+  // Group by log_id — each operation becomes one review card with T+3 and T+7 checkpoints
+  var byLog = {};
+  var logOrder = [];
+  for (var i = 0; i < allItems.length; i++) {
+    var t = allItems[i];
+    var lid = t.log_id;
+    if (!byLog[lid]) { byLog[lid] = { items: [], summary: '', shop: '', action: '' }; logOrder.push(lid); }
+    byLog[lid].items.push(t);
+    if (!byLog[lid].summary) byLog[lid].summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
+    if (!byLog[lid].shop) byLog[lid].shop = t.shop_name || '';
+    if (!byLog[lid].action) byLog[lid].action = t.action_type || t.log_action_type || '';
+  }
+
+  var today = new Date().toISOString().slice(0, 10);
+  var dueCount = 0;
   var html = '';
 
-  // Due items
-  if (dueItems.length > 0) {
-    html += '<div class="track-section-title">待查看 (' + dueItems.length + ')</div>';
-    for (var i = 0; i < dueItems.length; i++) {
-      var d = dueItems[i];
-      var tagCls = actionTagClass(d.action_type || d.log_action_type);
-      html += '<div class="track-card">' +
-        '<div class="track-header">' +
-          '<span class="tag ' + tagCls + '">' + esc(d.action_type || d.log_action_type || '') + '</span> ' +
-          esc(d.change_summary || '') +
-        '</div>' +
-        '<div class="track-meta">' +
-          esc(d.shop_name || '') + ' · ' + (d.check_type === '3day' ? 'T+3' : d.check_type === '7day' ? 'T+7' : d.check_type) + ' · 到期 ' + (d.check_date || '') +
-        '</div>' +
-        '<div class="track-actions">' +
-          '<button class="track-btn effective" onclick="doFeedback(' + d.id + ',\'effective\')">有效</button>' +
-          '<button class="track-btn ineffective" onclick="doFeedback(' + d.id + ',\'ineffective\')">无效</button>' +
-          '<button class="track-btn observe" onclick="doFeedback(' + d.id + ',\'observe\')">再观察</button>' +
-        '</div>' +
-      '</div>';
+  // Active reviews (any pending checkpoint)
+  var activeHtml = '';
+  var doneHtml = '';
+
+  for (var oi = 0; oi < logOrder.length; oi++) {
+    var lid = logOrder[oi];
+    var group = byLog[lid];
+    var hasPending = group.items.some(function(x) { return x.status === 'pending'; });
+    var hasDue = group.items.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
+    if (hasDue) dueCount++;
+
+    var tagCls = actionTagClass(group.action);
+    var cardClass = hasDue ? 'review-card due' : 'review-card';
+
+    var card = '<div class="' + cardClass + '">' +
+      '<div class="review-title">' +
+        '<span class="tag ' + tagCls + '">' + esc(group.action) + '</span> ' +
+        esc(group.summary) +
+      '</div>' +
+      '<div class="review-shop">' + esc(group.shop) + '</div>' +
+      '<div class="review-timeline">';
+
+    // Sort checkpoints by check_date
+    group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
+
+    for (var ci = 0; ci < group.items.length; ci++) {
+      var cp = group.items[ci];
+      var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
+      var cpClass = 'review-checkpoint';
+      if (cp.status === 'pending' && cp.check_date <= today) cpClass += ' due';
+      else if (cp.status === 'pending') cpClass += ' active';
+      else if (cp.status === 'effective' || cp.status === 'done') cpClass += ' done';
+
+      card += '<div class="' + cpClass + '">' +
+        '<div class="cp-label">' + cpLabel + '</div>' +
+        '<div class="cp-date">' + (cp.check_date || '') + '</div>';
+
+      if (cp.status === 'pending' && cp.check_date <= today) {
+        card += '<div style="margin-top:4px">' +
+          '<button class="review-btn effective" onclick="doFeedback(' + cp.id + ',\'effective\')" style="padding:2px 6px;font-size:10px">有效</button> ' +
+          '<button class="review-btn ineffective" onclick="doFeedback(' + cp.id + ',\'ineffective\')" style="padding:2px 6px;font-size:10px">无效</button>' +
+          '</div>';
+      } else if (cp.status !== 'pending') {
+        var statusLabel = cp.status === 'effective' ? '有效' : cp.status === 'ineffective' ? '无效' : cp.status === 'observe' ? '观察中' : cp.status;
+        card += '<div style="font-size:9px;color:#2e7d32;margin-top:2px">' + statusLabel + '</div>';
+      }
+
+      card += '</div>';
     }
+
+    card += '</div></div>';
+
+    if (hasPending) activeHtml += card;
+    else doneHtml += card;
   }
 
-  // Pending (not yet due)
-  var pending = allItems.filter(function(t) { return t.status === 'pending' && !isDue(t.check_date); });
-  if (pending.length > 0) {
-    html += '<div class="track-section-title">进行中 (' + pending.length + ')</div>';
-    for (var i = 0; i < pending.length && i < 10; i++) {
-      var t = pending[i];
-      var tagCls = actionTagClass(t.action_type || t.log_action_type);
-      var summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
-      html += '<div class="track-card">' +
-        '<div class="track-header">' +
-          '<span class="tag ' + tagCls + '">' + esc(t.action_type || t.log_action_type || '') + '</span> ' +
-          esc(summary) +
-        '</div>' +
-        '<div class="track-meta">' +
-          esc(t.shop_name || '') + ' · ' + (t.check_type === '3day' ? 'T+3' : t.check_type === '7day' ? 'T+7' : t.check_type) + ' · ' + (t.check_date || '') +
-        '</div>' +
-      '</div>';
-    }
+  if (activeHtml) {
+    html += '<div class="review-section-title">待复盘</div>' + activeHtml;
+  }
+  if (doneHtml) {
+    html += '<div class="review-section-title">已完成</div>' + doneHtml;
   }
 
-  // History (done/effective/ineffective)
-  var done = allItems.filter(function(t) { return t.status !== 'pending'; });
-  if (done.length > 0) {
-    html += '<div class="track-section-title">历史</div>';
-    for (var i = 0; i < done.length && i < 10; i++) {
-      var t = done[i];
-      var icon = t.status === 'effective' ? '有效' : t.status === 'ineffective' ? '无效' : t.status === 'observe' ? '观察中' : t.status;
-      var hSummary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
-      html += '<div class="track-history">' + icon + ' · ' + esc(hSummary) + '</div>';
-    }
-  }
-
+  updateBadge('trackBadge', dueCount);
   if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
 }
@@ -411,8 +431,8 @@ async function checkVersion() {
       btn.style.display = 'inline-block';
       btn.textContent = 'v' + data.version + ' 可更新';
       btn.onclick = function() {
-        chrome.tabs.create({ url: 'chrome://extensions' });
-        btn.textContent = '请点刷新';
+        btn.textContent = '更新中...';
+        chrome.runtime.sendMessage({ type: 'OPS_RELOAD' });
       };
     }
   }

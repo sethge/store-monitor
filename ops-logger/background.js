@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "3.2.0";
+const VERSION = "3.3.0";
 const DISCOVER_URL = "https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -345,6 +345,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       pushLogs();
     });
     return true;
+  }
+  if (msg.type === "OPS_RELOAD") {
+    console.log("[OpsLogger] User triggered reload");
+    chrome.runtime.reload();
+    return;
   }
   if (msg.type === "OPS_FOOD_CACHE") {
     processFoodCache(msg.foods);
