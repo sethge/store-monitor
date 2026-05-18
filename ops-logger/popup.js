@@ -394,6 +394,28 @@ function updateBadge(elemId, count) {
   }
 }
 
+// ========== Version check ==========
+
+async function checkVersion() {
+  var manifest = chrome.runtime.getManifest();
+  var currentVer = manifest.version;
+  var verLabel = document.getElementById('verLabel');
+  if (verLabel) verLabel.textContent = 'v' + currentVer;
+
+  var data = await api('/api/extension/version');
+  if (data && data.version && data.version !== currentVer) {
+    var btn = document.getElementById('upgradeBtn');
+    if (btn) {
+      btn.style.display = 'inline-block';
+      btn.textContent = 'v' + data.version + ' 可更新';
+      btn.onclick = function() {
+        chrome.tabs.create({ url: 'chrome://extensions' });
+        btn.textContent = '请点刷新';
+      };
+    }
+  }
+}
+
 // ========== Init ==========
 
 async function init() {
@@ -413,6 +435,7 @@ async function init() {
     document.getElementById('infoLine').textContent = state.operator;
 
     await discoverServer();
+    checkVersion();
     loadDaily();
     loadAlerts();
     loadLogs();

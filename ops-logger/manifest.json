@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "运营助手 — 日报/预警/操作记录/效果追踪",
   "permissions": [
     "storage",
