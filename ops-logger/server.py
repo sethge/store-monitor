@@ -2,7 +2,7 @@
 Ops Logger Server v2.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪
 端口: 5500
 """
-import json, sqlite3, os, re, sys
+import json, sqlite3, os, re, sys, threading
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
 
@@ -118,6 +118,18 @@ def init_db():
             name TEXT, price REAL, image_url TEXT, specs TEXT,
             status TEXT, monthly_sales INTEGER DEFAULT 0,
             description TEXT, snapshot_at TEXT, raw_data TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operator_stores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operator TEXT,
+            brand_name TEXT,
+            subscriber_id INTEGER,
+            shop_name TEXT,
+            shop_id INTEGER,
+            platform TEXT,
+            synced_at TEXT DEFAULT (datetime('now','localtime'))
         )
     """)
     conn.commit()
@@ -2131,10 +2143,91 @@ def agent_status():
     return jsonify(info)
 
 
+# ── 运营-店铺关系 ──
+
+@app.route("/api/operator/stores")
+def get_operator_stores():
+    """查询运营名下的品牌和店铺"""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "missing name"}), 400
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT brand_name, subscriber_id, shop_name, shop_id, platform FROM operator_stores WHERE operator=? ORDER BY brand_name, platform",
+        (name,)
+    ).fetchall()
+    conn.close()
+    brands = {}
+    for r in rows:
+        bn = r["brand_name"]
+        if bn not in brands:
+            brands[bn] = {"subscriber_id": r["subscriber_id"], "shops": []}
+        if r["shop_name"]:
+            brands[bn]["shops"].append({"name": r["shop_name"], "id": r["shop_id"], "platform": r["platform"]})
+    return jsonify({"operator": name, "brand_count": len(brands), "brands": brands})
+
+@app.route("/api/operator/list")
+def list_operators():
+    """列出所有运营"""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT operator, COUNT(DISTINCT brand_name) as brands, COUNT(DISTINCT shop_id) as shops FROM operator_stores GROUP BY operator ORDER BY operator"
+    ).fetchall()
+    conn.close()
+    return jsonify({"operators": [{"name": r["operator"], "brands": r["brands"], "shops": r["shops"]} for r in rows]})
+
+
+def _sync_operator_stores():
+    """每天从PA同步运营-店铺关系"""
+    def _do_sync():
+        try:
+            import pymysql
+            conn_pa = pymysql.connect(
+                host="rm-uf6e0001sq5g9foel.mysql.rds.aliyuncs.com", port=3306,
+                user="pa_ai_read", password="HV)b2ZNxd_)(SLtBmLg--2rV",
+                database="inca-saas07", connect_timeout=10, read_timeout=30, charset="utf8mb4"
+            )
+            cur = conn_pa.cursor()
+            cur.execute("""
+                SELECT DISTINCT u.name, s.name, s.id, ts.name, ts.id, ts.platform
+                FROM subscribers s
+                JOIN users u ON s.operator = u.name AND u.deleted_at IS NULL
+                JOIN contracts c ON c.subscriber_id = s.id AND c.start_at <= NOW() AND c.end_at >= NOW()
+                LEFT JOIN takeaway_shops ts ON ts.subscriber_id = s.id AND ts.deleted_at IS NULL
+                ORDER BY u.name, s.name
+            """)
+            rows = cur.fetchall()
+            conn_pa.close()
+            if not rows:
+                print("[sync] no data from PA, skipping")
+                return
+            conn = get_db()
+            conn.execute("DELETE FROM operator_stores")
+            conn.executemany(
+                "INSERT INTO operator_stores (operator, brand_name, subscriber_id, shop_name, shop_id, platform) VALUES (?,?,?,?,?,?)",
+                rows
+            )
+            conn.commit()
+            conn.close()
+            print(f"[sync] operator_stores: {len(rows)} rows synced")
+        except Exception as e:
+            print(f"[sync] operator_stores failed: {e}")
+
+    def _schedule_daily():
+        import time
+        while True:
+            _do_sync()
+            time.sleep(86400)  # 24h
+
+    t = threading.Thread(target=_schedule_daily, daemon=True)
+    t.start()
+
+
 if __name__ == "__main__":
     init_db()
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
     _auto_backup()
     _auto_collect_due()
+    _sync_operator_stores()
     app.run(host="0.0.0.0", port=5500, debug=False)
