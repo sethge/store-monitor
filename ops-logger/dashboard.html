@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ops Logger Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+h1 { font-size: 22px; margin-bottom: 6px; }
+.subtitle { color: #777; font-size: 13px; margin-bottom: 20px; }
+.stats { display: flex; gap: 16px; margin-bottom: 20px; }
+.stat-card { background: #16213e; border-radius: 8px; padding: 16px 20px; flex: 1; }
+.stat-card .num { font-size: 28px; font-weight: bold; color: #e94560; }
+.stat-card .label { font-size: 12px; color: #888; margin-top: 4px; }
+.bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.bar input { background: #16213e; border: 1px solid #333; color: #eee; padding: 6px 12px; border-radius: 4px; width: 260px; font-size: 13px; }
+.bar button { background: #0f3460; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+.bar button:hover { background: #1a4a8a; }
+.bar button.danger { background: #8b0000; }
+.bar button.danger:hover { background: #a00; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 8px 10px; background: #0f3460; font-size: 12px; color: #94b3fd; border-bottom: 2px solid #1a4a8a; }
+td { padding: 8px 10px; border-bottom: 1px solid #222; font-size: 13px; }
+tr:hover { background: #16213e; }
+.tag-modify { background: #e94560; color: #fff; padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+.tag-query { background: #333; color: #888; padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+.url { color: #555; font-size: 11px; word-break: break-all; max-width: 300px; display: inline-block; }
+.empty { color: #777; text-align: center; padding: 60px 0; font-size: 16px; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.filter-btn { background: #16213e; color: #aaa; border: 1px solid #333; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.filter-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+</style>
+</head>
+<body>
+<h1>Ops Logger Dashboard</h1>
+<p class="subtitle">运营操作日志记录 — 实时监控</p>
+
+<div class="stats">
+  <div class="stat-card"><div class="num" id="totalCount">-</div><div class="label">总记录数</div></div>
+  <div class="stat-card"><div class="num" id="modifyCount">-</div><div class="label">修改操作</div></div>
+  <div class="stat-card"><div class="num" id="queryCount">-</div><div class="label">查询请求</div></div>
+  <div class="stat-card"><div class="num" id="apiCount">-</div><div class="label">不同API</div></div>
+</div>
+
+<div class="filter-row">
+  <button class="filter-btn active" onclick="setFilter('all')">全部</button>
+  <button class="filter-btn" onclick="setFilter('modify')">仅修改</button>
+  <button class="filter-btn" onclick="setFilter('query')">仅查询</button>
+</div>
+
+<div class="bar">
+  <input type="text" id="search" placeholder="搜索API名称..." oninput="renderTable()">
+  <div>
+    <button onclick="loadLogs()">刷新</button>
+    <button onclick="exportLogs()">导出JSON</button>
+    <button class="danger" onclick="clearLogs()">清空</button>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:60px">类型</th>
+      <th style="width:160px">时间</th>
+      <th>API方法</th>
+      <th>URL</th>
+      <th style="width:50px">Body</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+<div id="empty" class="empty" style="display:none">暂无记录</div>
+
+<script>
+const MODIFY_APIS = [
+  'updateFood', 'batchUpdateFood', 'updateGoodsAttr', 'deleteFood', 'addFood',
+  'createFood', 'batchDeleteFood', 'updateCategory', 'deleteCategory', 'addCategory',
+  'updateShelf', 'batchOnShelf', 'batchOffShelf', 'onShelf', 'offShelf',
+  'update', 'save', 'create', 'delete', 'remove', 'add', 'modify', 'edit', 'set', 'submit',
+  'batch', 'toggle', 'switch', 'enable', 'disable', 'publish', 'cancel', 'confirm',
+  'apply', 'reject', 'approve', 'close', 'open', 'bind', 'unbind'
+];
+
+function isModifyApi(api) {
+  if (!api) return false;
+  const lower = api.toLowerCase();
+  for (const k of MODIFY_APIS) {
+    if (lower.includes(k.toLowerCase())) return true;
+  }
+  return false;
+}
+
+let allLogs = [];
+let currentFilter = 'all';
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTable();
+}
+
+function fmtTime(ts) {
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch(e) { return ts; }
+}
+
+function renderTable() {
+  const search = document.getElementById('search').value.toLowerCase();
+  let logs = allLogs.slice().reverse();
+
+  if (currentFilter === 'modify') logs = logs.filter(l => isModifyApi(l.apiMethod));
+  if (currentFilter === 'query') logs = logs.filter(l => !isModifyApi(l.apiMethod));
+  if (search) logs = logs.filter(l => (l.apiMethod||'').toLowerCase().includes(search) || (l.url||'').toLowerCase().includes(search));
+
+  const modCount = allLogs.filter(l => isModifyApi(l.apiMethod)).length;
+  document.getElementById('totalCount').textContent = allLogs.length;
+  document.getElementById('modifyCount').textContent = modCount;
+  document.getElementById('queryCount').textContent = allLogs.length - modCount;
+  const apis = new Set(allLogs.map(l => l.apiMethod).filter(Boolean));
+  document.getElementById('apiCount').textContent = apis.size;
+
+  const tbody = document.getElementById('tbody');
+  if (logs.length === 0) {
+    tbody.innerHTML = '';
+    document.getElementById('empty').style.display = '';
+    return;
+  }
+  document.getElementById('empty').style.display = 'none';
+
+  tbody.innerHTML = logs.slice(0, 200).map(l => {
+    const isMod = isModifyApi(l.apiMethod);
+    const tag = isMod ? '<span class="tag-modify">修改</span>' : '<span class="tag-query">查询</span>';
+    return '<tr>' +
+      '<td>' + tag + '</td>' +
+      '<td>' + fmtTime(l.timestamp) + '</td>' +
+      '<td>' + (l.apiMethod || '-') + '</td>' +
+      '<td><span class="url">' + (l.url || '') + '</span></td>' +
+      '<td>' + (l.hasBody ? 'Y' : '-') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function loadLogs() {
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.local.get('ops_logs', data => {
+      allLogs = data.ops_logs || [];
+      renderTable();
+    });
+  } else {
+    document.getElementById('empty').style.display = '';
+    document.getElementById('empty').textContent = '请通过扩展访问此页面（chrome-extension://...）';
+  }
+}
+
+function exportLogs() {
+  const blob = new Blob([JSON.stringify(allLogs, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ops_logs_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function clearLogs() {
+  if (!confirm('确定清空所有日志？')) return;
+  chrome.storage.local.set({ops_logs: [], ops_pushed: 0}, () => {
+    chrome.action.setBadgeText({text: ''});
+    allLogs = [];
+    renderTable();
+  });
+}
+
+loadLogs();
+setInterval(loadLogs, 5000);
+</script>
+</body>
+</html>
