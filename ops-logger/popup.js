@@ -241,8 +241,11 @@ function renderLogs(el, logs) {
       if (logId && tStatus) {
         var isOn = tStatus !== 'disabled';
         toggleHtml = '<div class="toggle-wrap">' +
-          '<span class="toggle-label ' + (isOn ? 'on' : '') + '">' + (isOn ? '复盘' : '') + '</span>' +
-          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '"></button>' +
+          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '">' +
+            '<span class="toggle-text on-text">复盘</span>' +
+            '<span class="toggle-text off-text">关</span>' +
+            '<span class="toggle-knob"></span>' +
+          '</button>' +
           '</div>';
       }
 
@@ -261,11 +264,15 @@ function renderLogs(el, logs) {
   }
   el.innerHTML = html;
 
-  // Bind toggle switches
+  // Bind toggle switches — optimistic UI
   el.querySelectorAll('.toggle-switch').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var logId = parseInt(btn.dataset.logid);
       var isOn = btn.dataset.enabled === '1';
+      // Instant toggle
+      btn.classList.toggle('on');
+      btn.dataset.enabled = isOn ? '0' : '1';
+      // Fire and forget
       toggleTracking(logId, !isOn);
     });
   });
@@ -383,17 +390,12 @@ async function closeCheckpoint(tid) {
   loadTracking();
 }
 
-async function toggleTracking(logId, enable) {
-  if (enable) {
-    await apiPost('/api/tracking/enable_log/' + logId, {});
-  } else {
-    await apiPost('/api/tracking/disable_log/' + logId, {});
-  }
-  await loadTrackingStatus();
-  var el = document.getElementById('tab-logs');
-  var data = await api('/api/logs?limit=50');
-  if (data && data.length > 0) renderLogs(el, data);
-  loadTracking();
+function toggleTracking(logId, enable) {
+  var path = enable ? '/api/tracking/enable_log/' + logId : '/api/tracking/disable_log/' + logId;
+  apiPost(path, {}).then(function() {
+    loadTrackingStatus();
+    loadTracking();
+  });
 }
 
 
