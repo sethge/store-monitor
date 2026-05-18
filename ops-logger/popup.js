@@ -237,13 +237,13 @@ function renderLogs(el, logs) {
 
       var logId = l.id;
       var tStatus = logId ? trackingStatusMap[logId] : null;
-      var trackBtn = '';
+      var toggleHtml = '';
       if (logId && tStatus) {
-        if (tStatus === 'disabled') {
-          trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">关闭复盘</button>';
-        } else {
-          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">复盘</button>';
-        }
+        var isOn = tStatus !== 'disabled';
+        toggleHtml = '<div class="toggle-wrap">' +
+          '<span class="toggle-label ' + (isOn ? 'on' : '') + '">' + (isOn ? '复盘' : '') + '</span>' +
+          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '"></button>' +
+          '</div>';
       }
 
       html += '<div class="log-item">' +
@@ -255,11 +255,20 @@ function renderLogs(el, logs) {
           '</div>' +
           (shopStr ? '<div class="log-meta">' + esc(shopStr) + '</div>' : '') +
         '</div>' +
-        trackBtn +
+        toggleHtml +
       '</div>';
     }
   }
   el.innerHTML = html;
+
+  // Bind toggle switches
+  el.querySelectorAll('.toggle-switch').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var logId = parseInt(btn.dataset.logid);
+      var isOn = btn.dataset.enabled === '1';
+      toggleTracking(logId, !isOn);
+    });
+  });
 }
 
 function actionTagClass(t) {
@@ -344,15 +353,13 @@ async function loadTracking() {
         // 已生成摘要
         card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
       } else if (cp.status === 'pending' && cp.check_date <= today) {
-        // 到期了，等待生成
+        // 到期了，待生成
         card += '<div class="cp-status">待生成</div>' +
-          '<button class="cp-close-btn" onclick="closeCheckpoint(' + cp.id + ')">关闭</button>';
+          '<button class="cp-close-btn" data-tid="' + cp.id + '">关闭复盘</button>';
       } else if (cp.status === 'pending') {
-        // 未到期
+        // 未到期，等待中
         card += '<div class="cp-status waiting">等待中</div>' +
-          '<button class="cp-close-btn" onclick="closeCheckpoint(' + cp.id + ')">关闭</button>';
-      } else if (cp.status === 'closed') {
-        card += '<div class="cp-status closed">已关闭</div>';
+          '<button class="cp-close-btn" data-tid="' + cp.id + '">关闭复盘</button>';
       }
 
       card += '</div>';
@@ -365,6 +372,14 @@ async function loadTracking() {
   updateBadge('trackBadge', dueCount);
   if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
+
+  // Bind close buttons
+  el.querySelectorAll('.cp-close-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tid = parseInt(btn.dataset.tid);
+      closeCheckpoint(tid);
+    });
+  });
 }
 
 async function closeCheckpoint(tid) {
@@ -385,9 +400,6 @@ async function toggleTracking(logId, enable) {
   loadTracking();
 }
 
-// Make functions accessible from onclick
-window.closeCheckpoint = closeCheckpoint;
-window.toggleTracking = toggleTracking;
 
 // ========== Badge ==========
 
