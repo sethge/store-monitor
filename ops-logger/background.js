@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "3.1.0";
+const VERSION = "3.2.0";
 const DISCOVER_URL = "https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
