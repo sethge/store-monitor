@@ -240,7 +240,7 @@ function renderLogs(el, logs) {
       var trackBtn = '';
       if (logId) {
         if (tStatus === 'pending') {
-          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">追踪中</button>';
+          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">复盘中</button>';
         } else if (tStatus === 'disabled') {
           trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">已关闭</button>';
         } else if (tStatus === 'done' || tStatus === 'effective' || tStatus === 'ineffective' || tStatus === 'observe') {
@@ -290,7 +290,7 @@ async function loadTracking() {
   updateBadge('trackBadge', dueItems.length);
 
   if (dueItems.length === 0 && allItems.length === 0) {
-    el.innerHTML = '<div class="empty">暂无追踪任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7追踪</span></div>';
+    el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
     return;
   }
 
@@ -308,7 +308,7 @@ async function loadTracking() {
           esc(d.change_summary || '') +
         '</div>' +
         '<div class="track-meta">' +
-          esc(d.shop_name || '') + ' · ' + (d.check_type || '') + ' · 到期 ' + (d.check_date || '') +
+          esc(d.shop_name || '') + ' · ' + (d.check_type === '3day' ? 'T+3' : d.check_type === '7day' ? 'T+7' : d.check_type) + ' · 到期 ' + (d.check_date || '') +
         '</div>' +
         '<div class="track-actions">' +
           '<button class="track-btn effective" onclick="doFeedback(' + d.id + ',\'effective\')">有效</button>' +
@@ -325,14 +325,15 @@ async function loadTracking() {
     html += '<div class="track-section-title">进行中 (' + pending.length + ')</div>';
     for (var i = 0; i < pending.length && i < 10; i++) {
       var t = pending[i];
-      var tagCls = actionTagClass(t.action_type);
+      var tagCls = actionTagClass(t.action_type || t.log_action_type);
+      var summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
       html += '<div class="track-card">' +
         '<div class="track-header">' +
-          '<span class="tag ' + tagCls + '">' + esc(t.action_type || '') + '</span> ' +
-          esc(t.change_summary || '') +
+          '<span class="tag ' + tagCls + '">' + esc(t.action_type || t.log_action_type || '') + '</span> ' +
+          esc(summary) +
         '</div>' +
         '<div class="track-meta">' +
-          esc(t.shop_name || '') + ' · ' + (t.check_type || '') + ' · ' + (t.check_date || '') +
+          esc(t.shop_name || '') + ' · ' + (t.check_type === '3day' ? 'T+3' : t.check_type === '7day' ? 'T+7' : t.check_type) + ' · ' + (t.check_date || '') +
         '</div>' +
       '</div>';
     }
@@ -345,11 +346,12 @@ async function loadTracking() {
     for (var i = 0; i < done.length && i < 10; i++) {
       var t = done[i];
       var icon = t.status === 'effective' ? '有效' : t.status === 'ineffective' ? '无效' : t.status === 'observe' ? '观察中' : t.status;
-      html += '<div class="track-history">' + icon + ' · ' + esc(t.action_type || '') + ' ' + esc(t.change_summary || '') + '</div>';
+      var hSummary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
+      html += '<div class="track-history">' + icon + ' · ' + esc(hSummary) + '</div>';
     }
   }
 
-  if (!html) html = '<div class="empty">暂无追踪任务</div>';
+  if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
 }
 

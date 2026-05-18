@@ -1010,16 +1010,18 @@ def backfill_summary():
 
 @app.route("/api/tracking", methods=["GET"])
 def get_tracking():
-    """Get tracking records. ?status=pending|done|disabled&log_id=X"""
+    """Get tracking records with log details. ?status=pending|done|disabled&log_id=X"""
     conn = get_db()
     status = request.args.get("status", "")
     log_id = request.args.get("log_id", "")
+    base_sql = """SELECT ct.*, l.shop_name, l.change_summary, l.item_name, l.action_type as log_action_type
+                  FROM change_tracking ct LEFT JOIN logs l ON ct.log_id = l.id"""
     if log_id:
-        rows = conn.execute("SELECT * FROM change_tracking WHERE log_id=? ORDER BY check_date", (log_id,)).fetchall()
+        rows = conn.execute(base_sql + " WHERE ct.log_id=? ORDER BY ct.check_date", (log_id,)).fetchall()
     elif status:
-        rows = conn.execute("SELECT * FROM change_tracking WHERE status=? ORDER BY check_date LIMIT 200", (status,)).fetchall()
+        rows = conn.execute(base_sql + " WHERE ct.status=? ORDER BY ct.check_date LIMIT 200", (status,)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM change_tracking ORDER BY id DESC LIMIT 200").fetchall()
+        rows = conn.execute(base_sql + " ORDER BY ct.id DESC LIMIT 200").fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
 
