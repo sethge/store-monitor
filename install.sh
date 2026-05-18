@@ -182,11 +182,12 @@ mkdir -p "$SCRIPT_DIR/memory/interactions"
 mkdir -p "$SCRIPT_DIR/memory/pending_review"
 echo "  ✓ memory目录"
 
-# ─── 9. 注册heartbeat定时任务 ───
-HEARTBEAT_CRON="$SCRIPT_DIR/.heartbeat_cron.json"
+# ─── 9. heartbeat定时任务（默认开启）───
+HEARTBEAT_CRON="$QCLAW_DIR/.heartbeat_cron.json"
 cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 {
   "action": "add",
+  "autoRegister": true,
   "job": {
     "name": "heartbeat-每日总结",
     "schedule": { "kind": "cron", "expr": "30 17 * * *", "tz": "Asia/Shanghai" },
@@ -202,25 +203,22 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
   }
 }
 CRONEOF
-echo "  ✓ heartbeat定时任务"
+echo "  ✓ heartbeat定时任务（已自动开启，每天17:30总结当天经验）"
 
 echo ""
 echo "✅ 安装完成！"
 echo ""
 echo "================================"
 echo ""
-echo "  嗨，我是你的盯店助理 🐾"
+echo "  接下来跟着做："
 echo ""
-echo "  我能帮你："
-echo "  · 巡检 — 一键检查所有店铺的差评、活动、推广"
-echo "  · 盯店 — 持续监控，有问题第一时间告诉你"
-echo "  · 操作记录 — 自动记录你在后台的每一步操作"
-echo "  · 数据复盘 — 操作后T+3/T+7自动跟踪效果"
-echo "  · 竞对分析 — 发个竞对录屏，我帮你提数据出报告"
-echo "  · 定时任务 — 比如「每天10点巡检」，到点自动跑"
+echo "  1. 打开Chrome，确认右上角有两个图标："
+echo "     · 悟空插件 — 登录食亨后台用"
+echo "     · 小q助手 — 看巡检结果和操作记录"
 echo ""
-echo "  Chrome右上角点「小q助手」图标，就能看到巡检结果和操作记录。"
-echo "  复杂操作到微信跟我说话就行。"
-echo "  第一次用的时候我会带你登录食亨，跟着做就好。"
+echo "  2. 点悟空插件，用你自己的账号登录食亨"
+echo ""
+echo "  3. 登录完了在对话框跟我说「登录好了」"
+echo "     我会确认一下，然后跑第一次巡检"
 echo ""
 echo "================================"
