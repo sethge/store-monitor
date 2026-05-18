@@ -238,16 +238,11 @@ function renderLogs(el, logs) {
       var logId = l.id;
       var tStatus = logId ? trackingStatusMap[logId] : null;
       var trackBtn = '';
-      if (logId) {
-        if (tStatus === 'pending') {
-          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">复盘中</button>';
-        } else if (tStatus === 'disabled') {
-          trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">已关闭</button>';
-        } else if (tStatus === 'done' || tStatus === 'effective' || tStatus === 'ineffective' || tStatus === 'observe') {
-          trackBtn = '<span class="track-toggle done">已完成</span>';
+      if (logId && tStatus) {
+        if (tStatus === 'disabled') {
+          trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">关闭复盘</button>';
         } else {
-          // No tracking exists (e.g. skipped action types)
-          trackBtn = '';
+          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">复盘</button>';
         }
       }
 
@@ -281,8 +276,9 @@ function actionTagClass(t) {
 async function loadTracking() {
   var el = document.getElementById('tab-tracking');
 
+  // Only show items that are not disabled (i.e. 复盘 is on)
   var allData = await api('/api/tracking?limit=200');
-  var allItems = allData || [];
+  var allItems = (allData || []).filter(function(t) { return t.status !== 'disabled'; });
 
   if (allItems.length === 0) {
     el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
@@ -290,7 +286,7 @@ async function loadTracking() {
     return;
   }
 
-  // Group by log_id — each operation becomes one review card with T+3 and T+7 checkpoints
+  // Group by log_id
   var byLog = {};
   var logOrder = [];
   for (var i = 0; i < allItems.length; i++) {
@@ -307,14 +303,9 @@ async function loadTracking() {
   var dueCount = 0;
   var html = '';
 
-  // Active reviews (any pending checkpoint)
-  var activeHtml = '';
-  var doneHtml = '';
-
   for (var oi = 0; oi < logOrder.length; oi++) {
     var lid = logOrder[oi];
     var group = byLog[lid];
-    var hasPending = group.items.some(function(x) { return x.status === 'pending'; });
     var hasDue = group.items.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
     if (hasDue) dueCount++;
 
@@ -329,45 +320,46 @@ async function loadTracking() {
       '<div class="review-shop">' + esc(group.shop) + '</div>' +
       '<div class="review-timeline">';
 
-    // Sort checkpoints by check_date
+    // Sort by check_date
     group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
 
     for (var ci = 0; ci < group.items.length; ci++) {
       var cp = group.items[ci];
       var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
       var cpClass = 'review-checkpoint';
-      if (cp.status === 'pending' && cp.check_date <= today) cpClass += ' due';
-      else if (cp.status === 'pending') cpClass += ' active';
-      else if (cp.status === 'effective' || cp.status === 'done') cpClass += ' done';
+
+      if (cp.status === 'done') {
+        cpClass += ' done';
+      } else if (cp.status === 'pending' && cp.check_date <= today) {
+        cpClass += ' due';
+      } else {
+        cpClass += ' active';
+      }
 
       card += '<div class="' + cpClass + '">' +
         '<div class="cp-label">' + cpLabel + '</div>' +
         '<div class="cp-date">' + (cp.check_date || '') + '</div>';
 
-      if (cp.status === 'pending' && cp.check_date <= today) {
-        card += '<div style="margin-top:4px">' +
-          '<button class="review-btn effective" onclick="doFeedback(' + cp.id + ',\'effective\')" style="padding:2px 6px;font-size:10px">有效</button> ' +
-          '<button class="review-btn ineffective" onclick="doFeedback(' + cp.id + ',\'ineffective\')" style="padding:2px 6px;font-size:10px">无效</button>' +
-          '</div>';
-      } else if (cp.status !== 'pending') {
-        var statusLabel = cp.status === 'effective' ? '有效' : cp.status === 'ineffective' ? '无效' : cp.status === 'observe' ? '观察中' : cp.status;
-        card += '<div style="font-size:9px;color:#2e7d32;margin-top:2px">' + statusLabel + '</div>';
+      if (cp.status === 'done' && cp.metrics_after) {
+        // 已生成摘要
+        card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
+      } else if (cp.status === 'pending' && cp.check_date <= today) {
+        // 到期了，等待生成
+        card += '<div class="cp-status">待生成</div>' +
+          '<button class="cp-close-btn" onclick="closeCheckpoint(' + cp.id + ')">关闭</button>';
+      } else if (cp.status === 'pending') {
+        // 未到期
+        card += '<div class="cp-status waiting">等待中</div>' +
+          '<button class="cp-close-btn" onclick="closeCheckpoint(' + cp.id + ')">关闭</button>';
+      } else if (cp.status === 'closed') {
+        card += '<div class="cp-status closed">已关闭</div>';
       }
 
       card += '</div>';
     }
 
     card += '</div></div>';
-
-    if (hasPending) activeHtml += card;
-    else doneHtml += card;
-  }
-
-  if (activeHtml) {
-    html += '<div class="review-section-title">待复盘</div>' + activeHtml;
-  }
-  if (doneHtml) {
-    html += '<div class="review-section-title">已完成</div>' + doneHtml;
+    html += card;
   }
 
   updateBadge('trackBadge', dueCount);
@@ -375,15 +367,9 @@ async function loadTracking() {
   el.innerHTML = html;
 }
 
-function isDue(checkDate) {
-  if (!checkDate) return false;
-  return checkDate <= new Date().toISOString().slice(0, 10);
-}
-
-async function doFeedback(id, feedback) {
-  await apiPost('/api/tracking/feedback', { id: id, feedback: feedback });
+async function closeCheckpoint(tid) {
+  await apiPost('/api/tracking/' + tid + '/disable', {});
   loadTracking();
-  loadAlerts();
 }
 
 async function toggleTracking(logId, enable) {
@@ -400,7 +386,7 @@ async function toggleTracking(logId, enable) {
 }
 
 // Make functions accessible from onclick
-window.doFeedback = doFeedback;
+window.closeCheckpoint = closeCheckpoint;
 window.toggleTracking = toggleTracking;
 
 // ========== Badge ==========
