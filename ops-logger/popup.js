@@ -136,8 +136,15 @@ async function loadDaily() {
         }
       }
 
+      if ((p.errors || []).length > 0) {
+        hasIssue = true;
+        for (var k = 0; k < p.errors.length; k++) {
+          html += '<div class="issue-line yellow">' + esc(p.errors[k]) + '</div>';
+        }
+      }
+
       if (!hasIssue) {
-        html += '<div class="issue-line green">无异常</div>';
+        html += '<div class="issue-line green">正常</div>';
       }
 
       html += '</div>';

@@ -1795,10 +1795,25 @@ def daily_report():
                 for d in details[:5]:
                     if isinstance(d, dict):
                         pd["notices"].append({"title": d.get("title", ""), "content": d.get("content", "")[:60], "time": d.get("time", "")})
+            elif t == "error":
+                pd.setdefault("errors", [])
+                pd["errors"].append(item.get("msg", ""))
         store["platforms"] = list(by_platform.values())
         stores.append(store)
 
-    # 没有问题的品牌也要显示（从巡检结果里拿品牌数）
+    # 把没问题的店也加进来（从all_stores里补）
+    all_stores = data.get("all_stores", {})
+    existing = {s["store"] for s in stores}
+    for store_name, platforms in all_stores.items():
+        if store_name not in existing:
+            store = {"store": store_name, "platforms": []}
+            for p in platforms:
+                store["platforms"].append({"platform": p, "bad_review_count": 0, "expiring_count": 0,
+                                           "promo_balance": None, "promo_daily_spend": None,
+                                           "has_auth_issue": False, "bad_reviews": [], "activities": [],
+                                           "notice_count": 0, "notices": []})
+            stores.append(store)
+
     return jsonify({"ts": ts, "stores": stores, "brands": data.get("brands", 0), "duration": data.get("duration", 0)})
 
 
