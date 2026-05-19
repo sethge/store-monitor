@@ -1,6 +1,7 @@
 /* popup.js — 小q助手 四Tab面板 */
 
 var SERVER_URL = 'http://127.0.0.1:5500';
+var MY_SHOPS = []; // 当前运营名下的店铺名列表
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -211,6 +212,17 @@ async function loadLogs() {
 }
 
 function renderLogs(el, logs) {
+  // 只显示属于该运营名下店铺的日志
+  if (MY_SHOPS.length > 0) {
+    logs = logs.filter(function(l) {
+      if (!l.shop_name) return false;
+      return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
+    });
+  }
+  if (logs.length === 0) {
+    el.innerHTML = '<div class="empty">还没有操作记录</div>';
+    return;
+  }
   var byDate = {};
   for (var i = 0; i < logs.length; i++) {
     var dk = dateKey(logs[i].timestamp);
@@ -615,9 +627,27 @@ async function init() {
 
     document.getElementById('setup').style.display = 'none';
     document.getElementById('main').style.display = 'block';
-    document.getElementById('infoLine').textContent = state.operator;
 
+    // 加载运营的店铺列表
     await discoverServer();
+    try {
+      var resp = await fetch(chrome.runtime.getURL('operators.json'));
+      var opsData = await resp.json();
+      var brands = opsData[state.operator] || {};
+      var brandNames = Object.keys(brands);
+      var shopCount = 0;
+      MY_SHOPS = [];
+      brandNames.forEach(function(b) {
+        brands[b].forEach(function(s) {
+          shopCount++;
+          if (s.shop) MY_SHOPS.push(s.shop);
+        });
+      });
+      document.getElementById('infoLine').textContent = state.operator + ' — ' + brandNames.length + '个品牌 ' + shopCount + '家店';
+    } catch(e) {
+      document.getElementById('infoLine').textContent = state.operator;
+    }
+
     checkVersion();
     checkAgent();
     loadDaily();
