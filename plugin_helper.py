@@ -213,22 +213,40 @@ async def check_verification(page):
 
 async def save_user_focus(ctx):
     """巡检开始前记住用户正在看的页面，后续用于恢复焦点"""
-    for p in ctx.pages:
-        try:
-            if 'chrome-extension' not in p.url and await p.evaluate("() => document.hasFocus()"):
-                return p
-        except:
-            pass
+    # 同时最小化debug Chrome窗口
+    _minimize_debug_chrome()
     return None
 
 
+def _minimize_debug_chrome():
+    """用osascript最小化debug Chrome窗口，让焦点回到运营的普通Chrome"""
+    import subprocess as _sp
+    try:
+        _sp.Popen([
+            "osascript", "-e", '''
+            tell application "System Events"
+                set chromeProcs to every process whose name is "Google Chrome"
+                repeat with p in chromeProcs
+                    set cmdLine to ""
+                    try
+                        set cmdLine to do shell script "ps -p " & (unix id of p) & " -o args= 2>/dev/null"
+                    end try
+                    if cmdLine contains "chrome-debug" then
+                        tell p
+                            set miniaturized of every window to true
+                        end tell
+                    end if
+                end repeat
+            end tell
+            '''
+        ], stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+    except Exception:
+        pass
+
+
 async def restore_user_focus(page):
-    """把焦点还给用户原来的页面，让巡检tab在后台跑"""
-    if page and not page.is_closed():
-        try:
-            await page.bring_to_front()
-        except:
-            pass
+    """Goku打开新tab后，最小化debug Chrome让它不抢焦点"""
+    _minimize_debug_chrome()
 
 
 async def close_store_pages(ctx):

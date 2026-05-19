@@ -7,7 +7,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 PARENT="$(dirname "$DIR")"
 
 # 优先用 venv，没有就用 homebrew python
-if [ -f "$PARENT/.venv/bin/python3" ]; then
+if [ -f "$DIR/venv/bin/python3" ]; then
+    PYTHON="$DIR/venv/bin/python3"
+elif [ -f "$PARENT/.venv/bin/python3" ]; then
     PYTHON="$PARENT/.venv/bin/python3"
 elif [ -f "/opt/homebrew/bin/python3" ]; then
     PYTHON="/opt/homebrew/bin/python3"
@@ -37,9 +39,28 @@ else
             --no-first-run \
             --no-default-browser-check \
             --proxy-server="direct://" \
+            --window-position=3000,3000 \
+            --window-size=800,600 \
             > /dev/null 2>&1 &
         echo "  Chrome debug 已启动 (port 9222)"
         sleep 3
+        # 最小化debug Chrome窗口，不干扰运营日常操作
+        osascript -e '
+            tell application "System Events"
+                set chromeProcs to every process whose name is "Google Chrome"
+                repeat with p in chromeProcs
+                    set cmdLine to ""
+                    try
+                        set cmdLine to do shell script "ps -p " & (unix id of p) & " -o args= 2>/dev/null"
+                    end try
+                    if cmdLine contains "chrome-debug" then
+                        tell p
+                            set miniaturized of every window to true
+                        end tell
+                    end if
+                end repeat
+            end tell
+        ' 2>/dev/null
     else
         echo "  WARNING: 找不到 Chrome，请手动打开"
     fi

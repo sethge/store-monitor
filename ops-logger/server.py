@@ -2636,9 +2636,31 @@ def _ensure_debug_chrome():
         "--no-first-run",
         "--no-default-browser-check",
         "--proxy-server=direct://",
+        "--window-position=3000,3000",
+        "--window-size=800,600",
     ]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("[chrome] debug Chrome已启动（后台）")
+    import time as _t; _t.sleep(3)
+    # 最小化debug Chrome，不干扰运营
+    subprocess.Popen([
+        "osascript", "-e", '''
+        tell application "System Events"
+            set chromeProcs to every process whose name is "Google Chrome"
+            repeat with p in chromeProcs
+                set cmdLine to ""
+                try
+                    set cmdLine to do shell script "ps -p " & (unix id of p) & " -o args= 2>/dev/null"
+                end try
+                if cmdLine contains "chrome-debug" then
+                    tell p
+                        set miniaturized of every window to true
+                    end tell
+                end if
+            end repeat
+        end tell
+        '''
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("[chrome] debug Chrome已启动（后台+最小化）")
 
 
 def _schedule_patrol():
