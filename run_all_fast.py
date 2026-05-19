@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """全量巡检 - 自动遍历插件下所有品牌"""
-import asyncio, json, subprocess, re, sys, time
+import asyncio, json, subprocess, re, sys, time, os
 sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 
 # 复用run_fast的所有逻辑
@@ -181,6 +181,22 @@ async def main():
         print("✅ 所有店铺运营正常\n")
 
     print(f"巡检完成 — {len(brands)}个品牌 总耗时{total:.0f}秒")
+
+    # 保存结果JSON供插件读取
+    result_file = os.path.join(os.path.dirname(__file__), "ops-logger", "patrol_result.json")
+    try:
+        result_data = {
+            "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "brands": len(brands),
+            "duration": int(total),
+            "issues": {store: items for store, items in all_issues.items()},
+        }
+        with open(result_file, "w", encoding="utf-8") as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=2)
+        print(f"结果已保存: {result_file}")
+    except Exception as e:
+        print(f"保存结果失败: {e}")
+
     # 自动记录
     from learn import log_interaction
     issue_count = sum(len(items) for items in all_issues.values())
