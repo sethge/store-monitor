@@ -118,7 +118,61 @@ if [ ! -d "$WORKSPACE/store-monitor" ]; then
     echo "  ✓ 链接store-monitor"
 fi
 
-# ─── 5. 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
+# ─── 5. 小q助手Chrome扩展 + 本地服务 ───
+echo "安装小q助手..."
+if [ -d "$SCRIPT_DIR/ops-logger" ]; then
+    # 安装server.py依赖
+    $PYTHON -c "import flask" 2>/dev/null || {
+        echo "  安装flask..."
+        $PIP_CMD flask 2>/dev/null || $PIP install flask
+    }
+    $PYTHON -c "import requests" 2>/dev/null || {
+        echo "  安装requests..."
+        $PIP_CMD requests 2>/dev/null || $PIP install requests
+    }
+    $PYTHON -c "import pymysql" 2>/dev/null || {
+        echo "  安装pymysql..."
+        $PIP_CMD pymysql 2>/dev/null || $PIP install pymysql
+    }
+    echo "  ✓ 小q助手依赖已安装"
+
+    # 创建开机自启plist（Mac）
+    if [ "$(uname -s)" = "Darwin" ]; then
+        PLIST="$HOME/Library/LaunchAgents/com.qclaw.ops-server.plist"
+        cat > "$PLIST" << PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.qclaw.ops-server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$PYTHON</string>
+        <string>$SCRIPT_DIR/ops-logger/server.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$SCRIPT_DIR/ops-logger</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$SCRIPT_DIR/ops-logger/server.log</string>
+    <key>StandardErrorPath</key>
+    <string>$SCRIPT_DIR/ops-logger/server.log</string>
+</dict>
+</plist>
+PLISTEOF
+        launchctl unload "$PLIST" 2>/dev/null
+        launchctl load "$PLIST"
+        echo "  ✓ 小q服务已设为开机自启（端口5500）"
+    fi
+else
+    echo "  ⚠️ ops-logger目录不存在，请检查安装包完整性"
+fi
+
+# ─── 5.5 浏览器（playwright自带Chrome for Testing，版本锁定不会自动升级）───
 # 不需要单独安装浏览器，playwright install chromium 会自动下载
 echo "  ✓ 浏览器由playwright自带（不受系统Chrome升级影响）"
 
@@ -174,11 +228,12 @@ mkdir -p "$SCRIPT_DIR/memory/interactions"
 mkdir -p "$SCRIPT_DIR/memory/pending_review"
 echo "  ✓ memory目录"
 
-# ─── 9. 注册heartbeat定时任务 ───
-HEARTBEAT_CRON="$SCRIPT_DIR/.heartbeat_cron.json"
+# ─── 9. heartbeat定时任务（默认开启）───
+HEARTBEAT_CRON="$QCLAW_DIR/.heartbeat_cron.json"
 cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 {
   "action": "add",
+  "autoRegister": true,
   "job": {
     "name": "heartbeat-每日总结",
     "schedule": { "kind": "cron", "expr": "30 17 * * *", "tz": "Asia/Shanghai" },
@@ -194,22 +249,7 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
   }
 }
 CRONEOF
-echo "  ✓ heartbeat定时任务"
+echo "  ✓ heartbeat定时任务（已自动开启，每天17:30总结当天经验）"
 
 echo ""
-echo "✅ 安装完成！"
-echo ""
-echo "================================"
-echo ""
-echo "  嗨，我是你的盯店助理 🐾"
-echo ""
-echo "  我能帮你："
-echo "  · 巡检 — 一键检查所有店铺的差评、活动、推广"
-echo "  · 盯店 — 持续监控，有问题第一时间告诉你"
-echo "  · 竞对分析 — 发个竞对录屏，我帮你提数据出报告"
-echo "  · 定时任务 — 比如「每天10点巡检」，到点自动跑"
-echo ""
-echo "  打开微信，在对话框里跟我说话就行。"
-echo "  第一次用的时候我会带你登录食亨，跟着做就好。"
-echo ""
-echo "================================"
+echo "✅ 安装完成！在对话框跟我说「装好了」，我来引导你设置。"
