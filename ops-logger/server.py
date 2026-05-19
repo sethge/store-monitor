@@ -2565,10 +2565,55 @@ def api_chat():
         return jsonify({"reply": f"出错了: {str(e)[:100]}", "tools_used": []}), 200
 
 
+def _ensure_debug_chrome():
+    """确保debug Chrome在后台跑着，巡检时直接连，不会弹新窗口"""
+    try:
+        r = subprocess.run(
+            ["curl", "--noproxy", "localhost", "-s", "http://localhost:9222/json/version"],
+            capture_output=True, text=True, timeout=3
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            print("[chrome] debug Chrome已在运行")
+            return
+    except Exception:
+        pass
+
+    # 没有 → 启动一个
+    chrome_paths = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    chrome = None
+    for p in chrome_paths:
+        if os.path.exists(p):
+            chrome = p
+            break
+    if not chrome:
+        print("[chrome] 找不到Chrome，巡检时会自动启动")
+        return
+
+    user_dir = os.path.expanduser("~/chrome-debug")
+    os.makedirs(user_dir, exist_ok=True)
+    goku_ext = os.path.join(WORKSPACE, "goku")
+    ops_ext = os.path.dirname(__file__)
+
+    cmd = [
+        chrome,
+        "--remote-debugging-port=9222",
+        f"--user-data-dir={user_dir}",
+        f"--load-extension={goku_ext},{ops_ext}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--proxy-server=direct://",
+    ]
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("[chrome] debug Chrome已启动（后台）")
+
+
 if __name__ == "__main__":
     init_db()
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
     _auto_backup()
     _auto_collect_due()
+    _ensure_debug_chrome()
     app.run(host="0.0.0.0", port=5500, debug=False)
