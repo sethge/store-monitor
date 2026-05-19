@@ -2630,17 +2630,17 @@ def _ensure_debug_chrome():
 
     cmd = [
         chrome,
-        "--headless=new",
         "--remote-debugging-port=9222",
         f"--user-data-dir={user_dir}",
         f"--load-extension={goku_ext},{ops_ext}",
         "--no-first-run",
         "--no-default-browser-check",
-        "--disable-gpu",
         "--proxy-server=direct://",
+        "--window-position=9999,9999",
+        "--window-size=800,600",
     ]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("[chrome] headless Chrome已启动（纯后台，无窗口）")
+    print("[chrome] debug Chrome已启动（屏幕外）")
 
 
 def _schedule_patrol():

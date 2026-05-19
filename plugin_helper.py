@@ -211,14 +211,37 @@ async def check_verification(page):
     return False, ""
 
 
+_user_app = None
+
 async def save_user_focus(ctx):
-    """headless模式下无需保存焦点，保留接口兼容"""
+    """记住运营当前在用的app，巡检中每次Goku抢焦点后还回去"""
+    global _user_app
+    import subprocess as _sp
+    try:
+        r = _sp.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
+                     capture_output=True, text=True, timeout=3)
+        app = r.stdout.strip()
+        if app and "Google Chrome" not in app:
+            _user_app = app
+        else:
+            # 运营在用Chrome，记住具体窗口标题来区分
+            _user_app = app
+    except Exception:
+        _user_app = None
     return None
 
 
 async def restore_user_focus(page):
-    """headless模式下无需恢复焦点，保留接口兼容"""
-    pass
+    """Goku打开新tab后，把焦点还给运营之前在用的app"""
+    global _user_app
+    if not _user_app:
+        return
+    import subprocess as _sp
+    try:
+        _sp.Popen(["osascript", "-e", f'tell application "{_user_app}" to activate'],
+                   stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+    except Exception:
+        pass
 
 
 async def close_store_pages(ctx):

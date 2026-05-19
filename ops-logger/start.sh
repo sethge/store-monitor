@@ -33,16 +33,16 @@ else
     if [ -f "$CHROME" ]; then
         mkdir -p "$CHROME_DEBUG_DIR"
         "$CHROME" \
-            --headless=new \
             --remote-debugging-port=9222 \
             --user-data-dir="$CHROME_DEBUG_DIR" \
             --load-extension="$DIR","$PARENT/goku" \
             --no-first-run \
             --no-default-browser-check \
-            --disable-gpu \
             --proxy-server="direct://" \
+            --window-position=9999,9999 \
+            --window-size=800,600 \
             > /dev/null 2>&1 &
-        echo "  Chrome headless 已启动 (port 9222)"
+        echo "  Chrome debug 已启动 (port 9222)"
         sleep 3
     else
         echo "  WARNING: 找不到 Chrome，请手动打开"
