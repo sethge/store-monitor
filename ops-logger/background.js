@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "3.0.0";
+const VERSION = "4.0.0";
 const DISCOVER_URL = "https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -308,10 +308,6 @@ async function pushLogs() {
 
 // Fallback periodic push (catches any missed)
 setInterval(pushLogs, 60000);
-
-// ========== Side Panel ==========
-// Click extension icon -> open side panel (instead of popup)
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
 // ========== Startup ==========
 

@@ -1,8 +1,9 @@
 """
-Ops Logger Server v2.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪
+Ops Logger Server v4.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪 + 巡检/预警直执行
 端口: 5500
 """
-import json, sqlite3, os, re, requests as http_requests
+import json, sqlite3, os, re, subprocess, threading
+import requests as http_requests
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
 
@@ -2119,6 +2120,139 @@ def api_operator_list():
         return jsonify(rows)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ========== Agent Status + Patrol (v4.0 直执行) ==========
+
+WORKSPACE = os.path.expanduser("~/.qclaw/workspace/store-monitor")
+_patrol_state = {"state": "idle", "message": "", "pid": None}
+_patrol_lock = threading.Lock()
+
+@app.route("/api/agent/status")
+def api_agent_status():
+    """检查agent就绪状态 + 巡检进程状态"""
+    has_run_fast = os.path.exists(os.path.join(WORKSPACE, "run_all_fast.py"))
+    with _patrol_lock:
+        patrol = dict(_patrol_state)
+    # 检查进程是否还活着
+    if patrol["state"] == "running" and patrol.get("pid"):
+        try:
+            os.kill(patrol["pid"], 0)
+        except (OSError, ProcessLookupError):
+            with _patrol_lock:
+                _patrol_state["state"] = "done"
+                _patrol_state["message"] = "巡检完成"
+                _patrol_state["pid"] = None
+            patrol = dict(_patrol_state)
+    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol})
+
+
+@app.route("/api/patrol/brands", methods=["GET"])
+def api_patrol_brands_get():
+    """获取已配置的巡检品牌"""
+    cfg = load_config()
+    return jsonify({"brands": cfg.get("patrol_brands", [])})
+
+
+@app.route("/api/patrol/brands", methods=["POST"])
+def api_patrol_brands_set():
+    """保存巡检品牌列表"""
+    data = request.get_json(silent=True) or {}
+    brands = data.get("brands", [])
+    cfg = load_config()
+    cfg["patrol_brands"] = brands
+    save_config(cfg)
+    return jsonify({"ok": True, "brands": brands})
+
+
+@app.route("/api/patrol/start", methods=["POST"])
+def api_patrol_start():
+    """启动巡检（直接subprocess调run_all_fast.py，不经过QClaw LLM）"""
+    data = request.get_json(silent=True) or {}
+    brands = data.get("brands", [])
+    if not brands:
+        return jsonify({"error": "no_brands", "message": "请先设置品牌"}), 400
+
+    with _patrol_lock:
+        if _patrol_state["state"] == "running":
+            return jsonify({"ok": False, "message": "巡检已在运行中"})
+
+    script = os.path.join(WORKSPACE, "run_all_fast.py")
+    if not os.path.exists(script):
+        return jsonify({"ok": False, "message": "巡检脚本不存在"}), 500
+
+    def _run_patrol():
+        with _patrol_lock:
+            _patrol_state["state"] = "running"
+            _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
+        try:
+            proc = subprocess.Popen(
+                ["/opt/homebrew/bin/python3", script] + brands,
+                cwd=WORKSPACE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            with _patrol_lock:
+                _patrol_state["pid"] = proc.pid
+            proc.wait(timeout=600)
+            with _patrol_lock:
+                if proc.returncode == 0:
+                    _patrol_state["state"] = "done"
+                    _patrol_state["message"] = "巡检完成"
+                else:
+                    _patrol_state["state"] = "error"
+                    _patrol_state["message"] = f"巡检异常(code={proc.returncode})"
+                _patrol_state["pid"] = None
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            with _patrol_lock:
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = "巡检超时(10分钟)"
+                _patrol_state["pid"] = None
+        except Exception as e:
+            with _patrol_lock:
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = str(e)[:100]
+                _patrol_state["pid"] = None
+
+    t = threading.Thread(target=_run_patrol, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "message": f"巡检已启动: {', '.join(brands)}"})
+
+
+# ========== Settings ==========
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings_get():
+    cfg = load_config()
+    return jsonify({
+        "patrol_enabled": cfg.get("patrol_enabled", True),
+        "alert_enabled": cfg.get("alert_enabled", True),
+        "patrol_time": cfg.get("patrol_time", "10:00"),
+        "alert_interval": cfg.get("alert_interval", 30),
+    })
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_settings_set():
+    data = request.get_json(silent=True) or {}
+    cfg = load_config()
+    for key in ("patrol_enabled", "alert_enabled", "patrol_time", "alert_interval"):
+        if key in data:
+            cfg[key] = data[key]
+    save_config(cfg)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/config")
+def api_config():
+    """Extension background.js配置（忽略哪些API等）"""
+    cfg = load_config()
+    return jsonify({
+        "ignore_api_methods": cfg.get("ignore_api_methods", DEFAULT_CONFIG["ignore_api_methods"]),
+        "ignore_api_prefixes": cfg.get("ignore_api_prefixes", DEFAULT_CONFIG["ignore_api_prefixes"]),
+        "ignore_urls": cfg.get("ignore_urls", DEFAULT_CONFIG["ignore_urls"]),
+    })
 
 
 # ========== DeepSeek Agent Chat ==========

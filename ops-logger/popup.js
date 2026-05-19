@@ -237,18 +237,16 @@ function renderLogs(el, logs) {
 
       var logId = l.id;
       var tStatus = logId ? trackingStatusMap[logId] : null;
-      var trackBtn = '';
-      if (logId) {
-        if (tStatus === 'pending') {
-          trackBtn = '<button class="track-toggle on" onclick="toggleTracking(' + logId + ', false)">追踪中</button>';
-        } else if (tStatus === 'disabled') {
-          trackBtn = '<button class="track-toggle off" onclick="toggleTracking(' + logId + ', true)">已关闭</button>';
-        } else if (tStatus === 'done' || tStatus === 'effective' || tStatus === 'ineffective' || tStatus === 'observe') {
-          trackBtn = '<span class="track-toggle done">已完成</span>';
-        } else {
-          // No tracking exists (e.g. skipped action types)
-          trackBtn = '';
-        }
+      var toggleHtml = '';
+      if (logId && tStatus) {
+        var isOn = tStatus !== 'disabled';
+        toggleHtml = '<div class="toggle-wrap">' +
+          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '">' +
+            '<span class="toggle-text on-text">复盘</span>' +
+            '<span class="toggle-text off-text">关</span>' +
+            '<span class="toggle-knob"></span>' +
+          '</button>' +
+          '</div>';
       }
 
       html += '<div class="log-item">' +
@@ -260,11 +258,24 @@ function renderLogs(el, logs) {
           '</div>' +
           (shopStr ? '<div class="log-meta">' + esc(shopStr) + '</div>' : '') +
         '</div>' +
-        trackBtn +
+        toggleHtml +
       '</div>';
     }
   }
   el.innerHTML = html;
+
+  // Bind toggle switches — optimistic UI
+  el.querySelectorAll('.toggle-switch').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var logId = parseInt(btn.dataset.logid);
+      var isOn = btn.dataset.enabled === '1';
+      // Instant toggle
+      btn.classList.toggle('on');
+      btn.dataset.enabled = isOn ? '0' : '1';
+      // Fire and forget
+      toggleTracking(logId, !isOn);
+    });
+  });
 }
 
 function actionTagClass(t) {
@@ -281,105 +292,112 @@ function actionTagClass(t) {
 async function loadTracking() {
   var el = document.getElementById('tab-tracking');
 
-  var dueData = await api('/api/tracking/due');
-  var allData = await api('/api/tracking?limit=30');
+  // Only show items that are not disabled (i.e. 复盘 is on)
+  var allData = await api('/api/tracking?limit=200');
+  var allItems = (allData || []).filter(function(t) { return t.status !== 'disabled'; });
 
-  var dueItems = dueData || [];
-  var allItems = allData || [];
-
-  updateBadge('trackBadge', dueItems.length);
-
-  if (dueItems.length === 0 && allItems.length === 0) {
-    el.innerHTML = '<div class="empty">暂无追踪任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7追踪</span></div>';
+  if (allItems.length === 0) {
+    el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
+    updateBadge('trackBadge', 0);
     return;
   }
 
+  // Group by log_id
+  var byLog = {};
+  var logOrder = [];
+  for (var i = 0; i < allItems.length; i++) {
+    var t = allItems[i];
+    var lid = t.log_id;
+    if (!byLog[lid]) { byLog[lid] = { items: [], summary: '', shop: '', action: '' }; logOrder.push(lid); }
+    byLog[lid].items.push(t);
+    if (!byLog[lid].summary) byLog[lid].summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
+    if (!byLog[lid].shop) byLog[lid].shop = t.shop_name || '';
+    if (!byLog[lid].action) byLog[lid].action = t.action_type || t.log_action_type || '';
+  }
+
+  var today = new Date().toISOString().slice(0, 10);
+  var dueCount = 0;
   var html = '';
 
-  // Due items
-  if (dueItems.length > 0) {
-    html += '<div class="track-section-title">待查看 (' + dueItems.length + ')</div>';
-    for (var i = 0; i < dueItems.length; i++) {
-      var d = dueItems[i];
-      var tagCls = actionTagClass(d.action_type || d.log_action_type);
-      html += '<div class="track-card">' +
-        '<div class="track-header">' +
-          '<span class="tag ' + tagCls + '">' + esc(d.action_type || d.log_action_type || '') + '</span> ' +
-          esc(d.change_summary || '') +
-        '</div>' +
-        '<div class="track-meta">' +
-          esc(d.shop_name || '') + ' · ' + (d.check_type || '') + ' · 到期 ' + (d.check_date || '') +
-        '</div>' +
-        '<div class="track-actions">' +
-          '<button class="track-btn effective" onclick="doFeedback(' + d.id + ',\'effective\')">有效</button>' +
-          '<button class="track-btn ineffective" onclick="doFeedback(' + d.id + ',\'ineffective\')">无效</button>' +
-          '<button class="track-btn observe" onclick="doFeedback(' + d.id + ',\'observe\')">再观察</button>' +
-        '</div>' +
-      '</div>';
+  for (var oi = 0; oi < logOrder.length; oi++) {
+    var lid = logOrder[oi];
+    var group = byLog[lid];
+    var hasDue = group.items.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
+    if (hasDue) dueCount++;
+
+    var tagCls = actionTagClass(group.action);
+    var cardClass = hasDue ? 'review-card due' : 'review-card';
+
+    var card = '<div class="' + cardClass + '">' +
+      '<div class="review-title">' +
+        '<span class="tag ' + tagCls + '">' + esc(group.action) + '</span> ' +
+        esc(group.summary) +
+      '</div>' +
+      '<div class="review-shop">' + esc(group.shop) + '</div>' +
+      '<div class="review-timeline">';
+
+    // Sort by check_date
+    group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
+
+    for (var ci = 0; ci < group.items.length; ci++) {
+      var cp = group.items[ci];
+      var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
+      var cpClass = 'review-checkpoint';
+
+      if (cp.status === 'done') {
+        cpClass += ' done';
+      } else if (cp.status === 'pending' && cp.check_date <= today) {
+        cpClass += ' due';
+      } else {
+        cpClass += ' active';
+      }
+
+      card += '<div class="' + cpClass + '">' +
+        '<div class="cp-label">' + cpLabel + '</div>' +
+        '<div class="cp-date">' + (cp.check_date || '') + '</div>';
+
+      if (cp.status === 'done' && cp.metrics_after) {
+        // 已生成摘要
+        card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
+      } else if (cp.status === 'pending' && cp.check_date <= today) {
+        card += '<div class="cp-status">待生成</div>';
+      } else if (cp.status === 'pending') {
+        card += '<div class="cp-status waiting">等待中</div>';
+      }
+
+      card += '</div>';
     }
+
+    card += '</div></div>';
+    html += card;
   }
 
-  // Pending (not yet due)
-  var pending = allItems.filter(function(t) { return t.status === 'pending' && !isDue(t.check_date); });
-  if (pending.length > 0) {
-    html += '<div class="track-section-title">进行中 (' + pending.length + ')</div>';
-    for (var i = 0; i < pending.length && i < 10; i++) {
-      var t = pending[i];
-      var tagCls = actionTagClass(t.action_type);
-      html += '<div class="track-card">' +
-        '<div class="track-header">' +
-          '<span class="tag ' + tagCls + '">' + esc(t.action_type || '') + '</span> ' +
-          esc(t.change_summary || '') +
-        '</div>' +
-        '<div class="track-meta">' +
-          esc(t.shop_name || '') + ' · ' + (t.check_type || '') + ' · ' + (t.check_date || '') +
-        '</div>' +
-      '</div>';
-    }
-  }
-
-  // History (done/effective/ineffective)
-  var done = allItems.filter(function(t) { return t.status !== 'pending'; });
-  if (done.length > 0) {
-    html += '<div class="track-section-title">历史</div>';
-    for (var i = 0; i < done.length && i < 10; i++) {
-      var t = done[i];
-      var icon = t.status === 'effective' ? '有效' : t.status === 'ineffective' ? '无效' : t.status === 'observe' ? '观察中' : t.status;
-      html += '<div class="track-history">' + icon + ' · ' + esc(t.action_type || '') + ' ' + esc(t.change_summary || '') + '</div>';
-    }
-  }
-
-  if (!html) html = '<div class="empty">暂无追踪任务</div>';
+  updateBadge('trackBadge', dueCount);
+  if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
+
+  // Bind close buttons
+  el.querySelectorAll('.cp-close-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tid = parseInt(btn.dataset.tid);
+      closeCheckpoint(tid);
+    });
+  });
 }
 
-function isDue(checkDate) {
-  if (!checkDate) return false;
-  return checkDate <= new Date().toISOString().slice(0, 10);
-}
-
-async function doFeedback(id, feedback) {
-  await apiPost('/api/tracking/feedback', { id: id, feedback: feedback });
-  loadTracking();
-  loadAlerts();
-}
-
-async function toggleTracking(logId, enable) {
-  if (enable) {
-    await apiPost('/api/tracking/enable_log/' + logId, {});
-  } else {
-    await apiPost('/api/tracking/disable_log/' + logId, {});
-  }
-  await loadTrackingStatus();
-  var el = document.getElementById('tab-logs');
-  var data = await api('/api/logs?limit=50');
-  if (data && data.length > 0) renderLogs(el, data);
+async function closeCheckpoint(tid) {
+  await apiPost('/api/tracking/' + tid + '/disable', {});
   loadTracking();
 }
 
-// Make functions accessible from onclick
-window.doFeedback = doFeedback;
-window.toggleTracking = toggleTracking;
+function toggleTracking(logId, enable) {
+  var path = enable ? '/api/tracking/enable_log/' + logId : '/api/tracking/disable_log/' + logId;
+  apiPost(path, {}).then(function() {
+    loadTrackingStatus();
+    loadTracking();
+  });
+}
+
 
 // ========== Badge ==========
 
@@ -392,6 +410,206 @@ function updateBadge(elemId, count) {
   } else {
     el.style.display = 'none';
   }
+}
+
+// ========== Agent status + Patrol ==========
+
+var agentReady = false;
+
+async function checkAgent() {
+  var dot = document.getElementById('agentDot');
+  var msg = document.getElementById('agentMsg');
+  var btn = document.getElementById('patrolBtn');
+
+  // Step 1: Check if server.py is running at all
+  var serverAlive = false;
+  try {
+    var res = await fetch(SERVER_URL + '/api/logs?limit=1');
+    serverAlive = res.ok;
+  } catch(e) {}
+
+  if (!serverAlive) {
+    dot.className = 'agent-dot off';
+    msg.textContent = '服务未启动';
+    btn.disabled = true;
+    btn.textContent = '巡检';
+    var hint = document.getElementById('startHint');
+    if (hint) hint.style.display = 'block';
+    return;
+  }
+  var hint2 = document.getElementById('startHint');
+  if (hint2) hint2.style.display = 'none';
+
+  // Step 2: Server is running, check agent status
+  var data = await api('/api/agent/status');
+  if (!data) {
+    // server.py is running but no /api/agent/status endpoint — older server version
+    dot.className = 'agent-dot ok';
+    msg.textContent = '服务已连接（无巡检）';
+    btn.disabled = true;
+    btn.style.display = 'none';
+    return;
+  }
+
+  btn.style.display = '';
+  agentReady = data.has_run_fast;
+
+  if (data.patrol && data.patrol.state === 'running') {
+    dot.className = 'agent-dot busy';
+    msg.textContent = data.patrol.message || '巡检中...';
+    btn.disabled = true;
+    btn.textContent = '巡检中';
+    setTimeout(checkAgent, 3000);
+    return;
+  }
+
+  if (data.patrol && data.patrol.state === 'done') {
+    dot.className = 'agent-dot ok';
+    msg.textContent = '巡检完成';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    loadDaily();
+    loadAlerts();
+  } else if (data.patrol && data.patrol.state === 'error') {
+    dot.className = 'agent-dot off';
+    msg.textContent = data.patrol.message || '巡检异常';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+  } else if (data.has_run_fast) {
+    dot.className = 'agent-dot ok';
+    msg.textContent = 'agent就绪';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+  } else {
+    dot.className = 'agent-dot ok';
+    msg.textContent = '服务已连接';
+    btn.disabled = true;
+    btn.style.display = 'none';
+  }
+}
+
+async function startPatrol() {
+  var btn = document.getElementById('patrolBtn');
+  var dot = document.getElementById('agentDot');
+  var msg = document.getElementById('agentMsg');
+
+  // Check if brands are configured
+  var brandsData = await api('/api/patrol/brands');
+  var brands = (brandsData && brandsData.brands) || [];
+
+  if (!brands.length) {
+    // Ask user to input brands
+    var input = prompt('输入巡检品牌（多个用逗号隔开）\n例如: 禾, 港翠');
+    if (!input) return;
+    brands = input.split(/[,，]/).map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+    if (!brands.length) return;
+    // Save for next time
+    await apiPost('/api/patrol/brands', { brands: brands });
+  }
+
+  btn.disabled = true;
+  btn.textContent = '启动中...';
+  dot.className = 'agent-dot busy';
+
+  var result = await apiPost('/api/patrol/start', { brands: brands });
+  if (result && result.ok) {
+    msg.textContent = result.message || '巡检已启动';
+    btn.textContent = '巡检中';
+    setTimeout(checkAgent, 2000);
+  } else if (result && result.error === 'no_brands') {
+    msg.textContent = '请先设置品牌';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    dot.className = 'agent-dot off';
+  } else {
+    msg.textContent = (result && result.message) || '启动失败';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    dot.className = 'agent-dot off';
+  }
+}
+
+// ========== Version check ==========
+
+async function checkVersion() {
+  var manifest = chrome.runtime.getManifest();
+  var currentVer = manifest.version;
+  var verLabel = document.getElementById('verLabel');
+  if (verLabel) verLabel.textContent = 'v' + currentVer;
+
+  var data = await api('/api/extension/version');
+  if (data && data.version && data.version !== currentVer) {
+    var btn = document.getElementById('upgradeBtn');
+    if (btn) {
+      btn.style.display = 'inline-block';
+      btn.textContent = 'v' + data.version + ' 可更新';
+      btn.onclick = function() {
+        btn.textContent = '更新中...';
+        chrome.runtime.sendMessage({ type: 'OPS_RELOAD' });
+      };
+    }
+  }
+}
+
+// ========== Settings ==========
+
+async function loadSettings() {
+  var data = await api('/api/settings');
+  if (!data) {
+    // Use defaults from chrome.storage
+    try {
+      var stored = await chrome.storage.local.get('ops_settings');
+      data = stored.ops_settings || {};
+    } catch(e) { data = {}; }
+  }
+  var patrolToggle = document.getElementById('patrolToggle');
+  var alertToggle = document.getElementById('alertToggle');
+  var patrolTime = document.getElementById('patrolTime');
+  var alertInterval = document.getElementById('alertInterval');
+
+  if (data.patrol_enabled !== false) patrolToggle.classList.add('on');
+  if (data.alert_enabled !== false) alertToggle.classList.add('on');
+  if (data.patrol_time) patrolTime.value = data.patrol_time;
+  if (data.alert_interval) alertInterval.value = data.alert_interval;
+}
+
+async function saveSettings() {
+  var settings = {
+    patrol_enabled: document.getElementById('patrolToggle').classList.contains('on'),
+    alert_enabled: document.getElementById('alertToggle').classList.contains('on'),
+    patrol_time: document.getElementById('patrolTime').value,
+    alert_interval: parseInt(document.getElementById('alertInterval').value) || 30,
+  };
+  // Save to chrome.storage as fallback
+  try { chrome.storage.local.set({ ops_settings: settings }); } catch(e) {}
+  // Save to server if available
+  apiPost('/api/settings', settings);
+}
+
+function initSettings() {
+  var btn = document.getElementById('settingsBtn');
+  var panel = document.getElementById('settingsPanel');
+
+  btn.addEventListener('click', function() {
+    panel.classList.toggle('open');
+  });
+
+  // Toggle switches
+  ['patrolToggle', 'alertToggle'].forEach(function(id) {
+    document.getElementById(id).addEventListener('click', function() {
+      this.classList.toggle('on');
+      saveSettings();
+    });
+  });
+
+  // Time/interval inputs
+  ['patrolTime', 'alertInterval'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+      saveSettings();
+    });
+  });
+
+  loadSettings();
 }
 
 // ========== Init ==========
@@ -413,6 +631,8 @@ async function init() {
     document.getElementById('infoLine').textContent = state.operator;
 
     await discoverServer();
+    checkVersion();
+    checkAgent();
     loadDaily();
     loadAlerts();
     loadLogs();
@@ -422,12 +642,68 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', function() {
   initTabs();
+  initSettings();
   init();
 
-  document.getElementById('okBtn').addEventListener('click', function() {
+  var _pendingName = '';
+  var _operatorsData = null;
+
+  async function loadOperatorsData() {
+    if (_operatorsData) return _operatorsData;
+    try {
+      var resp = await fetch(chrome.runtime.getURL('operators.json'));
+      _operatorsData = await resp.json();
+    } catch(e) { _operatorsData = {}; }
+    return _operatorsData;
+  }
+
+  document.getElementById('okBtn').addEventListener('click', async function() {
     var name = document.getElementById('nameInput').value.trim();
     if (!name) return;
-    chrome.runtime.sendMessage({ type: 'OPS_SET_OPERATOR', name: name }, function() {
+    var resultEl = document.getElementById('setupResult');
+    var confirmBtn = document.getElementById('confirmBtn');
+    resultEl.innerHTML = '<div style="color:#999;text-align:center">查询中...</div>';
+    confirmBtn.style.display = 'none';
+
+    var ops = await loadOperatorsData();
+    var brands = ops[name];
+
+    if (!brands) {
+      var allNames = Object.keys(ops);
+      var similar = allNames.filter(function(n) { return n.indexOf(name) >= 0 || name.indexOf(n) >= 0; });
+      var html = '<div style="color:#e65100;text-align:center">没有找到「' + esc(name) + '」</div>';
+      if (similar.length > 0) {
+        html += '<div style="color:#999;text-align:center;margin-top:6px;font-size:11px">你是不是：' + similar.map(function(s){return esc(s)}).join('、') + '</div>';
+      } else if (allNames.length > 0) {
+        html += '<div style="color:#999;text-align:center;margin-top:6px;font-size:11px">现有运营：' + allNames.join('、') + '</div>';
+      }
+      resultEl.innerHTML = html;
+      return;
+    }
+
+    _pendingName = name;
+    var brandNames = Object.keys(brands);
+    var totalShops = 0;
+    brandNames.forEach(function(b) { totalShops += brands[b].length; });
+
+    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' — ' + brandNames.length + '个品牌 ' + totalShops + '家店</div>';
+    for (var i = 0; i < brandNames.length; i++) {
+      var bname = brandNames[i];
+      var shops = brands[bname];
+      html += '<div style="font-weight:600;margin-top:6px">' + esc(bname) + ' <span style="color:#999;font-weight:400">(' + shops.length + '家)</span></div>';
+      for (var j = 0; j < shops.length; j++) {
+        var s = shops[j];
+        var ptag = s.p === 'meituan' ? '<span style="color:#cc6600">美团</span>' : '<span style="color:#0066cc">饿了么</span>';
+        html += '<div style="padding-left:8px;color:#666">' + esc(s.shop) + ' ' + ptag + '</div>';
+      }
+    }
+    resultEl.innerHTML = html;
+    confirmBtn.style.display = 'block';
+  });
+
+  document.getElementById('confirmBtn').addEventListener('click', function() {
+    if (!_pendingName) return;
+    chrome.runtime.sendMessage({ type: 'OPS_SET_OPERATOR', name: _pendingName }, function() {
       if (!chrome.runtime.lastError) init();
     });
   });
@@ -436,9 +712,74 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key === 'Enter') document.getElementById('okBtn').click();
   });
 
+  document.getElementById('patrolBtn').addEventListener('click', function() {
+    startPatrol();
+  });
+
   // Refresh every 30s
   setInterval(function() {
     loadAlerts();
     loadTracking();
+    checkAgent();
   }, 30000);
 });
+
+// ========== Tab 5: Chat (会话) ==========
+
+var chatHistory = [];
+var chatThinking = false;
+
+function addChatMsg(role, text, toolInfo) {
+  var area = document.getElementById('chatArea');
+  var welcome = document.getElementById('quickBtns');
+  if (welcome && welcome.parentElement) welcome.parentElement.style.display = 'none';
+
+  var div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  if (role === 'bot' && toolInfo) {
+    div.innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>') + '<div class="tool-info">' + esc(toolInfo) + '</div>';
+  } else if (role === 'err') {
+    div.textContent = text;
+  } else {
+    div.innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  }
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function sendQuick(text) {
+  document.getElementById('chatInput').value = text;
+  sendMsg();
+}
+
+async function sendMsg() {
+  var input = document.getElementById('chatInput');
+  var text = input.value.trim();
+  if (!text || chatThinking) return;
+  input.value = '';
+  addChatMsg('user', text);
+
+  chatHistory.push({ role: 'user', content: text });
+  chatThinking = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    var opData = await chrome.storage.local.get('ops_operator');
+    var res = await fetch(SERVER_URL + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, operator: opData.ops_operator || '', history: chatHistory.slice(-20) })
+    });
+    if (!res.ok) { addChatMsg('err', '服务出错: ' + res.status); }
+    else {
+      var data = await res.json();
+      var reply = data.reply || '(没有回复)';
+      chatHistory.push({ role: 'assistant', content: reply });
+      addChatMsg('bot', reply, data.tools_used ? data.tools_used.join(' → ') : '');
+    }
+  } catch(e) {
+    addChatMsg('err', '连接失败: ' + e.message);
+  }
+  chatThinking = false;
+  document.getElementById('sendBtn').disabled = false;
+}
