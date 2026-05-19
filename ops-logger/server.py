@@ -2,10 +2,12 @@
 Ops Logger Server v4.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪 + 巡检/预警直执行
 端口: 5500
 """
-import json, sqlite3, os, re, subprocess, threading
+import json, sqlite3, os, re, subprocess, threading, sys
 import requests as http_requests
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
+
+PYTHON = sys.executable
 
 app = Flask(__name__)
 
@@ -1911,7 +1913,7 @@ def _auto_collect_due():
                 if due > 0:
                     print(f"[auto-collect] {due} due tasks, running collect_tracking.py...")
                     subprocess.run(
-                        ["/opt/homebrew/bin/python3", "collect_tracking.py"],
+                        [PYTHON, "collect_tracking.py"],
                         cwd=os.path.dirname(os.path.abspath(__file__)),
                         timeout=120
                     )
@@ -2166,7 +2168,7 @@ def api_patrol_start():
         print(f"[patrol] 启动: {brands}, 脚本: {script}")
         try:
             proc = subprocess.Popen(
-                ["/opt/homebrew/bin/python3", script] + brands,
+                [PYTHON, script] + brands,
                 cwd=WORKSPACE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
