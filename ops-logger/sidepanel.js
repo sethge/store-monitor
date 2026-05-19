@@ -537,12 +537,13 @@ async function init() {
   chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, async function(state) {
     if (chrome.runtime.lastError || !state) { setTimeout(init, 300); return; }
     if (!state.operator) {
-      document.getElementById('setup').style.display = 'block';
-      document.getElementById('main').style.display = 'none';
+      document.getElementById('setup').style.display = '';
+      document.getElementById('main').classList.remove('show');
       return;
     }
     document.getElementById('setup').style.display = 'none';
-    document.getElementById('main').style.display = 'flex';
+
+    document.getElementById('main').classList.add('show');
     document.getElementById('infoLine').textContent = state.operator;
 
     await discoverServer();
