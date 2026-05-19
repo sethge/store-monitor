@@ -129,6 +129,7 @@ async def launch(pw, port=PORT):
         f"--remote-debugging-port={port}",
         "--no-first-run",
         "--no-default-browser-check",
+        "--proxy-server=direct://",
     ]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

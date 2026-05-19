@@ -9,6 +9,8 @@ PARENT="$(dirname "$DIR")"
 # 优先用 venv，没有就用 homebrew python
 if [ -f "$DIR/venv/bin/python3" ]; then
     PYTHON="$DIR/venv/bin/python3"
+elif [ -f "$DIR/venv/bin/python3" ]; then
+    PYTHON="$DIR/venv/bin/python3"
 elif [ -f "$PARENT/.venv/bin/python3" ]; then
     PYTHON="$PARENT/.venv/bin/python3"
 elif [ -f "/opt/homebrew/bin/python3" ]; then
@@ -43,6 +45,7 @@ else
             --remote-debugging-port=$PORT \
             --no-first-run \
             --no-default-browser-check \
+            --proxy-server="direct://" \
             > /dev/null 2>&1 &
         echo "  Chrome 已启动 (debug port $PORT)"
         sleep 3
