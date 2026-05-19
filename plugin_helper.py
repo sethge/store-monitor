@@ -97,14 +97,23 @@ async def pick_brand(ext, brand):
     await asyncio.sleep(0.5)
     await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
     await asyncio.sleep(0.5)
-    inputs = await ext.query_selector_all('input.ant-select-selection-search-input')
-    target = inputs[-1] if inputs else None
-    if not target:
-        return False, "搜索框未找到"
     kw = brand.split("（")[0]
     sub = brand.split("（")[1].split("）")[0] if "（" in brand else ""
-    await target.fill("")
-    await target.type(kw, delay=30)
+    # 用JS直接操作输入框，绕过Playwright的editability检查
+    typed = await ext.evaluate(f"""() => {{
+        const inputs = document.querySelectorAll('input.ant-select-selection-search-input');
+        const input = inputs.length ? inputs[inputs.length - 1] : null;
+        if (!input) return false;
+        input.focus();
+        input.value = '';
+        input.dispatchEvent(new Event('input', {{bubbles: true}}));
+        input.value = '{kw}';
+        input.dispatchEvent(new Event('input', {{bubbles: true}}));
+        input.dispatchEvent(new Event('change', {{bubbles: true}}));
+        return true;
+    }}""")
+    if not typed:
+        return False, "搜索框未找到"
     await asyncio.sleep(1)
     found = await ext.evaluate(f"""() => {{
         const opts = document.querySelectorAll('.ant-select-item-option');
