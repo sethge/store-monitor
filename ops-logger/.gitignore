@@ -1,0 +1,7 @@
+build/
+dist/
+backups/
+*.spec
+*.db
+server.log
+__pycache__/
