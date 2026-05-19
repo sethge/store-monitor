@@ -24,11 +24,13 @@ async def launch(pw, port=PORT):
     os.makedirs(USER_DIR, exist_ok=True)
     subprocess.Popen([
         chrome,
+        "--headless=new",
         f"--remote-debugging-port={port}",
         f"--user-data-dir={USER_DIR}",
         f"--load-extension={EXT_PATH}",
         "--no-first-run",
         "--no-default-browser-check",
+        "--disable-gpu",
         "--proxy-server=direct://",
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
