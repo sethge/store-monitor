@@ -6,14 +6,12 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "4.0.0";
-const DISCOVER_URL = "https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json";
+const VERSION = "4.0.1";
+const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
 const CONFIG_REFRESH = 300000;
 const UPDATE_CHECK_INTERVAL = 60000; // 1 min
-
-let SERVER_URL = "";
 
 // ========== Caches ==========
 let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
@@ -36,21 +34,10 @@ const FALLBACK_IGNORE = new Set([
 ]);
 
 async function discoverServer() {
-  try {
-    const { ops_server_url } = await chrome.storage.local.get("ops_server_url");
-    if (ops_server_url) SERVER_URL = ops_server_url;
-    const res = await fetch(DISCOVER_URL + "?t=" + Date.now());
-    if (res.ok) {
-      const info = await res.json();
-      if (info.url) {
-        SERVER_URL = info.url.replace(/\/+$/, "");
-        await chrome.storage.local.set({ ops_server_url: SERVER_URL });
-        console.log("[OpsLogger] server:", SERVER_URL);
-      }
-    }
-  } catch (e) {
-    console.log("[OpsLogger] discover failed, using cached:", SERVER_URL);
-  }
+  // v4.0.1: 直连本地server.py，不再从OSS拉远程地址
+  // 清除旧的远程地址缓存
+  chrome.storage.local.remove("ops_server_url");
+  console.log("[OpsLogger] server:", SERVER_URL);
 }
 
 async function fetchConfig() {

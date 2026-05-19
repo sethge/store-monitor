@@ -1,6 +1,6 @@
 /* popup.js — 小q助手 四Tab面板 */
 
-var SERVER_URL = '';
+var SERVER_URL = 'http://127.0.0.1:5500';
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -27,11 +27,7 @@ function dateKey(ts) {
 // ========== Server discovery ==========
 
 async function discoverServer() {
-  try {
-    var data = await chrome.storage.local.get('ops_server_url');
-    if (data.ops_server_url) SERVER_URL = data.ops_server_url;
-  } catch(e) {}
-  if (!SERVER_URL) SERVER_URL = 'http://127.0.0.1:5500';
+  // v4.0.1: 直连本地，不读storage缓存
 }
 
 async function api(path) {
