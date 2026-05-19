@@ -287,11 +287,36 @@ def _hide_chrome():
             pass
 
 
+_hider_task = None
+
+async def _chrome_hider_loop():
+    """后台循环：巡检期间每秒隐藏Chrome，防止tab创建时Chrome自己unhide"""
+    while True:
+        _hide_chrome()
+        _activate_app(_user_app)
+        await asyncio.sleep(1)
+
+
 async def save_user_focus(ctx):
-    """记住运营当前前台app，以防需要还焦点"""
-    global _user_app
+    """记住运营当前前台app，启动后台隐藏循环"""
+    global _user_app, _hider_task
     _user_app = _get_frontmost_app()
+    # 启动后台循环
+    if _hider_task is None or _hider_task.done():
+        _hider_task = asyncio.create_task(_chrome_hider_loop())
     return None
+
+
+async def stop_hider():
+    """停止后台隐藏循环"""
+    global _hider_task
+    if _hider_task and not _hider_task.done():
+        _hider_task.cancel()
+        try:
+            await _hider_task
+        except asyncio.CancelledError:
+            pass
+        _hider_task = None
 
 
 async def restore_user_focus(page):

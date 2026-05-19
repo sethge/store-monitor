@@ -5,7 +5,7 @@ sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 
 # 复用run_fast的所有逻辑
 from run_fast import fast_mt, fast_ele, sd, check_promo, THREE_DAYS, CUTOFF
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, _hide_chrome
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, stop_hider, _hide_chrome
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -213,6 +213,7 @@ async def main():
     from learn import log_interaction
     issue_count = sum(len(items) for items in all_issues.values())
     log_interaction("usage", f"全量巡检 {len(brands)}品牌，{issue_count}个问题，{total:.0f}秒")
+    await stop_hider()
     await pw.stop()
 
 

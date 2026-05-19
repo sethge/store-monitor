@@ -17,7 +17,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus, _hide_chrome
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus, stop_hider, _hide_chrome
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
 from patrol_db import save_snapshot
@@ -847,6 +847,7 @@ async def main():
                 except: pass
         log_interaction("usage", f"盯店预警 {','.join(brands)}，共{round_num}轮，每{interval}分钟")
 
+    await stop_hider()
     await pw.stop()
 
 
