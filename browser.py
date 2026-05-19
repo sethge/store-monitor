@@ -1,4 +1,4 @@
-"""浏览器模块 — Popen启动 + connect_over_cdp连接"""
+"""浏览器模块 — 连接运营自己的Chrome，不开新实例"""
 import asyncio
 import subprocess
 import json
@@ -8,6 +8,9 @@ from pathlib import Path
 
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
+
+EXT_PATH = str(Path(__file__).parent / "goku")
+PORT = 9222
 
 
 def _get_front_app():
@@ -73,33 +76,61 @@ def _hide_chrome():
             pass
 
 
-EXT_PATH = str(Path(__file__).parent / "goku")
-USER_DIR = os.path.expanduser("~/chrome-debug")
-PORT = 9222
+def _chrome_is_running():
+    """检查Chrome是否在运行"""
+    if _IS_MAC:
+        try:
+            r = subprocess.run(["pgrep", "-f", "Google Chrome"], capture_output=True)
+            return r.returncode == 0
+        except Exception:
+            return False
+    elif _IS_WIN:
+        try:
+            r = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe"],
+                               capture_output=True, text=True)
+            return "chrome.exe" in r.stdout.lower()
+        except Exception:
+            return False
+    return False
+
+
+def _kill_chrome():
+    """关闭Chrome"""
+    if _IS_MAC:
+        subprocess.run(["pkill", "-f", "Google Chrome"], capture_output=True)
+    elif _IS_WIN:
+        subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"],
+                       capture_output=True)
 
 
 async def launch(pw, port=PORT):
-    """连接已有浏览器，没有就启动一个"""
+    """连接运营的Chrome。优先直连，连不上就重启Chrome带debug端口"""
 
-    # 已有浏览器 → 直接连
+    # 1. 已有debug端口 → 直连
     ws = _cdp_ws(port)
     if ws:
         browser = await pw.chromium.connect_over_cdp(ws)
         return browser, browser.contexts[0]
 
-    # 没有 → 启动（记住当前前台app，启动后还焦点）
+    # 2. Chrome在跑但没debug端口 → 关掉重开
     chrome = _find_chrome()
-    os.makedirs(USER_DIR, exist_ok=True)
     front_app = _get_front_app()
-    subprocess.Popen([
+
+    if _chrome_is_running():
+        print("  Chrome需要重启以启用调试端口...")
+        _kill_chrome()
+        await asyncio.sleep(2)
+
+    # 3. 启动Chrome，用默认profile（运营自己的），带debug端口
+    #    不传 --user-data-dir，Chrome用默认profile
+    #    不传 --load-extension，运营Chrome里已经装了Goku和ops-logger
+    cmd = [
         chrome,
         f"--remote-debugging-port={port}",
-        f"--user-data-dir={USER_DIR}",
-        f"--load-extension={EXT_PATH}",
         "--no-first-run",
         "--no-default-browser-check",
-        "--proxy-server=direct://",
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    ]
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 等端口就绪
     for _ in range(20):
@@ -119,7 +150,6 @@ def _cdp_ws(port):
     """获取CDP WebSocket地址"""
     try:
         if _IS_WIN:
-            # Windows没有curl，用urllib
             import urllib.request
             r = urllib.request.urlopen(f"http://localhost:{port}/json/version", timeout=3)
             data = json.loads(r.read().decode())
@@ -151,12 +181,4 @@ def _find_chrome():
     for p in candidates:
         if os.path.exists(p):
             return p
-    if not _IS_WIN:
-        # playwright chromium (macOS)
-        import glob
-        paths = glob.glob(os.path.expanduser(
-            "~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
-        ))
-        if paths:
-            return sorted(paths)[-1]
     raise Exception("找不到Chrome，请安装Chrome")
