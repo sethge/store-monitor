@@ -2636,11 +2636,9 @@ def _ensure_debug_chrome():
         "--no-first-run",
         "--no-default-browser-check",
         "--proxy-server=direct://",
-        "--window-position=9999,9999",
-        "--window-size=800,600",
     ]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("[chrome] debug Chrome已启动（屏幕外）")
+    print("[chrome] debug Chrome已启动")
 
 
 def _schedule_patrol():

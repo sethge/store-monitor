@@ -32,6 +32,8 @@ if curl --noproxy localhost -s http://localhost:9222/json/version > /dev/null 2>
 else
     if [ -f "$CHROME" ]; then
         mkdir -p "$CHROME_DEBUG_DIR"
+        # 记住当前前台app
+        FRONT_APP=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
         "$CHROME" \
             --remote-debugging-port=9222 \
             --user-data-dir="$CHROME_DEBUG_DIR" \
@@ -39,11 +41,11 @@ else
             --no-first-run \
             --no-default-browser-check \
             --proxy-server="direct://" \
-            --window-position=9999,9999 \
-            --window-size=800,600 \
             > /dev/null 2>&1 &
         echo "  Chrome debug 已启动 (port 9222)"
         sleep 3
+        # 还焦点给之前的app
+        [ -n "$FRONT_APP" ] && osascript -e "tell application \"$FRONT_APP\" to activate" 2>/dev/null
     else
         echo "  WARNING: 找不到 Chrome，请手动打开"
     fi

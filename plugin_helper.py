@@ -1,8 +1,29 @@
 """悟空插件操作辅助模块"""
 import asyncio
 import json
-import subprocess
+import subprocess as _sp
 from collections import defaultdict
+
+
+def _get_frontmost_app():
+    """获取当前前台app名称"""
+    try:
+        r = _sp.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
+                     capture_output=True, text=True, timeout=3)
+        return r.stdout.strip()
+    except Exception:
+        return None
+
+
+def _activate_app(name):
+    """激活指定app到前台"""
+    if not name:
+        return
+    try:
+        _sp.Popen(["osascript", "-e", f'tell application "{name}" to activate'],
+                   stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+    except Exception:
+        pass
 
 # 悟空插件ID（手动加载时Chrome会分配新ID，这里列已知的，自动检测兜底）
 KNOWN_EXT_IDS = [
@@ -27,9 +48,11 @@ async def get_ext(ctx):
                     return p
             except:
                 pass
-    # 尝试用已知ID打开
+    # 尝试用已知ID打开（new_page会抢焦点，需要还回去）
+    front_app = _get_frontmost_app()
     for eid in KNOWN_EXT_IDS:
         p = await ctx.new_page()
+        _activate_app(front_app)  # 立刻还焦点
         try:
             await p.goto(f"chrome-extension://{eid}/index.html", wait_until="commit", timeout=10000)
             await asyncio.sleep(2)
@@ -214,34 +237,15 @@ async def check_verification(page):
 _user_app = None
 
 async def save_user_focus(ctx):
-    """记住运营当前在用的app，巡检中每次Goku抢焦点后还回去"""
+    """记住运营当前前台app，以防需要还焦点"""
     global _user_app
-    import subprocess as _sp
-    try:
-        r = _sp.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
-                     capture_output=True, text=True, timeout=3)
-        app = r.stdout.strip()
-        if app and "Google Chrome" not in app:
-            _user_app = app
-        else:
-            # 运营在用Chrome，记住具体窗口标题来区分
-            _user_app = app
-    except Exception:
-        _user_app = None
+    _user_app = _get_frontmost_app()
     return None
 
 
 async def restore_user_focus(page):
-    """Goku打开新tab后，把焦点还给运营之前在用的app"""
-    global _user_app
-    if not _user_app:
-        return
-    import subprocess as _sp
-    try:
-        _sp.Popen(["osascript", "-e", f'tell application "{_user_app}" to activate'],
-                   stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
-    except Exception:
-        pass
+    """还焦点（安全网：正常情况Goku不抢焦点，这里兜底）"""
+    _activate_app(_user_app)
 
 
 async def close_store_pages(ctx):

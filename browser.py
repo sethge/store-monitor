@@ -5,6 +5,25 @@ import json
 import os
 from pathlib import Path
 
+
+def _get_front_app():
+    try:
+        r = subprocess.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
+                           capture_output=True, text=True, timeout=3)
+        return r.stdout.strip()
+    except Exception:
+        return None
+
+
+def _activate_app(name):
+    if not name:
+        return
+    try:
+        subprocess.Popen(["osascript", "-e", f'tell application "{name}" to activate'],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
 EXT_PATH = str(Path(__file__).parent / "goku")
 USER_DIR = os.path.expanduser("~/chrome-debug")
 PORT = 9222
@@ -19,9 +38,10 @@ async def launch(pw, port=PORT):
         browser = await pw.chromium.connect_over_cdp(ws)
         return browser, browser.contexts[0]
 
-    # 没有 → 启动
+    # 没有 → 启动（记住当前前台app，启动后还焦点）
     chrome = _find_chrome()
     os.makedirs(USER_DIR, exist_ok=True)
+    front_app = _get_front_app()
     subprocess.Popen([
         chrome,
         f"--remote-debugging-port={port}",
@@ -30,8 +50,6 @@ async def launch(pw, port=PORT):
         "--no-first-run",
         "--no-default-browser-check",
         "--proxy-server=direct://",
-        "--window-position=9999,9999",
-        "--window-size=800,600",
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 等端口就绪
@@ -41,6 +59,7 @@ async def launch(pw, port=PORT):
         if ws:
             browser = await pw.chromium.connect_over_cdp(ws)
             await asyncio.sleep(2)
+            _activate_app(front_app)  # Chrome启动后还焦点
             return browser, browser.contexts[0]
 
     raise Exception("浏览器启动超时")
