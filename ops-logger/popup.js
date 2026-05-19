@@ -489,25 +489,16 @@ async function startPatrol() {
   var dot = document.getElementById('agentDot');
   var msg = document.getElementById('agentMsg');
 
-  // Check if brands are configured
-  var brandsData = await api('/api/patrol/brands');
-  var brands = (brandsData && brandsData.brands) || [];
-
-  if (!brands.length) {
-    // Ask user to input brands
-    var input = prompt('输入巡检品牌（多个用逗号隔开）\n例如: 禾, 港翠');
-    if (!input) return;
-    brands = input.split(/[,，]/).map(function(s) { return s.trim(); }).filter(function(s) { return s; });
-    if (!brands.length) return;
-    // Save for next time
-    await apiPost('/api/patrol/brands', { brands: brands });
-  }
+  // 根据登录运营自动查品牌
+  var opData = await chrome.storage.local.get('ops_operator');
+  var operator = opData.ops_operator || '';
+  if (!operator) { msg.textContent = '请先登录'; return; }
 
   btn.disabled = true;
   btn.textContent = '启动中...';
   dot.className = 'agent-dot busy';
 
-  var result = await apiPost('/api/patrol/start', { brands: brands });
+  var result = await apiPost('/api/patrol/start', { operator: operator });
   if (result && result.ok) {
     msg.textContent = result.message || '巡检已启动';
     btn.textContent = '巡检中';

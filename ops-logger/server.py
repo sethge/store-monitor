@@ -2178,13 +2178,35 @@ def api_patrol_brands_set():
     return jsonify({"ok": True, "brands": brands})
 
 
+def _get_operator_brands(operator):
+    """从operators.json查运营名下的品牌列表"""
+    ops_json = os.path.join(os.path.dirname(__file__), "operators.json")
+    if not os.path.exists(ops_json):
+        return []
+    try:
+        with open(ops_json) as f:
+            data = json.load(f)
+        brands_dict = data.get(operator, {})
+        return list(brands_dict.keys()) if brands_dict else []
+    except Exception as e:
+        print(f"[patrol] 读operators.json失败: {e}")
+        return []
+
+
 @app.route("/api/patrol/start", methods=["POST"])
 def api_patrol_start():
-    """启动巡检（直接subprocess调run_all_fast.py，不经过QClaw LLM）"""
+    """启动巡检（根据运营名自动查品牌，直接subprocess调run_all_fast.py）"""
     data = request.get_json(silent=True) or {}
+    operator = data.get("operator", "")
     brands = data.get("brands", [])
+
+    # 如果传了运营名，自动查品牌
+    if operator and not brands:
+        brands = _get_operator_brands(operator)
+        print(f"[patrol] 运营={operator}, 品牌={brands}")
+
     if not brands:
-        return jsonify({"error": "no_brands", "message": "请先设置品牌"}), 400
+        return jsonify({"error": "no_brands", "message": f"没找到{operator}的品牌"}), 400
 
     with _patrol_lock:
         if _patrol_state["state"] == "running":
