@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "3.0.0",
-  "description": "运营助手 — 日报/预警/操作记录/效果追踪",
+  "version": "3.5.0",
+  "description": "运营助手 — 日报/预警/操作记录/数据复盘/AI聊天",
   "permissions": [
     "storage",
     "webRequest",
     "scripting",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "host_permissions": [
     "*://*.waimai.meituan.com/*",
@@ -20,7 +21,15 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Ops Logger"
-  }
+    "default_title": "小q助手"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["operators.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

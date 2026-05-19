@@ -309,6 +309,10 @@ async function pushLogs() {
 // Fallback periodic push (catches any missed)
 setInterval(pushLogs, 60000);
 
+// ========== Side Panel ==========
+// Click extension icon -> open side panel (instead of popup)
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
 // ========== Startup ==========
 
 discoverServer().then(() => {

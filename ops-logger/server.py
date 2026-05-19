@@ -2,7 +2,7 @@
 Ops Logger Server v2.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪
 端口: 5500
 """
-import json, sqlite3, os, re
+import json, sqlite3, os, re, requests as http_requests
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
 
@@ -2015,6 +2015,427 @@ def _auto_backup():
             _do_backup()
     t = threading.Thread(target=_loop, daemon=True)
     t.start()
+
+## ========== Operator Stores (PA sync) ==========
+
+@app.route("/api/operator/stores")
+def api_operator_stores():
+    """查运营名下的品牌和店铺（从PA数据库实时查）"""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "need name param"}), 400
+    try:
+        import pymysql
+        pa = pymysql.connect(
+            host="rm-uf6e0001sq5g9foel.mysql.rds.aliyuncs.com",
+            port=3306, user="pa_ai_read",
+            password="HV)b2ZNxd_)(SLtBmLg--2rV",
+            database="inca-saas07",
+            charset="utf8mb4", connect_timeout=10
+        )
+        with pa.cursor() as cur:
+            cur.execute("""
+                SELECT s.name AS brand_name, s.id AS subscriber_id,
+                       ts.name AS shop_name, ts.id AS shop_id, ts.platform
+                FROM subscribers s
+                JOIN contracts c ON c.subscriber_id = s.id
+                    AND c.start_at <= NOW() AND c.end_at >= NOW()
+                JOIN takeaway_shops ts ON ts.subscriber_id = s.id
+                WHERE s.operator = %s
+                ORDER BY s.name, ts.name
+            """, (name,))
+            rows = cur.fetchall()
+        pa.close()
+    except Exception as e:
+        return jsonify({"error": str(e), "hint": "VPN可能没连"}), 500
+
+    if not rows:
+        # 模糊搜索看看有没有近似名字
+        try:
+            pa2 = pymysql.connect(
+                host="rm-uf6e0001sq5g9foel.mysql.rds.aliyuncs.com",
+                port=3306, user="pa_ai_read",
+                password="HV)b2ZNxd_)(SLtBmLg--2rV",
+                database="inca-saas07",
+                charset="utf8mb4", connect_timeout=10
+            )
+            with pa2.cursor() as cur2:
+                cur2.execute("SELECT DISTINCT operator FROM subscribers WHERE operator LIKE %s LIMIT 10", (f"%{name}%",))
+                similar = [r[0] for r in cur2.fetchall()]
+            pa2.close()
+            return jsonify({"operator": name, "brands": [], "total_shops": 0, "similar": similar})
+        except:
+            pass
+        return jsonify({"operator": name, "brands": [], "total_shops": 0})
+
+    brands = {}
+    for brand_name, sub_id, shop_name, shop_id, platform in rows:
+        if brand_name not in brands:
+            brands[brand_name] = {"subscriber_id": sub_id, "shops": []}
+        brands[brand_name]["shops"].append({
+            "shop_name": shop_name, "shop_id": shop_id, "platform": platform
+        })
+
+    brand_list = []
+    for bname, bdata in brands.items():
+        brand_list.append({
+            "brand_name": bname,
+            "subscriber_id": bdata["subscriber_id"],
+            "shops": bdata["shops"]
+        })
+
+    return jsonify({
+        "operator": name,
+        "brands": brand_list,
+        "total_brands": len(brand_list),
+        "total_shops": len(rows)
+    })
+
+@app.route("/api/operator/list")
+def api_operator_list():
+    """列出所有有在约合同的运营"""
+    try:
+        import pymysql
+        pa = pymysql.connect(
+            host="rm-uf6e0001sq5g9foel.mysql.rds.aliyuncs.com",
+            port=3306, user="pa_ai_read",
+            password="HV)b2ZNxd_)(SLtBmLg--2rV",
+            database="inca-saas07",
+            charset="utf8mb4", connect_timeout=10
+        )
+        with pa.cursor() as cur:
+            cur.execute("""
+                SELECT s.operator, COUNT(DISTINCT s.id) as brand_count, COUNT(ts.id) as shop_count
+                FROM subscribers s
+                JOIN contracts c ON c.subscriber_id = s.id
+                    AND c.start_at <= NOW() AND c.end_at >= NOW()
+                JOIN takeaway_shops ts ON ts.subscriber_id = s.id
+                WHERE s.operator IS NOT NULL AND s.operator != ''
+                GROUP BY s.operator
+                ORDER BY s.operator
+            """)
+            rows = [{"name": r[0], "brands": r[1], "shops": r[2]} for r in cur.fetchall()]
+        pa.close()
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ========== DeepSeek Agent Chat ==========
+
+DEEPSEEK_API_KEY = "sk-e9a15a3b186f49308076422d2685f7b0"
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+DEEPSEEK_MODEL = "deepseek-chat"
+
+AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI助手。你跑在服务端，能查数据库、看日志、分析预警。
+说话风格：像微信聊天，短句直接，不啰嗦，不说技术术语。
+你有以下工具可以调用，根据用户问题选择合适的工具。"""
+
+AGENT_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "query_alerts",
+            "description": "查询当前预警信息（差评、推广余额不足、评分下降等）",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_daily_report",
+            "description": "查询最新巡检日报",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_logs",
+            "description": "查询运营操作日志",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operator": {"type": "string", "description": "运营人员姓名，可选"},
+                    "shop_name": {"type": "string", "description": "店铺名称关键词，可选"},
+                    "action_type": {"type": "string", "description": "操作类型如menu_update/promotion等，可选"},
+                    "limit": {"type": "integer", "description": "返回条数，默认20", "default": 20}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_tracking",
+            "description": "查询改动效果追踪（运营改了菜单/活动后的效果跟进）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "description": "状态：pending/collected/all", "default": "pending"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_food_cache",
+            "description": "查询店铺菜单缓存（菜品名称、价格、月售等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "shop_name": {"type": "string", "description": "店铺名称关键词"},
+                    "food_name": {"type": "string", "description": "菜品名称关键词，可选"}
+                },
+                "required": ["shop_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_shop_list",
+            "description": "查询已缓存的店铺列表",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    }
+]
+
+def _exec_tool(name, args):
+    """Execute a tool call and return result string."""
+    conn = get_db()
+    try:
+        if name == "query_alerts":
+            rows = conn.execute("""
+                SELECT shop_id, shop_name, platform, action_type, action_detail, change_summary, received_at
+                FROM logs WHERE action_type IN ('bad_review','promotion_alert','score_drop')
+                AND received_at > datetime('now','-3 days','localtime')
+                ORDER BY received_at DESC LIMIT 20
+            """).fetchall()
+            if not rows:
+                # Also check daily patrol alerts
+                patrol_db = os.path.join(os.path.dirname(__file__), "..", "patrol_snapshots.db")
+                if os.path.exists(patrol_db):
+                    pc = sqlite3.connect(patrol_db)
+                    pc.row_factory = sqlite3.Row
+                    pr = pc.execute("""
+                        SELECT store, platform, issue_type, detail, severity
+                        FROM issues WHERE date >= date('now','-1 day','localtime')
+                        ORDER BY severity DESC LIMIT 20
+                    """).fetchall()
+                    pc.close()
+                    if pr:
+                        return json.dumps([dict(r) for r in pr], ensure_ascii=False)
+                return "最近3天没有预警"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+        elif name == "query_daily_report":
+            patrol_db = os.path.join(os.path.dirname(__file__), "..", "patrol_snapshots.db")
+            if os.path.exists(patrol_db):
+                pc = sqlite3.connect(patrol_db)
+                pc.row_factory = sqlite3.Row
+                pr = pc.execute("""
+                    SELECT store, platform, issue_type, detail, severity, date
+                    FROM issues WHERE date >= date('now','-1 day','localtime')
+                    ORDER BY store, platform
+                """).fetchall()
+                pc.close()
+                if pr:
+                    return json.dumps([dict(r) for r in pr], ensure_ascii=False)
+            # Fallback: recent logs summary
+            rows = conn.execute("""
+                SELECT shop_name, action_type, COUNT(*) as cnt
+                FROM logs WHERE received_at > datetime('now','-1 day','localtime')
+                AND action_type IS NOT NULL AND action_type != ''
+                GROUP BY shop_name, action_type ORDER BY cnt DESC LIMIT 20
+            """).fetchall()
+            if rows:
+                return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+            return "今天还没有巡检数据"
+
+        elif name == "query_logs":
+            where = ["1=1"]
+            params = []
+            if args.get("operator"):
+                where.append("operator LIKE ?")
+                params.append(f"%{args['operator']}%")
+            if args.get("shop_name"):
+                where.append("shop_name LIKE ?")
+                params.append(f"%{args['shop_name']}%")
+            if args.get("action_type"):
+                where.append("action_type LIKE ?")
+                params.append(f"%{args['action_type']}%")
+            limit = min(args.get("limit", 20), 50)
+            rows = conn.execute(f"""
+                SELECT operator, shop_name, platform, action_type, action_detail,
+                       change_summary, item_name, received_at
+                FROM logs WHERE {' AND '.join(where)}
+                ORDER BY received_at DESC LIMIT ?
+            """, params + [limit]).fetchall()
+            if not rows:
+                return "没有找到匹配的操作日志"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+        elif name == "query_tracking":
+            status = args.get("status", "pending")
+            if status == "all":
+                rows = conn.execute("""
+                    SELECT shop_id, platform, action_type, check_type, check_date, status, metrics_before, metrics_after
+                    FROM change_tracking ORDER BY created_at DESC LIMIT 20
+                """).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT shop_id, platform, action_type, check_type, check_date, status, metrics_before, metrics_after
+                    FROM change_tracking WHERE status = ? ORDER BY created_at DESC LIMIT 20
+                """, [status]).fetchall()
+            if not rows:
+                return "没有待追踪的改动"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+        elif name == "query_food_cache":
+            shop_name = args.get("shop_name", "")
+            food_name = args.get("food_name", "")
+            # First find shop_id from shop_cache
+            shops = conn.execute("SELECT shop_id, shop_name FROM shop_cache WHERE shop_name LIKE ?",
+                                 [f"%{shop_name}%"]).fetchall()
+            if not shops:
+                return f"没有找到包含'{shop_name}'的店铺"
+            shop_ids = [s["shop_id"] for s in shops]
+            placeholders = ",".join(["?"] * len(shop_ids))
+            q = f"""SELECT fs.name, fs.price, fs.monthly_sales, fs.category_name, fs.status,
+                           sc.shop_name, fs.shop_id
+                    FROM food_snapshot fs
+                    JOIN shop_cache sc ON fs.shop_id = sc.shop_id
+                    WHERE fs.shop_id IN ({placeholders})"""
+            p = list(shop_ids)
+            if food_name:
+                q += " AND fs.name LIKE ?"
+                p.append(f"%{food_name}%")
+            q += " ORDER BY fs.monthly_sales DESC LIMIT 30"
+            rows = conn.execute(q, p).fetchall()
+            if not rows:
+                # Try food_cache table
+                q2 = f"SELECT name, price, shop_id FROM food_cache WHERE shop_id IN ({placeholders})"
+                p2 = list(shop_ids)
+                if food_name:
+                    q2 += " AND name LIKE ?"
+                    p2.append(f"%{food_name}%")
+                q2 += " LIMIT 30"
+                rows = conn.execute(q2, p2).fetchall()
+            if not rows:
+                return f"找到店铺但没有菜品缓存数据"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+        elif name == "query_shop_list":
+            rows = conn.execute("SELECT shop_id, shop_name, platform FROM shop_cache ORDER BY shop_name").fetchall()
+            if not rows:
+                return "还没有缓存任何店铺"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+        else:
+            return f"未知工具: {name}"
+    except Exception as e:
+        return f"查询出错: {str(e)}"
+    finally:
+        conn.close()
+
+def _call_deepseek(messages, tools=None):
+    """Call DeepSeek API."""
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 2000,
+    }
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+
+    resp = http_requests.post(
+        DEEPSEEK_API_URL,
+        headers={
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=30
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    """Agent chat endpoint — DeepSeek with tool calling."""
+    data = request.json or {}
+    user_msg = data.get("message", "").strip()
+    operator = data.get("operator", "")
+    history = data.get("history", [])
+
+    if not user_msg:
+        return jsonify({"reply": "说点啥？", "tools_used": []}), 200
+
+    # Build messages
+    system = AGENT_SYSTEM_PROMPT
+    if operator:
+        system += f"\n当前运营: {operator}"
+
+    messages = [{"role": "system", "content": system}]
+    # Add recent history (skip the last user msg, we'll add it fresh)
+    for h in history[:-1] if len(history) > 1 else []:
+        if h.get("role") in ("user", "assistant"):
+            messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": user_msg})
+
+    tools_used = []
+
+    try:
+        # First call - may request tool use
+        result = _call_deepseek(messages, AGENT_TOOLS)
+        choice = result["choices"][0]
+        msg = choice["message"]
+
+        # Tool calling loop (max 3 rounds)
+        rounds = 0
+        while msg.get("tool_calls") and rounds < 3:
+            rounds += 1
+            messages.append(msg)
+
+            for tc in msg["tool_calls"]:
+                fn_name = tc["function"]["name"]
+                fn_args = json.loads(tc["function"].get("arguments", "{}"))
+                tools_used.append(fn_name)
+                print(f"[chat] tool: {fn_name}({fn_args})")
+
+                tool_result = _exec_tool(fn_name, fn_args)
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": tool_result
+                })
+
+            # Call again with tool results
+            result = _call_deepseek(messages, AGENT_TOOLS)
+            choice = result["choices"][0]
+            msg = choice["message"]
+
+        reply = msg.get("content", "").strip()
+        if not reply:
+            reply = "查完了，但没啥特别的。"
+
+        return jsonify({"reply": reply, "tools_used": tools_used})
+
+    except http_requests.exceptions.Timeout:
+        return jsonify({"reply": "DeepSeek响应超时，稍后再试", "tools_used": []}), 200
+    except http_requests.exceptions.RequestException as e:
+        print(f"[chat] DeepSeek API error: {e}")
+        return jsonify({"reply": f"AI服务出错了: {str(e)[:100]}", "tools_used": []}), 200
+    except Exception as e:
+        print(f"[chat] error: {e}")
+        return jsonify({"reply": f"出错了: {str(e)[:100]}", "tools_used": []}), 200
+
 
 if __name__ == "__main__":
     init_db()
