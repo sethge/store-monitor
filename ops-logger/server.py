@@ -1729,180 +1729,122 @@ def health():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
 
 # ========== Patrol APIs (日报 + 预警) ==========
-# 读上层 patrol_db.py 的数据，不修改原agent代码
+# 读 patrol_result.json（run_all_fast.py巡检结束后写入）
 
-PATROL_DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "patrol.db")
+PATROL_RESULT = os.path.join(os.path.expanduser("~/.qclaw/workspace/store-monitor"), "ops-logger", "patrol_result.json")
 
-def _patrol_conn():
-    """连接巡检数据库（只读），表不存在返回None"""
-    if not os.path.exists(PATROL_DB):
+def _load_patrol_result():
+    """读取最近一次巡检结果"""
+    if not os.path.exists(PATROL_RESULT):
         return None
     try:
-        conn = sqlite3.connect(PATROL_DB)
-        conn.row_factory = sqlite3.Row
-        # 检查表是否存在
-        t = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='patrol_snapshots'").fetchone()
-        if not t:
-            conn.close()
-            return None
-        return conn
-    except Exception:
+        with open(PATROL_RESULT, encoding="utf-8") as f:
+            return json.load(f)
+    except:
         return None
 
 @app.route("/api/daily")
 def daily_report():
-    """日报API — 返回最近一次巡检的结果，按店铺分组"""
-    conn = _patrol_conn()
-    if not conn:
-        return jsonify({"error": "no_patrol_db", "stores": []})
-
-    # 找最近一次巡检的时间戳
-    row = conn.execute("SELECT MAX(ts) as latest FROM patrol_snapshots").fetchone()
-    if not row or not row["latest"]:
-        conn.close()
+    """日报API — 读patrol_result.json"""
+    data = _load_patrol_result()
+    if not data:
         return jsonify({"ts": None, "stores": []})
 
-    latest_ts = row["latest"]
-    # 取该时间戳的所有快照
-    snaps = conn.execute("""
-        SELECT id, ts, store, platform, bad_review_count, notice_count,
-               expiring_count, promo_balance, promo_daily_spend,
-               has_auth_issue, has_verify_issue
-        FROM patrol_snapshots WHERE ts = ?
-        ORDER BY store, platform
-    """, (latest_ts,)).fetchall()
+    ts = data.get("ts", "")
+    issues = data.get("issues", {})
 
-    stores = {}
-    for s in snaps:
-        store = s["store"]
-        if store not in stores:
-            stores[store] = {"store": store, "platforms": []}
+    stores = []
+    for store_name, items in issues.items():
+        store = {"store": store_name, "platforms": []}
+        # 按平台分组
+        by_platform = {}
+        for item in items:
+            p = item.get("platform", "")
+            if p not in by_platform:
+                by_platform[p] = {"platform": p, "bad_review_count": 0, "expiring_count": 0,
+                                  "promo_balance": None, "promo_daily_spend": None,
+                                  "has_auth_issue": False, "bad_reviews": [], "activities": [],
+                                  "notice_count": 0, "notices": []}
+            pd = by_platform[p]
+            t = item.get("type", "")
+            if t == "bad_review":
+                pd["bad_review_count"] = len(item.get("details", []))
+                for d in item.get("details", []):
+                    if isinstance(d, dict):
+                        pd["bad_reviews"].append({"stars": d.get("stars", ""), "comment": d.get("comment", ""), "date": d.get("time", "")})
+            elif t == "expiring":
+                pd["expiring_count"] = len(item.get("details", []))
+                for d in item.get("details", []):
+                    if isinstance(d, dict):
+                        pd["activities"].append({"name": d.get("name", ""), "days_left": d.get("days", 0)})
+            elif t == "promo":
+                msg = item.get("msg", "")
+                # 解析 "推广余额不足：123元/日消费45元"
+                import re as _re
+                m = _re.search(r"(\d+\.?\d*)元.*?(\d+\.?\d*)元", msg)
+                if m:
+                    pd["promo_balance"] = float(m.group(1))
+                    pd["promo_daily_spend"] = float(m.group(2))
+            elif t == "auth":
+                pd["has_auth_issue"] = True
+            elif t == "notice":
+                details = item.get("details", [])
+                pd["notice_count"] = len(details)
+                for d in details[:5]:
+                    if isinstance(d, dict):
+                        pd["notices"].append({"title": d.get("title", ""), "content": d.get("content", "")[:60], "time": d.get("time", "")})
+        store["platforms"] = list(by_platform.values())
+        stores.append(store)
 
-        platform_data = {
-            "platform": s["platform"],
-            "bad_review_count": s["bad_review_count"],
-            "notice_count": s["notice_count"],
-            "expiring_count": s["expiring_count"],
-            "promo_balance": s["promo_balance"],
-            "promo_daily_spend": s["promo_daily_spend"],
-            "has_auth_issue": s["has_auth_issue"],
-            "has_verify_issue": s["has_verify_issue"],
-            "bad_reviews": [],
-            "activities": [],
-        }
-
-        # 差评明细
-        reviews = conn.execute(
-            "SELECT stars, review_date, comment, foods FROM bad_reviews WHERE snapshot_id=?",
-            (s["id"],)
-        ).fetchall()
-        for r in reviews:
-            platform_data["bad_reviews"].append({
-                "stars": r["stars"],
-                "date": r["review_date"],
-                "comment": r["comment"],
-                "foods": r["foods"],
-            })
-
-        # 活动到期
-        acts = conn.execute(
-            "SELECT name, days_left FROM activities WHERE snapshot_id=?",
-            (s["id"],)
-        ).fetchall()
-        for a in acts:
-            platform_data["activities"].append({
-                "name": a["name"],
-                "days_left": a["days_left"],
-            })
-
-        stores[store]["platforms"].append(platform_data)
-
-    conn.close()
-    return jsonify({"ts": latest_ts, "stores": list(stores.values())})
+    # 没有问题的品牌也要显示（从巡检结果里拿品牌数）
+    return jsonify({"ts": ts, "stores": stores, "brands": data.get("brands", 0), "duration": data.get("duration", 0)})
 
 
 @app.route("/api/alerts")
 def alerts():
-    """预警API — 返回需要关注的问题列表"""
+    """预警API — 从patrol_result.json + 操作追踪生成预警"""
     result = []
 
-    # 1. 从巡检数据找预警
-    conn = _patrol_conn()
-    if conn:
-        # 最近一次巡检
-        row = conn.execute("SELECT MAX(ts) as latest FROM patrol_snapshots").fetchone()
-        if row and row["latest"]:
-            latest_ts = row["latest"]
-            snaps = conn.execute("""
-                SELECT id, ts, store, platform, bad_review_count, notice_count,
-                       expiring_count, promo_balance, promo_daily_spend,
-                       has_auth_issue, has_verify_issue
-                FROM patrol_snapshots WHERE ts = ?
-            """, (latest_ts,)).fetchall()
-
-            for s in snaps:
-                # 差评预警
-                if s["bad_review_count"] > 0:
-                    reviews = conn.execute(
-                        "SELECT stars, comment FROM bad_reviews WHERE snapshot_id=? ORDER BY stars",
-                        (s["id"],)
-                    ).fetchall()
-                    comments = [f'{r["stars"]}星 "{(r["comment"] or "")[:30]}"' for r in reviews[:3]]
-                    result.append({
-                        "type": "bad_review",
-                        "level": "red",
-                        "store": s["store"],
-                        "platform": s["platform"],
-                        "msg": f'{s["bad_review_count"]}条差评',
-                        "detail": "; ".join(comments),
-                        "ts": latest_ts,
-                    })
-
-                # 活动到期预警
-                if s["expiring_count"] > 0:
-                    acts = conn.execute(
-                        "SELECT name, days_left FROM activities WHERE snapshot_id=? ORDER BY days_left",
-                        (s["id"],)
-                    ).fetchall()
-                    for a in acts:
-                        level = "red" if (a["days_left"] or 99) <= 1 else "yellow"
-                        result.append({
-                            "type": "expiring",
-                            "level": level,
-                            "store": s["store"],
-                            "platform": s["platform"],
-                            "msg": f'{a["name"]} {a["days_left"]}天后到期',
-                            "detail": "",
-                            "ts": latest_ts,
-                        })
-
-                # 推广余额预警
-                if s["promo_balance"] is not None and s["promo_daily_spend"] and s["promo_daily_spend"] > 0:
-                    days_left = s["promo_balance"] / s["promo_daily_spend"]
-                    if days_left < 3:
-                        level = "red" if days_left < 1 else "yellow"
-                        result.append({
-                            "type": "promo",
-                            "level": level,
-                            "store": s["store"],
-                            "platform": s["platform"],
-                            "msg": f'推广余额¥{s["promo_balance"]:.0f}',
-                            "detail": f'日均消费¥{s["promo_daily_spend"]:.0f} 预计{days_left:.1f}天用完',
-                            "ts": latest_ts,
-                        })
-
-                # 授权/验证问题
-                if s["has_auth_issue"]:
-                    result.append({
-                        "type": "auth",
-                        "level": "red",
-                        "store": s["store"],
-                        "platform": s["platform"],
-                        "msg": "授权异常",
-                        "detail": "",
-                        "ts": latest_ts,
-                    })
-        conn.close()
+    # 1. 从巡检结果找预警
+    data = _load_patrol_result()
+    if data:
+        ts = data.get("ts", "")
+        for store_name, items in data.get("issues", {}).items():
+            for item in items:
+                t = item.get("type", "")
+                platform = item.get("platform", "")
+                if t == "bad_review":
+                    details = item.get("details", [])
+                    comments = []
+                    for d in details[:3]:
+                        if isinstance(d, dict):
+                            comments.append(f'{d.get("stars","")}星 "{(d.get("comment",""))[:30]}"')
+                    result.append({"type": "bad_review", "level": "red", "store": store_name,
+                                   "platform": platform, "msg": item.get("msg", ""), "detail": "; ".join(comments), "ts": ts})
+                elif t == "expiring":
+                    for d in item.get("details", []):
+                        if isinstance(d, dict):
+                            days = d.get("days", 99)
+                            level = "red" if days <= 1 else "yellow"
+                            result.append({"type": "expiring", "level": level, "store": store_name,
+                                           "platform": platform, "msg": f'{d.get("name","")} {days}天后到期', "detail": "", "ts": ts})
+                elif t == "promo":
+                    result.append({"type": "promo", "level": "yellow", "store": store_name,
+                                   "platform": platform, "msg": item.get("msg", ""), "detail": "", "ts": ts})
+                elif t == "auth":
+                    result.append({"type": "auth", "level": "red", "store": store_name,
+                                   "platform": platform, "msg": "授权异常", "detail": "", "ts": ts})
+                elif t == "error":
+                    result.append({"type": "error", "level": "yellow", "store": store_name,
+                                   "platform": platform, "msg": item.get("msg", ""), "detail": "", "ts": ts})
+                elif t == "notice":
+                    details = item.get("details", [])
+                    # 只把重要通知（非配送范围类）加入预警
+                    important = [d for d in details if isinstance(d, dict) and "配送范围" not in d.get("title", "")]
+                    if important:
+                        titles = "; ".join(d.get("title", "")[:20] for d in important[:3])
+                        result.append({"type": "notice", "level": "blue", "store": store_name,
+                                       "platform": platform, "msg": f"{len(important)}条通知", "detail": titles, "ts": ts})
 
     # 2. 从操作追踪找到期TODO
     ops_conn = get_db()

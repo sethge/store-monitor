@@ -127,6 +127,15 @@ async function loadDaily() {
         html += '<div class="issue-line red">授权异常</div>';
       }
 
+      if (p.notice_count > 0) {
+        hasIssue = true;
+        html += '<div class="issue-line blue">' + p.notice_count + '条通知</div>';
+        for (var k = 0; k < (p.notices || []).length && k < 3; k++) {
+          var n = p.notices[k];
+          html += '<div class="review-detail">' + esc(n.title) + '</div>';
+        }
+      }
+
       if (!hasIssue) {
         html += '<div class="issue-line green">无异常</div>';
       }
