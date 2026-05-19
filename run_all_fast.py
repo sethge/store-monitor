@@ -5,7 +5,7 @@ sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 
 # 复用run_fast的所有逻辑
 from run_fast import fast_mt, fast_ele, sd, check_promo, THREE_DAYS, CUTOFF
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -39,6 +39,9 @@ async def main():
     from browser import launch as launch_browser
     pw = await async_playwright().start()
     b, ctx = await launch_browser(pw)
+
+    # 记住用户当前看的页面，巡检时恢复焦点（静默巡检）
+    user_page = await save_user_focus(ctx)
 
     ext = await get_ext(ctx)
 
@@ -110,6 +113,7 @@ async def main():
                 await pick_brand(ext, brand)
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
+                await restore_user_focus(user_page)
                 await asyncio.sleep(3)
 
                 if p == 'meituan':

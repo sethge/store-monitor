@@ -211,6 +211,26 @@ async def check_verification(page):
     return False, ""
 
 
+async def save_user_focus(ctx):
+    """巡检开始前记住用户正在看的页面，后续用于恢复焦点"""
+    for p in ctx.pages:
+        try:
+            if 'chrome-extension' not in p.url and await p.evaluate("() => document.hasFocus()"):
+                return p
+        except:
+            pass
+    return None
+
+
+async def restore_user_focus(page):
+    """把焦点还给用户原来的页面，让巡检tab在后台跑"""
+    if page and not page.is_closed():
+        try:
+            await page.bring_to_front()
+        except:
+            pass
+
+
 async def close_store_pages(ctx):
     for p in ctx.pages:
         if ('waimai.meituan.com' in p.url or 'verify.meituan.com' in p.url or ('ele.me' in p.url and 'melody' in p.url)) and 'chrome-extension' not in p.url:

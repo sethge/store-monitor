@@ -1733,7 +1733,7 @@ def health():
 # ========== Patrol APIs (日报 + 预警) ==========
 # 读 patrol_result.json（run_all_fast.py巡检结束后写入）
 
-PATROL_RESULT = os.path.join(os.path.expanduser("~/.qclaw/workspace/store-monitor"), "ops-logger", "patrol_result.json")
+PATROL_RESULT = os.path.join(os.path.dirname(__file__), "patrol_result.json")
 
 def _load_patrol_result():
     """读取最近一次巡检结果"""
@@ -2083,7 +2083,7 @@ def api_operator_list():
 
 # ========== Agent Status + Patrol (v4.0 直执行) ==========
 
-WORKSPACE = os.path.expanduser("~/.qclaw/workspace/store-monitor")
+WORKSPACE = os.path.dirname(os.path.dirname(__file__))  # ops-logger/../ = store-monitor/
 _patrol_state = {"state": "idle", "message": "", "pid": None}
 _patrol_lock = threading.Lock()
 
@@ -2205,6 +2205,22 @@ def api_patrol_start():
                 if proc.returncode == 0:
                     _patrol_state["state"] = "done"
                     _patrol_state["message"] = "巡检完成"
+                    # 首次手动巡检成功后，自动开启定时巡检+预警
+                    try:
+                        _cfg = load_config()
+                        if not _cfg.get("patrol_enabled"):
+                            _cfg["patrol_enabled"] = True
+                            _cfg["alert_enabled"] = True
+                            if not _cfg.get("patrol_time"):
+                                _cfg["patrol_time"] = "10:00"
+                            if not _cfg.get("alert_interval"):
+                                _cfg["alert_interval"] = 30
+                            if operator and not _cfg.get("operator"):
+                                _cfg["operator"] = operator
+                            save_config(_cfg)
+                            print(f"[patrol] 首次巡检成功，已自动开启定时巡检+预警")
+                    except Exception as _e:
+                        print(f"[patrol] 自动开启失败: {_e}")
                 else:
                     _patrol_state["state"] = "error"
                     _patrol_state["message"] = f"巡检异常(code={proc.returncode})"
@@ -2235,10 +2251,11 @@ def api_patrol_start():
 def api_settings_get():
     cfg = load_config()
     return jsonify({
-        "patrol_enabled": cfg.get("patrol_enabled", True),
-        "alert_enabled": cfg.get("alert_enabled", True),
+        "patrol_enabled": cfg.get("patrol_enabled", False),
+        "alert_enabled": cfg.get("alert_enabled", False),
         "patrol_time": cfg.get("patrol_time", "10:00"),
         "alert_interval": cfg.get("alert_interval", 30),
+        "operator": cfg.get("operator", ""),
     })
 
 
@@ -2246,7 +2263,7 @@ def api_settings_get():
 def api_settings_set():
     data = request.get_json(silent=True) or {}
     cfg = load_config()
-    for key in ("patrol_enabled", "alert_enabled", "patrol_time", "alert_interval"):
+    for key in ("patrol_enabled", "alert_enabled", "patrol_time", "alert_interval", "operator"):
         if key in data:
             cfg[key] = data[key]
     save_config(cfg)
@@ -2624,6 +2641,112 @@ def _ensure_debug_chrome():
     print("[chrome] debug Chrome已启动（后台）")
 
 
+def _schedule_patrol():
+    """定时巡检+预警调度器，读config决定是否执行"""
+    import time as _time
+
+    def _run_patrol_brands(brands, label="定时巡检"):
+        """在后台线程中跑巡检"""
+        with _patrol_lock:
+            _patrol_state["state"] = "running"
+            _patrol_state["message"] = f"{label} {', '.join(brands[:3])}..."
+            _patrol_state["log"] = ""
+        try:
+            script = os.path.join(WORKSPACE, "run_all_fast.py")
+            proc = subprocess.Popen(
+                [sys.executable, script] + brands,
+                cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            with _patrol_lock:
+                _patrol_state["pid"] = proc.pid
+            output_lines = []
+            for line in proc.stdout:
+                text = line.decode("utf-8", errors="replace").rstrip()
+                output_lines.append(text)
+                with _patrol_lock:
+                    _patrol_state["message"] = text[:100]
+                    _patrol_state["log"] = "\n".join(output_lines[-50:])
+            proc.wait(timeout=600)
+            with _patrol_lock:
+                _patrol_state["state"] = "done" if proc.returncode == 0 else "error"
+                _patrol_state["message"] = "巡检完成" if proc.returncode == 0 else f"异常({proc.returncode})"
+                _patrol_state["pid"] = None
+            print(f"[schedule] {label}结束: code={proc.returncode}")
+        except Exception as e:
+            with _patrol_lock:
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = str(e)[:100]
+                _patrol_state["pid"] = None
+            print(f"[schedule] {label}异常: {e}")
+
+    def _scheduler():
+        last_patrol_date = None
+        last_alert_time = None  # 上次预警巡检的时间戳
+        while True:
+            try:
+                cfg = load_config()
+                now = datetime.now()
+                today = now.strftime("%Y-%m-%d")
+                operator = cfg.get("operator", "")
+
+                # === 定时巡检：每天到指定时间跑一次全量 ===
+                if cfg.get("patrol_enabled") and cfg.get("patrol_time") and operator:
+                    patrol_time = cfg["patrol_time"]  # "10:00"
+                    try:
+                        hh, mm = patrol_time.split(":")
+                        target = now.replace(hour=int(hh), minute=int(mm), second=0)
+                    except ValueError:
+                        target = now.replace(hour=10, minute=0, second=0)
+                    # 在目标时间的±2分钟窗口内，且今天没跑过
+                    if abs((now - target).total_seconds()) < 120 and last_patrol_date != today:
+                        with _patrol_lock:
+                            if _patrol_state["state"] != "running":
+                                brands = _get_operator_brands(operator)
+                                if brands:
+                                    last_patrol_date = today
+                                    print(f"[schedule] 定时巡检 {patrol_time} 运营={operator} 品牌={len(brands)}")
+                                    script = os.path.join(WORKSPACE, "run_all_fast.py")
+                                    if os.path.exists(script):
+                                        threading.Thread(
+                                            target=_run_patrol_brands,
+                                            args=(brands, "定时巡检"),
+                                            daemon=True
+                                        ).start()
+
+                # === 定时预警：每N分钟跑一次快速巡检（watch-once） ===
+                if cfg.get("alert_enabled") and operator:
+                    interval = int(cfg.get("alert_interval", 30))
+                    if interval < 5:
+                        interval = 5  # 最短5分钟
+                    should_run = False
+                    if last_alert_time is None:
+                        # 首次启动后等5分钟再跑预警，让巡检先跑
+                        last_alert_time = now
+                    elif (now - last_alert_time).total_seconds() >= interval * 60:
+                        should_run = True
+
+                    if should_run:
+                        with _patrol_lock:
+                            if _patrol_state["state"] != "running":
+                                brands = _get_operator_brands(operator)
+                                if brands:
+                                    last_alert_time = now
+                                    print(f"[schedule] 定时预警 间隔{interval}分钟 运营={operator}")
+                                    threading.Thread(
+                                        target=_run_patrol_brands,
+                                        args=(brands, "定时预警"),
+                                        daemon=True
+                                    ).start()
+
+            except Exception as e:
+                print(f"[schedule] 调度器异常: {e}")
+
+            _time.sleep(60)  # 每分钟检查一次
+
+    t = threading.Thread(target=_scheduler, daemon=True)
+    t.start()
+    print("[schedule] 定时调度器已启动")
+
+
 if __name__ == "__main__":
     init_db()
     if not os.path.exists(CONFIG_PATH):
@@ -2631,4 +2754,5 @@ if __name__ == "__main__":
     _auto_backup()
     _auto_collect_due()
     _ensure_debug_chrome()
+    _schedule_patrol()
     app.run(host="0.0.0.0", port=5500, debug=False)

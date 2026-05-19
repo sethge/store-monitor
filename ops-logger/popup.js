@@ -582,8 +582,8 @@ async function loadSettings() {
   var patrolTime = document.getElementById('patrolTime');
   var alertInterval = document.getElementById('alertInterval');
 
-  if (data.patrol_enabled !== false) patrolToggle.classList.add('on');
-  if (data.alert_enabled !== false) alertToggle.classList.add('on');
+  if (data.patrol_enabled === true) patrolToggle.classList.add('on');
+  if (data.alert_enabled === true) alertToggle.classList.add('on');
   if (data.patrol_time) patrolTime.value = data.patrol_time;
   if (data.alert_interval) alertInterval.value = data.alert_interval;
 }
@@ -737,7 +737,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('confirmBtn').addEventListener('click', function() {
     if (!_pendingName) return;
     chrome.runtime.sendMessage({ type: 'OPS_SET_OPERATOR', name: _pendingName }, function() {
-      if (!chrome.runtime.lastError) init();
+      if (!chrome.runtime.lastError) {
+        // 同步运营名到server config.json，让定时调度器能读到
+        apiPost('/api/settings', { operator: _pendingName });
+        init();
+      }
     });
   });
 

@@ -17,7 +17,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
 from patrol_db import save_snapshot
@@ -419,7 +419,7 @@ def save_watch_snapshot(seen_keys):
     }, ensure_ascii=False))
 
 
-async def run_once(brands, ctx):
+async def run_once(brands, ctx, user_page=None):
     """跑一轮巡检。先把品牌下所有店所有平台页面全部打开，再并行跑检查"""
     all_issues = OrderedDict()
 
@@ -466,6 +466,7 @@ async def run_once(brands, ctx):
                     await pick_brand(ext, brand)
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
+                await restore_user_focus(user_page)
                 await asyncio.sleep(2)
 
                 if acct['platform'] == 'meituan':
@@ -571,7 +572,7 @@ async def run_once(brands, ctx):
     return all_issues
 
 
-async def watch_open_all(brands, ctx):
+async def watch_open_all(brands, ctx, user_page=None):
     """预警第一轮：打开所有品牌所有店的页面，返回 (pages列表, 拦截列表)"""
     all_pages = []  # [(display_name, platform, page)]
     blocked_stores = []  # [(display_name, platform_name, reason)]
@@ -610,6 +611,7 @@ async def watch_open_all(brands, ctx):
                     await pick_brand(ext, brand)
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
+                await restore_user_focus(user_page)
                 await asyncio.sleep(2)
 
                 if acct['platform'] == 'meituan':
@@ -706,12 +708,15 @@ async def main():
     pw = await async_playwright().start()
     b, ctx = await launch_browser(pw, port)
 
+    # 记住用户当前看的页面，巡检时恢复焦点（静默巡检）
+    user_page = await save_user_focus(ctx)
+
     if args.watch_once:
         # === 单轮预警模式（cron调度用，跑一轮就退出） ===
         t0 = time.time()
         print(f"预警检查 — {len(brands)}个品牌 | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         seen_keys = load_watch_snapshot()
-        watch_pages, blocked_stores = await watch_open_all(brands, ctx)
+        watch_pages, blocked_stores = await watch_open_all(brands, ctx, user_page)
 
         # 验证拦截的店铺立即报告
         if blocked_stores:
@@ -755,7 +760,7 @@ async def main():
         # === 单次模式（和原来完全一样） ===
         t0 = time.time()
         print(f"盯店巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')} | {len(brands)}个品牌")
-        all_issues = await run_once(brands, ctx)
+        all_issues = await run_once(brands, ctx, user_page)
         total = time.time() - t0
         print(f"\n摘要\n")
         print_issues(all_issues)
@@ -790,7 +795,7 @@ async def main():
             try:
                 if watch_pages is None:
                     # 第一轮：打开所有页面
-                    watch_pages, blocked = await watch_open_all(brands, ctx)
+                    watch_pages, blocked = await watch_open_all(brands, ctx, user_page)
                     if blocked:
                         for dn, p_name, reason in blocked:
                             print(f"  ⚠️ {dn}（{p_name}）— {reason}")
