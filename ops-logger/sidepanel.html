@@ -3,77 +3,243 @@
 <head>
 <meta charset="utf-8">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, sans-serif; font-size: 14px; background: #f5f5f5; color: #333; height: 100vh; display: flex; flex-direction: column; }
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font-family: -apple-system, sans-serif; font-size: 13px; background: #f5f5f5; color: #333; display: flex; flex-direction: column; }
 
-/* Header */
-.header { background: linear-gradient(135deg, #e94560, #c23152); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.header h1 { font-size: 16px; font-weight: 700; flex: 1; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-dot.ok { background: #34c759; }
-.status-dot.off { background: #999; }
-.status-dot.thinking { background: #ff9500; animation: pulse 1s infinite; }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
-.status-text { font-size: 11px; opacity: 0.8; }
+/* Setup */
+.setup { text-align: center; padding: 30px 10px; }
+.setup p { color: #888; margin-bottom: 12px; }
+.setup input { width: 70%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; text-align: center; outline: none; }
+.setup .btn { display: block; margin: 10px auto 0; background: #e94560; border: none; color: #fff; padding: 8px 30px; border-radius: 6px; cursor: pointer; font-size: 14px; }
 
-/* Chat area */
+/* Top bar */
+.top-bar { background: linear-gradient(135deg, #e94560, #c23152); color: white; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.top-bar h2 { font-size: 14px; font-weight: 700; }
+.top-bar .info { font-size: 10px; opacity: 0.8; }
+
+/* Tabs */
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #eee; flex-shrink: 0; }
+.tab { flex: 1; text-align: center; padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; cursor: pointer; position: relative; border: none; background: none; }
+.tab.active { color: #e94560; }
+.tab.active::after { content: ''; position: absolute; bottom: 0; left: 20%; width: 60%; height: 2px; background: #e94560; }
+.tab .badge { display: inline-block; background: #e94560; color: #fff; font-size: 9px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; text-align: center; margin-left: 2px; padding: 0 3px; }
+
+/* Tab content */
+.tab-content { display: none; flex: 1; overflow-y: auto; }
+.tab-content.active { display: flex; flex-direction: column; }
+
+/* Shared */
+.empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
+
+/* Daily report */
+.store-card { margin: 6px 10px; background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.store-name { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 6px; }
+.platform-section { margin-bottom: 6px; }
+.platform-label { font-size: 11px; font-weight: 600; color: #666; margin-bottom: 3px; }
+.issue-line { font-size: 12px; line-height: 1.6; padding-left: 4px; }
+.issue-line.red { color: #c62828; }
+.issue-line.yellow { color: #e65100; }
+.issue-line.green { color: #2e7d32; }
+.review-detail { font-size: 11px; color: #888; padding-left: 16px; line-height: 1.4; }
+.daily-meta { font-size: 10px; color: #aaa; padding: 6px 12px; }
+
+/* Agent bar */
+.agent-bar { background: #fff; border-bottom: 1px solid #eee; padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.agent-dot.ok { background: #34c759; }
+.agent-dot.off { background: #ccc; }
+.agent-dot.busy { background: #ff9500; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.agent-msg { font-size: 11px; color: #666; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patrol-btn { background: #e94560; color: #fff; border: none; padding: 4px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.patrol-btn:hover { background: #c23152; }
+.patrol-btn:disabled { background: #ddd; color: #999; cursor: default; }
+
+/* Settings */
+.settings-btn { background: none; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; }
+.settings-btn:hover { color: #666; }
+.settings-panel { display: none; background: #fff; border-bottom: 1px solid #eee; padding: 10px 12px; flex-shrink: 0; }
+.settings-panel.open { display: block; }
+.setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.setting-row:last-child { margin-bottom: 0; }
+.setting-label { font-size: 12px; color: #333; flex: 1; }
+.setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
+.setting-unit { font-size: 10px; color: #999; }
+
+/* Alerts */
+.alert-item { margin: 6px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; gap: 8px; align-items: flex-start; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.alert-dot.red { background: #c62828; }
+.alert-dot.yellow { background: #e65100; }
+.alert-dot.blue { background: #1565c0; }
+.alert-body { flex: 1; }
+.alert-msg { font-size: 13px; font-weight: 600; color: #111; }
+.alert-detail { font-size: 11px; color: #888; margin-top: 2px; }
+.alert-store { font-size: 10px; color: #aaa; margin-top: 2px; }
+
+/* Logs */
+.log-date { font-size: 11px; color: #999; font-weight: 600; margin: 8px 12px 4px; }
+.log-item { display: flex; gap: 8px; padding: 4px 12px; align-items: flex-start; }
+.log-time { font-size: 10px; color: #aaa; min-width: 34px; padding-top: 2px; }
+.log-body { flex: 1; }
+.log-summary { font-size: 13px; font-weight: 600; color: #111; line-height: 1.3; }
+.log-meta { font-size: 10px; color: #aaa; margin-top: 1px; }
+
+/* Tags */
+.tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-right: 3px; }
+.tag-red { background: #fce4ec; color: #c62828; }
+.tag-yellow { background: #fff3e0; color: #e65100; }
+.tag-green { background: #e8f5e9; color: #2e7d32; }
+.tag-blue { background: #e3f2fd; color: #1565c0; }
+.tag-gray { background: #f0f0f0; color: #666; }
+
+/* Tracking/Review */
+.review-card { margin: 8px 10px; background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); border-left: 4px solid #1565c0; }
+.review-card.due { border-left-color: #c62828; background: #fffbfb; }
+.review-title { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 6px; }
+.review-shop { font-size: 11px; color: #666; margin-bottom: 8px; }
+.review-timeline { display: flex; gap: 8px; margin-bottom: 8px; }
+.review-checkpoint { flex: 1; text-align: center; padding: 6px 4px; border-radius: 6px; background: #f5f5f5; }
+.review-checkpoint.active { background: #e3f2fd; border: 1px solid #1565c0; }
+.review-checkpoint.due { background: #fce4ec; border: 1px solid #c62828; }
+.review-checkpoint.done { background: #e8f5e9; border: 1px solid #2e7d32; }
+.review-checkpoint .cp-label { font-size: 13px; font-weight: 700; color: #333; }
+.review-checkpoint .cp-date { font-size: 9px; color: #888; margin-top: 2px; }
+.review-checkpoint .cp-status { font-size: 10px; color: #1565c0; margin-top: 3px; }
+.review-checkpoint .cp-status.waiting { color: #999; }
+.review-checkpoint .cp-summary { font-size: 10px; color: #333; margin-top: 3px; line-height: 1.3; }
+.review-checkpoint.due .cp-label { color: #c62828; }
+.review-checkpoint.due .cp-status { color: #c62828; font-weight: 600; }
+.review-checkpoint.done .cp-label { color: #2e7d32; }
+
+/* Toggle switch */
+.toggle-wrap { flex-shrink: 0; align-self: center; }
+.toggle-switch { width: 52px; height: 22px; border-radius: 11px; background: #ddd; position: relative; cursor: pointer; transition: background 0.3s ease; border: none; padding: 0; overflow: hidden; }
+.toggle-switch.on { background: rgba(52, 199, 89, 0.85); }
+.toggle-switch .toggle-text { position: absolute; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 600; transition: opacity 0.2s; pointer-events: none; }
+.toggle-switch .toggle-text.on-text { left: 6px; color: #fff; opacity: 0; }
+.toggle-switch .toggle-text.off-text { right: 6px; color: #999; opacity: 1; }
+.toggle-switch.on .toggle-text.on-text { opacity: 1; }
+.toggle-switch.on .toggle-text.off-text { opacity: 0; }
+.toggle-switch .toggle-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.toggle-switch.on .toggle-knob { transform: translateX(30px); }
+
+/* ===== Chat (Tab 5) ===== */
+#tab-chat.active { display: flex; flex-direction: column; }
 .chat-area { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-
 .msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; }
 .msg.user { align-self: flex-end; background: #e94560; color: white; border-bottom-right-radius: 4px; }
 .msg.bot { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 .msg.bot .tool-call { font-size: 11px; color: #888; margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee; }
-.msg.system { align-self: center; background: #f0f0f0; color: #999; font-size: 11px; padding: 4px 12px; border-radius: 12px; }
 .msg.error { align-self: center; background: #fce4ec; color: #c62828; font-size: 12px; padding: 6px 12px; border-radius: 8px; }
-
 .thinking-indicator { align-self: flex-start; display: flex; gap: 4px; padding: 12px 16px; }
 .thinking-indicator span { width: 6px; height: 6px; background: #ccc; border-radius: 50%; animation: bounce 1.2s infinite; }
 .thinking-indicator span:nth-child(2) { animation-delay: 0.2s; }
 .thinking-indicator span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-8px); } }
 
-/* Input area */
-.input-area { padding: 10px 12px; background: white; border-top: 1px solid #eee; display: flex; gap: 8px; flex-shrink: 0; }
-.input-area textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; resize: none; outline: none; max-height: 100px; line-height: 1.4; }
-.input-area textarea:focus { border-color: #e94560; }
-.send-btn { background: #e94560; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; align-self: flex-end; }
-.send-btn:hover { background: #c23152; }
-.send-btn:disabled { background: #ddd; color: #999; cursor: default; }
-
-/* Welcome */
-.welcome { text-align: center; padding: 40px 20px; color: #999; }
-.welcome h2 { font-size: 18px; color: #666; margin-bottom: 8px; }
-.welcome p { font-size: 12px; line-height: 1.6; }
+.chat-welcome { text-align: center; padding: 30px 20px; color: #999; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.chat-welcome h3 { font-size: 16px; color: #666; margin-bottom: 8px; }
+.chat-welcome p { font-size: 12px; line-height: 1.6; }
 .quick-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 16px; }
 .quick-btn { background: white; border: 1px solid #ddd; border-radius: 16px; padding: 6px 14px; font-size: 12px; color: #666; cursor: pointer; }
 .quick-btn:hover { border-color: #e94560; color: #e94560; }
+
+.chat-input-area { padding: 10px 12px; background: white; border-top: 1px solid #eee; display: flex; gap: 8px; flex-shrink: 0; }
+.chat-input-area textarea { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; resize: none; outline: none; max-height: 100px; line-height: 1.4; }
+.chat-input-area textarea:focus { border-color: #e94560; }
+.send-btn { background: #e94560; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; align-self: flex-end; }
+.send-btn:hover { background: #c23152; }
+.send-btn:disabled { background: #ddd; color: #999; cursor: default; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>小q</h1>
-  <div class="status-dot off" id="statusDot"></div>
-  <span class="status-text" id="statusText">连接中...</span>
-</div>
-
-<div class="chat-area" id="chatArea">
-  <div class="welcome" id="welcome">
-    <h2>小q在线</h2>
-    <p>我能帮你查日志、看预警、分析数据<br>有什么要看的直接说</p>
-    <div class="quick-actions">
-      <button class="quick-btn" onclick="sendQuick('今天有什么预警？')">今日预警</button>
-      <button class="quick-btn" onclick="sendQuick('最近操作日志')">操作日志</button>
-      <button class="quick-btn" onclick="sendQuick('巡检日报')">巡检日报</button>
-      <button class="quick-btn" onclick="sendQuick('哪些店有差评？')">差评情况</button>
-    </div>
+<div id="setup" style="display:none">
+  <div class="setup">
+    <p>输入你的名字</p>
+    <input id="nameInput" placeholder="名字" autofocus />
+    <button class="btn" id="okBtn">确定</button>
+    <div id="setupResult" style="margin-top:12px;text-align:left;padding:0 16px;font-size:12px;max-height:300px;overflow-y:auto"></div>
+    <button class="btn" id="confirmBtn" style="display:none;margin-top:8px;background:#2e7d32">确认，开始使用</button>
   </div>
 </div>
 
-<div class="input-area">
-  <textarea id="input" rows="1" placeholder="跟小q说..."
-    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-  <button class="send-btn" id="sendBtn" onclick="sendMsg()">发送</button>
+<div id="main" style="display:none">
+  <div class="top-bar">
+    <div>
+      <h2>小q助手</h2>
+      <div class="info" id="infoLine"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span id="verLabel" style="font-size:10px;opacity:0.6"></span>
+      <button id="upgradeBtn" style="display:none;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer">有新版</button>
+    </div>
+  </div>
+
+  <div class="agent-bar" id="agentBar">
+    <div class="agent-dot off" id="agentDot"></div>
+    <div class="agent-msg" id="agentMsg">检测中...</div>
+    <button class="patrol-btn" id="patrolBtn" disabled>巡检</button>
+    <button class="settings-btn" id="settingsBtn" title="设置">&#9881;</button>
+  </div>
+  <div id="startHint" style="display:none;background:#fff8e1;padding:8px 12px;font-size:11px;color:#e65100;border-bottom:1px solid #eee">
+    双击桌面「启动小q」启动服务后刷新
+  </div>
+  <div class="settings-panel" id="settingsPanel">
+    <div class="setting-row">
+      <span class="setting-label">定时巡检</span>
+      <input class="setting-input" id="patrolTime" type="time" value="10:00" />
+      <button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">
+        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
+        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
+        <span class="toggle-knob" style="width:16px;height:16px"></span>
+      </button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">实时预警</span>
+      <input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />
+      <span class="setting-unit">分钟</span>
+      <button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">
+        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
+        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
+        <span class="toggle-knob" style="width:16px;height:16px"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="daily">巡店</button>
+    <button class="tab" data-tab="alerts">预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
+    <button class="tab" data-tab="logs">日志</button>
+    <button class="tab" data-tab="tracking">复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
+    <button class="tab" data-tab="chat">会话</button>
+  </div>
+
+  <div id="tab-daily" class="tab-content active"></div>
+  <div id="tab-alerts" class="tab-content"></div>
+  <div id="tab-logs" class="tab-content"></div>
+  <div id="tab-tracking" class="tab-content"></div>
+  <div id="tab-chat" class="tab-content">
+    <div class="chat-area" id="chatArea">
+      <div class="chat-welcome" id="chatWelcome">
+        <h3>跟小q聊</h3>
+        <p>问我店铺数据、预警、菜单、操作记录</p>
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="sendQuick('今天有什么预警？')">今日预警</button>
+          <button class="quick-btn" onclick="sendQuick('最近操作日志')">操作日志</button>
+          <button class="quick-btn" onclick="sendQuick('巡检日报')">巡检日报</button>
+          <button class="quick-btn" onclick="sendQuick('哪些店有差评？')">差评情况</button>
+        </div>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <textarea id="chatInput" rows="1" placeholder="跟小q说..."
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()">发送</button>
+    </div>
+  </div>
 </div>
 
 <script src="sidepanel.js"></script>
