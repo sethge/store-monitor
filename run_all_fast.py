@@ -5,7 +5,7 @@ sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 
 # 复用run_fast的所有逻辑
 from run_fast import fast_mt, fast_ele, sd, check_promo, THREE_DAYS, CUTOFF
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, stop_hider, _hide_chrome
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, stop_hider
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -111,7 +111,6 @@ async def main():
                 await close_store_pages(ctx)
                 ext = await get_ext(ctx)
                 await pick_brand(ext, brand)
-                _hide_chrome()  # 先隐藏Chrome，防止新tab抢焦点
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
                 await asyncio.sleep(3)  # 等Goku创建tab

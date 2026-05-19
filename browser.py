@@ -47,34 +47,6 @@ def _activate_app(handle):
             pass
 
 
-def _hide_chrome():
-    """隐藏/最小化Chrome，防止tab操作抢焦点"""
-    if _IS_MAC:
-        try:
-            subprocess.Popen(["osascript", "-e", 'tell application "System Events" to set visible of process "Google Chrome" to false'],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
-    elif _IS_WIN:
-        try:
-            import ctypes
-            from ctypes import wintypes
-            SW_MINIMIZE = 6
-            user32 = ctypes.windll.user32
-
-            @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-            def _cb(hwnd, _):
-                if user32.IsWindowVisible(hwnd):
-                    buf = ctypes.create_unicode_buffer(256)
-                    user32.GetClassNameW(hwnd, buf, 256)
-                    if buf.value == 'Chrome_WidgetWin_1':
-                        user32.ShowWindow(hwnd, SW_MINIMIZE)
-                return True
-
-            user32.EnumWindows(_cb, 0)
-        except Exception:
-            pass
-
 
 def _chrome_is_running():
     """检查Chrome是否在运行"""
@@ -140,7 +112,6 @@ async def launch(pw, port=PORT):
         if ws:
             browser = await pw.chromium.connect_over_cdp(ws)
             await asyncio.sleep(2)
-            _hide_chrome()
             _activate_app(front_app)
             return browser, browser.contexts[0]
 

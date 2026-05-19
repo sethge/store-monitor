@@ -67,8 +67,7 @@ async def get_ext(ctx):
                     return p
             except:
                 pass
-    # 尝试用已知ID打开（new_page会抢焦点，先隐藏Chrome）
-    _hide_chrome()
+    # 尝试用已知ID打开
     front_app = _get_frontmost_app()
     for eid in KNOWN_EXT_IDS:
         p = await ctx.new_page()
@@ -265,72 +264,21 @@ async def check_verification(page):
 
 _user_app = None
 
-def _hide_chrome():
-    """隐藏/最小化Chrome，防止tab操作抢焦点。
-    macOS: hide(完全隐藏，新tab不会unhide)
-    Windows: minimize(最小化到任务栏，新tab不会restore)"""
-    if _IS_MAC:
-        try:
-            _sp.Popen(["osascript", "-e", 'tell application "System Events" to set visible of process "Google Chrome" to false'],
-                       stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
-        except Exception:
-            pass
-    elif _IS_WIN:
-        try:
-            import ctypes
-            from ctypes import wintypes
-            SW_MINIMIZE = 6
-            user32 = ctypes.windll.user32
-
-            @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-            def _cb(hwnd, _):
-                if user32.IsWindowVisible(hwnd):
-                    buf = ctypes.create_unicode_buffer(256)
-                    user32.GetClassNameW(hwnd, buf, 256)
-                    if buf.value == 'Chrome_WidgetWin_1':
-                        user32.ShowWindow(hwnd, SW_MINIMIZE)
-                return True
-
-            user32.EnumWindows(_cb, 0)
-        except Exception:
-            pass
-
-
-_hider_task = None
-
-async def _chrome_hider_loop():
-    """后台循环：巡检期间每秒隐藏Chrome，防止tab创建时Chrome自己unhide"""
-    while True:
-        _hide_chrome()
-        _activate_app(_user_app)
-        await asyncio.sleep(1)
-
 
 async def save_user_focus(ctx):
-    """记住运营当前前台app，启动后台隐藏循环"""
-    global _user_app, _hider_task
+    """记住运营当前前台app"""
+    global _user_app
     _user_app = _get_frontmost_app()
-    # 启动后台循环
-    if _hider_task is None or _hider_task.done():
-        _hider_task = asyncio.create_task(_chrome_hider_loop())
     return None
 
 
 async def stop_hider():
-    """停止后台隐藏循环"""
-    global _hider_task
-    if _hider_task and not _hider_task.done():
-        _hider_task.cancel()
-        try:
-            await _hider_task
-        except asyncio.CancelledError:
-            pass
-        _hider_task = None
+    """兼容接口，不再需要"""
+    pass
 
 
 async def restore_user_focus(page):
-    """隐藏Chrome + 还焦点给用户之前的app"""
-    _hide_chrome()
+    """还焦点给用户之前的app"""
     _activate_app(_user_app)
 
 
@@ -341,5 +289,4 @@ async def close_store_pages(ctx):
                 await p.close()
             except:
                 pass
-    _hide_chrome()  # 关完页面顺便隐藏Chrome
     await asyncio.sleep(0.5)

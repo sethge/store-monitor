@@ -17,7 +17,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus, stop_hider, _hide_chrome
+from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus, stop_hider
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
 from patrol_db import save_snapshot
@@ -464,7 +464,6 @@ async def run_once(brands, ctx, user_page=None):
                 else:
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
-                _hide_chrome()  # 先隐藏Chrome，防止新tab抢焦点
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
                 await asyncio.sleep(2)  # 等Goku创建tab
@@ -610,7 +609,6 @@ async def watch_open_all(brands, ctx, user_page=None):
                 else:
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
-                _hide_chrome()  # 先隐藏Chrome，防止新tab抢焦点
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
                 await asyncio.sleep(2)  # 等Goku创建tab

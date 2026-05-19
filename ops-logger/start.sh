@@ -11,6 +11,8 @@ if [ -f "$DIR/venv/bin/python3" ]; then
     PYTHON="$DIR/venv/bin/python3"
 elif [ -f "$DIR/venv/bin/python3" ]; then
     PYTHON="$DIR/venv/bin/python3"
+elif [ -f "$DIR/venv/bin/python3" ]; then
+    PYTHON="$DIR/venv/bin/python3"
 elif [ -f "$PARENT/.venv/bin/python3" ]; then
     PYTHON="$PARENT/.venv/bin/python3"
 elif [ -f "/opt/homebrew/bin/python3" ]; then
@@ -49,8 +51,7 @@ else
             > /dev/null 2>&1 &
         echo "  Chrome 已启动 (debug port $PORT)"
         sleep 3
-        # 隐藏Chrome + 还焦点
-        osascript -e 'tell application "System Events" to set visible of process "Google Chrome" to false' 2>/dev/null
+        # 还焦点给之前的app
         [ -n "$FRONT_APP" ] && osascript -e "tell application \"$FRONT_APP\" to activate" 2>/dev/null
     else
         echo "  WARNING: 找不到 Chrome，请手动打开"
