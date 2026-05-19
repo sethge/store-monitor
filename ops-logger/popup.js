@@ -643,7 +643,7 @@ async function init() {
           if (s.shop) MY_SHOPS.push(s.shop);
         });
       });
-      document.getElementById('infoLine').textContent = state.operator + ' — ' + brandNames.length + '个品牌 ' + shopCount + '家店';
+      document.getElementById('infoLine').textContent = state.operator + ' — ' + brandNames.length + '个品牌';
     } catch(e) {
       document.getElementById('infoLine').textContent = state.operator;
     }
