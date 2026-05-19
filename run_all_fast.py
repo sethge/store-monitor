@@ -41,10 +41,16 @@ async def main():
     b, ctx = await launch_browser(pw)
 
     ext = await get_ext(ctx)
-    brands = await get_all_brands(ext)
+
+    # 优先用命令行传入的品牌名，没传则从插件下拉框读
+    if len(sys.argv) > 1:
+        brands = sys.argv[1:]
+        print(f"使用指定品牌: {brands}")
+    else:
+        brands = await get_all_brands(ext)
 
     if not brands:
-        print("❌ 未获取到品牌列表，请确认悟空插件已登录")
+        print("❌ 未获取到品牌列表，请确认悟空插件已登录或传入品牌参数")
         await pw.stop()
         return
 
