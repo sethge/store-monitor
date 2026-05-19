@@ -2144,7 +2144,20 @@ def api_agent_status():
                 _patrol_state["message"] = "巡检完成"
                 _patrol_state["pid"] = None
             patrol = dict(_patrol_state)
-    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol})
+    # 不把log塞进轮询响应，太大
+    patrol_clean = {k: v for k, v in patrol.items() if k != "log"}
+    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean})
+
+
+@app.route("/api/patrol/log")
+def api_patrol_log():
+    """查看巡检实时输出"""
+    with _patrol_lock:
+        return jsonify({
+            "state": _patrol_state["state"],
+            "message": _patrol_state["message"],
+            "log": _patrol_state.get("log", ""),
+        })
 
 
 @app.route("/api/patrol/brands", methods=["GET"])
@@ -2185,6 +2198,8 @@ def api_patrol_start():
         with _patrol_lock:
             _patrol_state["state"] = "running"
             _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
+            _patrol_state["log"] = ""
+        print(f"[patrol] 启动: {brands}, 脚本: {script}")
         try:
             proc = subprocess.Popen(
                 ["/opt/homebrew/bin/python3", script] + brands,
@@ -2194,6 +2209,16 @@ def api_patrol_start():
             )
             with _patrol_lock:
                 _patrol_state["pid"] = proc.pid
+            # 实时读输出
+            output_lines = []
+            for line in proc.stdout:
+                text = line.decode("utf-8", errors="replace").rstrip()
+                output_lines.append(text)
+                print(f"[patrol] {text}")
+                with _patrol_lock:
+                    _patrol_state["message"] = text[:100] or _patrol_state["message"]
+                    # 保留最后50行
+                    _patrol_state["log"] = "\n".join(output_lines[-50:])
             proc.wait(timeout=600)
             with _patrol_lock:
                 if proc.returncode == 0:
@@ -2203,17 +2228,20 @@ def api_patrol_start():
                     _patrol_state["state"] = "error"
                     _patrol_state["message"] = f"巡检异常(code={proc.returncode})"
                 _patrol_state["pid"] = None
+            print(f"[patrol] 结束: code={proc.returncode}")
         except subprocess.TimeoutExpired:
             proc.kill()
             with _patrol_lock:
                 _patrol_state["state"] = "error"
                 _patrol_state["message"] = "巡检超时(10分钟)"
                 _patrol_state["pid"] = None
+            print("[patrol] 超时")
         except Exception as e:
             with _patrol_lock:
                 _patrol_state["state"] = "error"
                 _patrol_state["message"] = str(e)[:100]
                 _patrol_state["pid"] = None
+            print(f"[patrol] 异常: {e}")
 
     t = threading.Thread(target=_run_patrol, daemon=True)
     t.start()
