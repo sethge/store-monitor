@@ -1,29 +1,48 @@
 """悟空插件操作辅助模块"""
 import asyncio
 import json
+import sys
 import subprocess as _sp
 from collections import defaultdict
 
+_IS_WIN = sys.platform == 'win32'
+_IS_MAC = sys.platform == 'darwin'
+
 
 def _get_frontmost_app():
-    """获取当前前台app名称"""
-    try:
-        r = _sp.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
-                     capture_output=True, text=True, timeout=3)
-        return r.stdout.strip()
-    except Exception:
-        return None
+    """获取当前前台窗口（macOS返回app名，Windows返回HWND）"""
+    if _IS_MAC:
+        try:
+            r = _sp.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'],
+                         capture_output=True, text=True, timeout=3)
+            return r.stdout.strip()
+        except Exception:
+            return None
+    elif _IS_WIN:
+        try:
+            import ctypes
+            return ctypes.windll.user32.GetForegroundWindow()
+        except Exception:
+            return None
+    return None
 
 
-def _activate_app(name):
-    """激活指定app到前台"""
-    if not name:
+def _activate_app(handle):
+    """激活指定app到前台（macOS传app名，Windows传HWND）"""
+    if not handle:
         return
-    try:
-        _sp.Popen(["osascript", "-e", f'tell application "{name}" to activate'],
-                   stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
-    except Exception:
-        pass
+    if _IS_MAC:
+        try:
+            _sp.Popen(["osascript", "-e", f'tell application "{handle}" to activate'],
+                       stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+        except Exception:
+            pass
+    elif _IS_WIN:
+        try:
+            import ctypes
+            ctypes.windll.user32.SetForegroundWindow(handle)
+        except Exception:
+            pass
 
 # 悟空插件ID（手动加载时Chrome会分配新ID，这里列已知的，自动检测兜底）
 KNOWN_EXT_IDS = [
@@ -48,7 +67,8 @@ async def get_ext(ctx):
                     return p
             except:
                 pass
-    # 尝试用已知ID打开（new_page会抢焦点，需要还回去）
+    # 尝试用已知ID打开（new_page会抢焦点，先隐藏Chrome）
+    _hide_chrome()
     front_app = _get_frontmost_app()
     for eid in KNOWN_EXT_IDS:
         p = await ctx.new_page()
@@ -236,6 +256,37 @@ async def check_verification(page):
 
 _user_app = None
 
+def _hide_chrome():
+    """隐藏/最小化Chrome，防止tab操作抢焦点。
+    macOS: hide(完全隐藏，新tab不会unhide)
+    Windows: minimize(最小化到任务栏，新tab不会restore)"""
+    if _IS_MAC:
+        try:
+            _sp.Popen(["osascript", "-e", 'tell application "System Events" to set visible of process "Google Chrome" to false'],
+                       stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+        except Exception:
+            pass
+    elif _IS_WIN:
+        try:
+            import ctypes
+            from ctypes import wintypes
+            SW_MINIMIZE = 6
+            user32 = ctypes.windll.user32
+
+            @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+            def _cb(hwnd, _):
+                if user32.IsWindowVisible(hwnd):
+                    buf = ctypes.create_unicode_buffer(256)
+                    user32.GetClassNameW(hwnd, buf, 256)
+                    if buf.value == 'Chrome_WidgetWin_1':
+                        user32.ShowWindow(hwnd, SW_MINIMIZE)
+                return True
+
+            user32.EnumWindows(_cb, 0)
+        except Exception:
+            pass
+
+
 async def save_user_focus(ctx):
     """记住运营当前前台app，以防需要还焦点"""
     global _user_app
@@ -244,7 +295,8 @@ async def save_user_focus(ctx):
 
 
 async def restore_user_focus(page):
-    """还焦点（安全网：正常情况Goku不抢焦点，这里兜底）"""
+    """隐藏Chrome + 还焦点给用户之前的app"""
+    _hide_chrome()
     _activate_app(_user_app)
 
 
@@ -255,4 +307,5 @@ async def close_store_pages(ctx):
                 await p.close()
             except:
                 pass
+    _hide_chrome()  # 关完页面顺便隐藏Chrome
     await asyncio.sleep(0.5)

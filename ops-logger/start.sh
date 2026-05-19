@@ -44,7 +44,8 @@ else
             > /dev/null 2>&1 &
         echo "  Chrome debug 已启动 (port 9222)"
         sleep 3
-        # 还焦点给之前的app
+        # 隐藏Chrome + 还焦点给之前的app
+        osascript -e 'tell application "System Events" to set visible of process "Google Chrome" to false' 2>/dev/null
         [ -n "$FRONT_APP" ] && osascript -e "tell application \"$FRONT_APP\" to activate" 2>/dev/null
     else
         echo "  WARNING: 找不到 Chrome，请手动打开"
