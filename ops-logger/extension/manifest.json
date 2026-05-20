@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "运营助手 — 巡店/预警/操作日志/数据复盘/AI会话",
   "permissions": [
     "storage",

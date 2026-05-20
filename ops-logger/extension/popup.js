@@ -1,8 +1,9 @@
-/* popup.js — 小q助手 四Tab面板 */
+/* popup.js — 小q助手 五Tab面板 (settings removed, split into daily/alerts footers) */
 
 var SERVER_URL = 'http://127.0.0.1:5500';
 var MY_SHOPS = []; // 当前运营名下的店铺名列表
-var _dismissedAlerts = {}; // 已dismiss的预警key
+var _dismissedAlerts = {}; // 已dismiss的预警key -> timestamp
+var _currentOperator = ''; // cached operator name
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -69,13 +70,76 @@ function initTabs() {
   });
 }
 
-// ========== Tab 1: Daily Report ==========
+// ========== Settings footer HTML generators ==========
+
+function buildServerStatusHtml(containerId) {
+  return '<div class="server-status" id="' + containerId + '"></div>';
+}
+
+async function refreshServerStatus(containerId) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var serverOk = false;
+  try {
+    var res = await fetch(SERVER_URL + '/health', { signal: AbortSignal.timeout(2000) });
+    serverOk = res.ok;
+  } catch(e) {}
+
+  if (serverOk) {
+    el.innerHTML = '<span style="color:#2e7d32">● 服务运行中</span>';
+  } else {
+    el.innerHTML = '<span style="color:#c62828">● 服务未启动</span> <button class="restart-server-btn" style="margin-left:6px;background:#e94560;color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer">启动服务</button>';
+    var btn = el.querySelector('.restart-server-btn');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        btn.textContent = '启动中...';
+        btn.disabled = true;
+        fetch(SERVER_URL + '/health').catch(function(){});
+        setTimeout(function() { refreshServerStatus(containerId); }, 5000);
+      });
+    }
+  }
+}
+
+function buildPatrolSettingsFooter() {
+  return '<div class="settings-footer" id="dailySettingsFooter">' +
+    '<div class="setting-row">' +
+      '<span class="setting-label">定时巡检</span>' +
+      '<input class="setting-input" id="patrolTime" type="time" value="10:00" />' +
+      '<button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">' +
+        '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
+        '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
+        '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
+      '</button>' +
+    '</div>' +
+    buildServerStatusHtml('dailyServerStatus') +
+  '</div>';
+}
+
+function buildAlertSettingsFooter() {
+  return '<div class="settings-footer" id="alertsSettingsFooter">' +
+    '<div class="setting-row">' +
+      '<span class="setting-label">实时预警</span>' +
+      '<input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />' +
+      '<span class="setting-unit">分钟</span>' +
+      '<button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">' +
+        '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
+        '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
+        '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
+      '</button>' +
+    '</div>' +
+    buildServerStatusHtml('alertsServerStatus') +
+  '</div>';
+}
+
+// ========== Tab 1: Daily Report (clean briefing style) ==========
 
 async function loadDaily() {
   var el = document.getElementById('tab-daily');
   var data = await api('/api/daily');
   if (!data || !data.stores || data.stores.length === 0) {
-    el.innerHTML = '<div class="empty">暂无巡检日报<br><span style="font-size:10px;color:#ccc">agent跑巡检后这里会显示结果</span></div>';
+    el.innerHTML = '<div class="empty">暂无巡检日报<br><span style="font-size:10px;color:#ccc">agent跑巡检后这里会显示结果</span></div>' + buildPatrolSettingsFooter();
+    initDailySettingsFooter();
     return;
   }
 
@@ -107,16 +171,16 @@ async function loadDaily() {
 
       if (allAuth) {
         var authPlatforms = store.platforms.map(function(p){return p.platform}).join('、');
-        html += '<div class="issue-line red">未授权 · ' + esc(authPlatforms) + '</div>';
+        html += '<div class="daily-issue-item" style="color:#c62828">\uD83D\uDD34 未授权 · ' + esc(authPlatforms) + '</div>';
       } else {
         for (var j = 0; j < store.platforms.length; j++) {
           var p = store.platforms[j];
           html += '<div class="platform-section">';
-          var pTag = p.platform === '美团' ? 'tag-meituan' : p.platform === '饿了么' ? 'tag-eleme' : 'tag-gray';
-          html += '<span class="tag ' + pTag + '">' + esc(p.platform) + '</span>';
+          // Clean: plain text platform name in parentheses
+          html += '<span style="font-size:11px;color:#999">(' + esc(p.platform) + ')</span>';
 
           if (p.has_auth_issue) {
-            html += '<span class="issue-inline red">未授权</span>';
+            html += '<span class="daily-issue-item" style="color:#c62828"> \uD83D\uDD34 未授权</span>';
             html += '</div>';
             continue;
           }
@@ -124,7 +188,7 @@ async function loadDaily() {
           var issues = [];
 
           if (p.bad_review_count > 0) {
-            var revHtml = '<span class="issue-inline red">差评' + p.bad_review_count + '条</span>';
+            var revHtml = '<div class="daily-issue-item">\uD83D\uDD34 差评' + p.bad_review_count + '条</div>';
             for (var k = 0; k < p.bad_reviews.length && k < 2; k++) {
               var r = p.bad_reviews[k];
               revHtml += '<div class="review-detail">' + r.stars + '星 "' + esc((r.comment||'').substring(0,35)) + '"</div>';
@@ -135,8 +199,8 @@ async function loadDaily() {
           if (p.expiring_count > 0) {
             for (var k = 0; k < p.activities.length; k++) {
               var a = p.activities[k];
-              var cls = (a.days_left || 99) <= 1 ? 'red' : 'yellow';
-              issues.push('<span class="issue-inline ' + cls + '">' + esc(a.name) + ' ' + a.days_left + '天到期</span>');
+              var prefix = (a.days_left || 99) <= 1 ? '\uD83D\uDD34' : '\uD83D\uDFE1';
+              issues.push('<div class="daily-issue-item">' + prefix + ' ' + esc(a.name) + ' ' + a.days_left + '天到期</div>');
             }
           }
 
@@ -144,15 +208,15 @@ async function loadDaily() {
             if (p.promo_daily_spend && p.promo_daily_spend > 0) {
               var daysLeft = p.promo_balance / p.promo_daily_spend;
               if (daysLeft < 1) {
-                issues.push('<span class="issue-inline red">推广余额¥' + p.promo_balance.toFixed(0) + ' 今天可能用完</span>');
+                issues.push('<div class="daily-issue-item">\uD83D\uDD34 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' 今天可能用完</div>');
               } else if (daysLeft < 3) {
-                issues.push('<span class="issue-inline yellow">推广余额¥' + p.promo_balance.toFixed(0) + ' ' + daysLeft.toFixed(1) + '天</span>');
+                issues.push('<div class="daily-issue-item">\uD83D\uDFE1 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' ' + daysLeft.toFixed(1) + '天</div>');
               }
             }
           }
 
           if (p.notice_count > 0) {
-            var noticeHtml = '<span class="issue-inline blue">' + p.notice_count + '条通知</span>';
+            var noticeHtml = '<div class="daily-issue-item">\u00B7 ' + p.notice_count + '条通知</div>';
             for (var k = 0; k < (p.notices || []).length && k < 2; k++) {
               noticeHtml += '<div class="review-detail">' + esc(p.notices[k].title) + '</div>';
             }
@@ -161,14 +225,14 @@ async function loadDaily() {
 
           if ((p.errors || []).length > 0) {
             for (var k = 0; k < p.errors.length; k++) {
-              issues.push('<span class="issue-inline yellow">' + esc(p.errors[k]) + '</span>');
+              issues.push('<div class="daily-issue-item">\uD83D\uDFE1 ' + esc(p.errors[k]) + '</div>');
             }
           }
 
           if (issues.length === 0) {
-            html += '<span class="issue-inline green">正常</span>';
+            html += '<span class="daily-normal">\u2713 正常</span>';
           } else {
-            html += issues.join('');
+            html += '<div class="daily-issue-list">' + issues.join('') + '</div>';
           }
 
           html += '</div>';
@@ -178,7 +242,29 @@ async function loadDaily() {
     }
   }
 
+  // Append patrol settings footer
+  html += buildPatrolSettingsFooter();
   el.innerHTML = html;
+  initDailySettingsFooter();
+}
+
+function initDailySettingsFooter() {
+  var toggle = document.getElementById('patrolToggle');
+  var timeInput = document.getElementById('patrolTime');
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      this.classList.toggle('on');
+      saveSettings();
+    });
+  }
+  if (timeInput) {
+    timeInput.addEventListener('change', function() {
+      saveSettings();
+    });
+  }
+  // Load saved settings into these elements
+  loadSettingsIntoElements();
+  refreshServerStatus('dailyServerStatus');
 }
 
 // ========== Tab 2: Alerts ==========
@@ -187,12 +273,13 @@ async function loadAlerts() {
   var el = document.getElementById('tab-alerts');
   var data = await api('/api/alerts');
   if (!data || data.length === 0) {
-    el.innerHTML = '<div class="empty">暂无预警</div>';
+    el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
     updateBadge('alertBadge', 0);
+    initAlertSettingsFooter();
     return;
   }
 
-  // 过滤掉已dismiss的预警
+  // 过滤掉已dismiss的预警 (Change 4: stable key without detail)
   var dismissed = _dismissedAlerts || {};
   data = data.filter(function(a) {
     var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
@@ -203,7 +290,8 @@ async function loadAlerts() {
   updateBadge('alertBadge', data.length);
 
   if (data.length === 0) {
-    el.innerHTML = '<div class="empty">暂无预警</div>';
+    el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
+    initAlertSettingsFooter();
     return;
   }
 
@@ -222,6 +310,7 @@ async function loadAlerts() {
   for (var ai = 0; ai < authAlerts.length; ai++) {
     var aa = authAlerts[ai];
     var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
+    // Change 4: stable key (store|type|msg)
     var akey = (aa.store||'') + '|' + (aa.type||'') + '|' + (aa.msg||'');
     html += '<div class="store-card alert-dismissable" data-alert-key="' + esc(akey) + '" style="border-left:3px solid #e65100;position:relative">' +
       '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
@@ -231,7 +320,6 @@ async function loadAlerts() {
   }
 
   // 正常预警按时间线+店铺分组
-  // 先按日期分组，再按店铺
   var byDate = {};
   var dateOrder = [];
   for (var i = 0; i < normalAlerts.length; i++) {
@@ -240,7 +328,6 @@ async function loadAlerts() {
     if (!byDate[eventDate]) { byDate[eventDate] = []; dateOrder.push(eventDate); }
     byDate[eventDate].push(a);
   }
-  // 日期倒序
   dateOrder.sort(function(a, b) { return b.localeCompare(a); });
 
   for (var di = 0; di < dateOrder.length; di++) {
@@ -248,7 +335,6 @@ async function loadAlerts() {
     var dayAlerts = byDate[date];
     html += '<div class="section-title">' + (date === '未知' ? '' : fmtDate(date + 'T00:00')) + '</div>';
 
-    // 按店铺分组
     var byStore = {};
     var storeOrder = [];
     for (var i = 0; i < dayAlerts.length; i++) {
@@ -265,7 +351,8 @@ async function loadAlerts() {
       for (var j = 0; j < alerts.length; j++) {
         var a = alerts[j];
         var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
-        var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'') + '|' + (a.detail||'').slice(0,20);
+        // Change 4: stable key (store|type|msg) — no detail
+        var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
         html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
           '<div class="alert-dot ' + a.level + '"></div>' +
           '<div class="alert-body">' +
@@ -279,14 +366,17 @@ async function loadAlerts() {
     }
   }
 
+  // Append alert settings footer
+  html += buildAlertSettingsFooter();
   el.innerHTML = html;
+  initAlertSettingsFooter();
 
-  // 绑定"知道了"按钮
+  // 绑定"知道了"按钮 (Change 4: store timestamp instead of true)
   el.querySelectorAll('.alert-dismissable').forEach(function(item) {
     item.querySelector('.dismiss-btn').addEventListener('click', function(e) {
       e.stopPropagation();
       var key = item.dataset.alertKey;
-      _dismissedAlerts[key] = true;
+      _dismissedAlerts[key] = Date.now(); // timestamp for 24h expiry
       try { chrome.storage.local.set({ dismissed_alerts: _dismissedAlerts }); } catch(e) {}
       item.style.transition = 'opacity 0.3s';
       item.style.opacity = '0';
@@ -296,11 +386,31 @@ async function loadAlerts() {
         var remaining = el.querySelectorAll('.alert-dismissable').length;
         updateBadge('alertBadge', remaining);
         if (remaining === 0) {
-          el.innerHTML = '<div class="empty">暂无预警</div>';
+          // Re-render to show empty + footer
+          el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
+          initAlertSettingsFooter();
         }
       }, 300);
     });
   });
+}
+
+function initAlertSettingsFooter() {
+  var toggle = document.getElementById('alertToggle');
+  var intervalInput = document.getElementById('alertInterval');
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      this.classList.toggle('on');
+      saveSettings();
+    });
+  }
+  if (intervalInput) {
+    intervalInput.addEventListener('change', function() {
+      saveSettings();
+    });
+  }
+  loadSettingsIntoElements();
+  refreshServerStatus('alertsServerStatus');
 }
 
 // ========== Tab 3: Logs ==========
@@ -314,7 +424,6 @@ async function loadTrackingStatus() {
     for (var i = 0; i < data.length; i++) {
       var t = data[i];
       var prev = trackingStatusMap[t.log_id];
-      // If any tracking for this log is pending, mark as pending
       if (!prev || t.status === 'pending') {
         trackingStatusMap[t.log_id] = t.status;
       }
@@ -327,7 +436,6 @@ async function loadLogs() {
   var data = await api('/api/logs?limit=50');
 
   if (!data || data.length === 0) {
-    // Fallback to local storage
     try {
       chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, function(state) {
         if (state && state.recentLogs && state.recentLogs.length > 0) {
@@ -346,7 +454,6 @@ async function loadLogs() {
 }
 
 function renderLogs(el, logs) {
-  // 只显示属于该运营名下店铺的日志
   if (MY_SHOPS.length > 0) {
     logs = logs.filter(function(l) {
       if (!l.shop_name) return false;
@@ -406,15 +513,12 @@ function renderLogs(el, logs) {
   }
   el.innerHTML = html;
 
-  // Bind toggle switches — optimistic UI
   el.querySelectorAll('.toggle-switch').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var logId = parseInt(btn.dataset.logid);
       var isOn = btn.dataset.enabled === '1';
-      // Instant toggle
       btn.classList.toggle('on');
       btn.dataset.enabled = isOn ? '0' : '1';
-      // Fire and forget
       toggleTracking(logId, !isOn);
     });
   });
@@ -434,7 +538,6 @@ function actionTagClass(t) {
 async function loadTracking() {
   var el = document.getElementById('tab-tracking');
 
-  // 按运营过滤，只显示自己的复盘
   var opData = await chrome.storage.local.get('ops_operator');
   var opName = opData.ops_operator || '';
   var trackUrl = '/api/tracking?limit=200' + (opName ? '&operator=' + encodeURIComponent(opName) : '');
@@ -447,7 +550,6 @@ async function loadTracking() {
     return;
   }
 
-  // Group by log_id
   var byLog = {};
   var logOrder = [];
   for (var i = 0; i < allItems.length; i++) {
@@ -481,7 +583,6 @@ async function loadTracking() {
       '<div class="review-shop">' + esc(group.shop) + '</div>' +
       '<div class="review-timeline">';
 
-    // Sort by check_date
     group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
 
     for (var ci = 0; ci < group.items.length; ci++) {
@@ -502,7 +603,6 @@ async function loadTracking() {
         '<div class="cp-date">' + (cp.check_date || '') + '</div>';
 
       if (cp.status === 'done' && cp.metrics_after) {
-        // 已生成摘要
         card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
       } else if (cp.status === 'pending' && cp.check_date <= today) {
         card += '<div class="cp-status">待生成</div>';
@@ -521,7 +621,6 @@ async function loadTracking() {
   if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
 
-  // Bind close buttons
   el.querySelectorAll('.cp-close-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var tid = parseInt(btn.dataset.tid);
@@ -566,7 +665,6 @@ async function checkAgent() {
   var msg = document.getElementById('agentMsg');
   var btn = document.getElementById('patrolBtn');
 
-  // Step 1: Check if server.py is running at all
   var serverAlive = false;
   try {
     var res = await fetch(SERVER_URL + '/api/logs?limit=1');
@@ -585,10 +683,8 @@ async function checkAgent() {
   var hint2 = document.getElementById('startHint');
   if (hint2) hint2.style.display = 'none';
 
-  // Step 2: Server is running, check agent status
   var data = await api('/api/agent/status');
   if (!data) {
-    // server.py is running but no /api/agent/status endpoint — older server version
     dot.className = 'agent-dot ok';
     msg.textContent = '服务已连接（无巡检）';
     btn.disabled = true;
@@ -612,7 +708,6 @@ async function checkAgent() {
 
   if (data.patrol && data.patrol.state === 'done') {
     dot.className = 'agent-dot ok';
-    // 显示巡检概览：品牌数+问题数+定时状态
     var doneMsg = '巡检完成';
     if (data.patrol.summary) doneMsg = data.patrol.summary;
     if (data.scheduled) doneMsg += ' · 每天' + data.scheduled + '自动巡检';
@@ -624,7 +719,6 @@ async function checkAgent() {
   } else if (data.patrol && data.patrol.state === 'error') {
     dot.className = 'agent-dot off';
     var errMsg = data.patrol.message || '巡检异常';
-    // 登录过期时显示更友好的提示
     if (errMsg.indexOf('登录') >= 0 || errMsg.indexOf('悟空') >= 0) {
       msg.textContent = '登录过期，请在Chrome中重新登录悟空';
       msg.style.color = '#c62828';
@@ -652,7 +746,6 @@ async function startPatrol() {
   var dot = document.getElementById('agentDot');
   var msg = document.getElementById('agentMsg');
 
-  // 根据登录运营自动查品牌
   var opData = await chrome.storage.local.get('ops_operator');
   var operator = opData.ops_operator || '';
   if (!operator) { msg.textContent = '请先登录'; return; }
@@ -662,7 +755,6 @@ async function startPatrol() {
   dot.className = 'agent-dot busy';
   msg.style.color = '';
 
-  // 先刷新headless登录态（从Chrome同步cookies）
   await apiPost('/api/headless/refresh', {});
 
   var result = await apiPost('/api/patrol/start', { operator: operator });
@@ -723,109 +815,135 @@ async function checkVersion() {
   }
 }
 
-// ========== Settings ==========
+// ========== Settings (now distributed across tab footers) ==========
 
-async function loadSettings() {
+var _settingsLoaded = false;
+var _cachedSettings = {};
+
+async function loadSettingsFromServer() {
+  if (_settingsLoaded) return _cachedSettings;
   var data = await api('/api/settings');
   if (!data) {
-    // Use defaults from chrome.storage
     try {
       var stored = await chrome.storage.local.get('ops_settings');
       data = stored.ops_settings || {};
     } catch(e) { data = {}; }
   }
+  _cachedSettings = data;
+  _settingsLoaded = true;
+  return data;
+}
+
+async function loadSettingsIntoElements() {
+  var data = await loadSettingsFromServer();
   var patrolToggle = document.getElementById('patrolToggle');
   var alertToggle = document.getElementById('alertToggle');
   var patrolTime = document.getElementById('patrolTime');
   var alertInterval = document.getElementById('alertInterval');
 
-  if (data.patrol_enabled === true) patrolToggle.classList.add('on');
-  if (data.alert_enabled === true) alertToggle.classList.add('on');
-  if (data.patrol_time) patrolTime.value = data.patrol_time;
-  if (data.alert_interval) alertInterval.value = data.alert_interval;
-  updateSettingsInfo();
+  if (patrolToggle && data.patrol_enabled === true) patrolToggle.classList.add('on');
+  if (alertToggle && data.alert_enabled === true) alertToggle.classList.add('on');
+  if (patrolTime && data.patrol_time) patrolTime.value = data.patrol_time;
+  if (alertInterval && data.alert_interval) alertInterval.value = data.alert_interval;
 }
 
 async function saveSettings() {
+  var patrolToggle = document.getElementById('patrolToggle');
+  var alertToggle = document.getElementById('alertToggle');
+  var patrolTime = document.getElementById('patrolTime');
+  var alertInterval = document.getElementById('alertInterval');
+
   var settings = {
-    patrol_enabled: document.getElementById('patrolToggle').classList.contains('on'),
-    alert_enabled: document.getElementById('alertToggle').classList.contains('on'),
-    patrol_time: document.getElementById('patrolTime').value,
-    alert_interval: parseInt(document.getElementById('alertInterval').value) || 30,
+    patrol_enabled: patrolToggle ? patrolToggle.classList.contains('on') : (_cachedSettings.patrol_enabled || false),
+    alert_enabled: alertToggle ? alertToggle.classList.contains('on') : (_cachedSettings.alert_enabled || false),
+    patrol_time: patrolTime ? patrolTime.value : (_cachedSettings.patrol_time || '10:00'),
+    alert_interval: alertInterval ? parseInt(alertInterval.value) || 30 : (_cachedSettings.alert_interval || 30),
   };
-  // Save to chrome.storage as fallback
+  _cachedSettings = settings;
   try { chrome.storage.local.set({ ops_settings: settings }); } catch(e) {}
-  // Save to server if available
   apiPost('/api/settings', settings);
 }
 
 function initSettings() {
-  // Toggle switches
-  ['patrolToggle', 'alertToggle'].forEach(function(id) {
-    document.getElementById(id).addEventListener('click', function() {
-      this.classList.toggle('on');
-      saveSettings();
-      updateSettingsInfo();
-    });
-  });
-
-  // Time/interval inputs
-  ['patrolTime', 'alertInterval'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', function() {
-      saveSettings();
-      updateSettingsInfo();
-    });
-  });
-
-  loadSettings();
+  // Settings elements are now created dynamically inside tab content.
+  // This function is called on DOMContentLoaded but the elements don't exist yet.
+  // The actual binding happens in initDailySettingsFooter() and initAlertSettingsFooter()
+  // after loadDaily() and loadAlerts() render them.
 }
 
-async function updateSettingsInfo() {
-  var el = document.getElementById('settingsInfo');
-  if (!el) return;
-  var patrolOn = document.getElementById('patrolToggle').classList.contains('on');
-  var alertOn = document.getElementById('alertToggle').classList.contains('on');
-  var patrolTime = document.getElementById('patrolTime').value || '10:00';
-  var alertInterval = document.getElementById('alertInterval').value || '30';
+// ========== Chat history persistence ==========
 
-  // 检测server状态
-  var serverOk = false;
+var _chatStorageKey = '';
+
+async function loadChatHistory() {
+  if (!_currentOperator) return [];
+  _chatStorageKey = 'chat_history_' + _currentOperator;
   try {
-    var res = await fetch(SERVER_URL + '/health', { signal: AbortSignal.timeout(2000) });
-    serverOk = res.ok;
+    var stored = await chrome.storage.local.get(_chatStorageKey);
+    var msgs = stored[_chatStorageKey] || [];
+    // Limit to last 50
+    if (msgs.length > 50) msgs = msgs.slice(-50);
+    return msgs;
+  } catch(e) { return []; }
+}
+
+function saveChatHistory(messages) {
+  if (!_chatStorageKey) return;
+  // Keep last 50
+  var toSave = messages.slice(-50);
+  try {
+    var obj = {};
+    obj[_chatStorageKey] = toSave;
+    chrome.storage.local.set(obj);
   } catch(e) {}
+}
 
-  var lines = [];
-  if (serverOk) {
-    lines.push('<span style="color:#2e7d32">● 服务运行中</span>');
-  } else {
-    lines.push('<span style="color:#c62828">● 服务未启动</span> <button id="restartServerBtn" style="margin-left:6px;background:#e94560;color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer">启动服务</button>');
-  }
-  lines.push(patrolOn ? '定时巡检: 每天' + patrolTime + '自动巡检' : '定时巡检: <span style="color:#999">关闭</span>');
-  lines.push(alertOn ? '实时预警: 每' + alertInterval + '分钟检查一次' : '实时预警: <span style="color:#999">关闭</span>');
-  el.innerHTML = lines.join('<br>');
+function syncChatToServer(messages) {
+  if (!_currentOperator) return;
+  // Fire and forget
+  apiPost('/api/chat/save', {
+    operator: _currentOperator,
+    messages: messages.slice(-50)
+  });
+}
 
-  // 绑定重启按钮
-  var restartBtn = document.getElementById('restartServerBtn');
-  if (restartBtn) {
-    restartBtn.addEventListener('click', function() {
-      restartBtn.textContent = '启动中...';
-      restartBtn.disabled = true;
-      // 通过扩展发消息让background.js尝试启动
-      fetch(SERVER_URL + '/health').catch(function(){});
-      setTimeout(function() { updateSettingsInfo(); }, 5000);
-    });
+function renderChatHistory(messages) {
+  if (!messages || messages.length === 0) return;
+  var area = document.getElementById('chatArea');
+  var welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
+
+  for (var i = 0; i < messages.length; i++) {
+    var m = messages[i];
+    var role = m.role === 'user' ? 'user' : m.role === 'assistant' ? 'bot' : 'bot';
+    var div = document.createElement('div');
+    div.className = 'chat-msg ' + role;
+    div.innerHTML = esc(m.content).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+    area.appendChild(div);
   }
+  area.scrollTop = area.scrollHeight;
 }
 
 // ========== Init ==========
 
 async function init() {
-  // 加载dismissed预警
+  // 加载dismissed预警 (Change 4: filter expired > 24h)
   try {
     var stored = await chrome.storage.local.get('dismissed_alerts');
     _dismissedAlerts = stored.dismissed_alerts || {};
   } catch(e) { _dismissedAlerts = {}; }
+
+  // Clean expired dismissals (> 24h)
+  var now = Date.now();
+  Object.keys(_dismissedAlerts).forEach(function(k) {
+    // Handle legacy boolean values: treat as expired
+    if (typeof _dismissedAlerts[k] !== 'number') {
+      delete _dismissedAlerts[k];
+    } else if (now - _dismissedAlerts[k] > 86400000) {
+      delete _dismissedAlerts[k];
+    }
+  });
+  try { chrome.storage.local.set({ dismissed_alerts: _dismissedAlerts }); } catch(e) {}
 
   chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, async function(state) {
     if (chrome.runtime.lastError || !state) {
@@ -837,6 +955,8 @@ async function init() {
       document.getElementById('main').style.display = 'none';
       return;
     }
+
+    _currentOperator = state.operator;
 
     document.getElementById('setup').style.display = 'none';
     document.getElementById('main').style.display = 'block';
@@ -856,7 +976,7 @@ async function init() {
           if (s.shop) MY_SHOPS.push(s.shop);
         });
       });
-      document.getElementById('infoLine').textContent = state.operator + ' — ' + brandNames.length + '个品牌';
+      document.getElementById('infoLine').textContent = state.operator + ' \u2014 ' + brandNames.length + '个品牌';
     } catch(e) {
       document.getElementById('infoLine').textContent = state.operator;
     }
@@ -867,6 +987,13 @@ async function init() {
     loadAlerts();
     loadLogs();
     loadTracking();
+
+    // Load and render chat history (Change 2)
+    var savedChat = await loadChatHistory();
+    if (savedChat.length > 0) {
+      chatHistory = savedChat;
+      renderChatHistory(savedChat);
+    }
   });
 }
 
@@ -916,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var totalShops = 0;
     brandNames.forEach(function(b) { totalShops += brands[b].length; });
 
-    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' — ' + brandNames.length + '个品牌 ' + totalShops + '家店</div>';
+    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' \u2014 ' + brandNames.length + '个品牌 ' + totalShops + '家店</div>';
     for (var i = 0; i < brandNames.length; i++) {
       var bname = brandNames[i];
       var shops = brands[bname];
@@ -935,7 +1062,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!_pendingName) return;
     chrome.runtime.sendMessage({ type: 'OPS_SET_OPERATOR', name: _pendingName }, function() {
       if (!chrome.runtime.lastError) {
-        // 同步运营名到server config.json，让定时调度器能读到
         apiPost('/api/settings', { operator: _pendingName });
         init();
       }
@@ -983,8 +1109,8 @@ var chatThinking = false;
 
 function addChatMsg(role, text, toolInfo) {
   var area = document.getElementById('chatArea');
-  var welcome = document.getElementById('quickBtns');
-  if (welcome && welcome.parentElement) welcome.parentElement.style.display = 'none';
+  var welcome = document.getElementById('chatWelcome');
+  if (welcome) welcome.style.display = 'none';
 
   var div = document.createElement('div');
   div.className = 'chat-msg ' + role;
@@ -1011,7 +1137,7 @@ async function sendMsg() {
   input.value = '';
   addChatMsg('user', text);
 
-  chatHistory.push({ role: 'user', content: text });
+  chatHistory.push({ role: 'user', content: text, ts: Date.now() });
   chatThinking = true;
   document.getElementById('sendBtn').disabled = true;
 
@@ -1026,8 +1152,12 @@ async function sendMsg() {
     else {
       var data = await res.json();
       var reply = data.reply || '(没有回复)';
-      chatHistory.push({ role: 'assistant', content: reply });
-      addChatMsg('bot', reply, data.tools_used ? data.tools_used.join(' → ') : '');
+      chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
+      addChatMsg('bot', reply, data.tools_used ? data.tools_used.join(' \u2192 ') : '');
+
+      // Change 2: persist chat history after each exchange
+      saveChatHistory(chatHistory);
+      syncChatToServer(chatHistory);
     }
   } catch(e) {
     addChatMsg('err', '连接失败: ' + e.message);

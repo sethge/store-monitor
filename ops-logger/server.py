@@ -2584,24 +2584,40 @@ DEEPSEEK_API_KEY = "sk-e9a15a3b186f49308076422d2685f7b0"
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"
 
-AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI助手。
+def _load_brain_knowledge():
+    """加载BRAIN.md运营认知，注入system prompt"""
+    brain_path = os.path.join(os.path.dirname(__file__), "..", "agent-config", "BRAIN.md")
+    if os.path.exists(brain_path):
+        try:
+            with open(brain_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception:
+            pass
+    return ""
+
+AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
 
 ## 你的职能
 1. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
 2. **反馈收集** — 运营说诊断哪里不对、哪个建议有问题，你记录下来
-3. **答疑交流** — 基于诊断报告和店铺数据，回答运营的疑问
+3. **答疑交流** — 基于运营认知和店铺数据，回答运营的疑问、一起讨论运营策略
 4. **会议纪要** — 查会议记录发给运营，总结关键行动项
 
 ## 说话风格
 像微信聊天，短句直接，不啰嗦，不说技术术语。
 发诊断报告时用markdown格式，重点加粗，分段清晰。
 运营提反馈时先确认理解，再记录。
+讨论运营问题时，用你的认知给出判断和建议，像一个懂行的同事，不是一个百科全书。
 
 ## 当前运营
 {operator}
 
+## 你的运营认知
+{brain}
+
 ## 工具使用
-根据运营的问题选择合适的工具。优先用CRM工具查诊断和会议纪要。"""
+根据运营的问题选择合适的工具。优先用CRM工具查诊断和会议纪要。
+运营闲聊或请教运营问题时，结合你的运营认知直接回答，不需要调工具。"""
 
 AGENT_TOOLS = [
     {
@@ -3038,7 +3054,8 @@ def api_chat():
         return jsonify({"reply": "说点啥？", "tools_used": []}), 200
 
     # Build messages
-    system = AGENT_SYSTEM_PROMPT.replace("{operator}", operator or "未知")
+    brain = _load_brain_knowledge()
+    system = AGENT_SYSTEM_PROMPT.replace("{operator}", operator or "未知").replace("{brain}", brain)
 
     messages = [{"role": "system", "content": system}]
     # Add recent history (skip the last user msg, we'll add it fresh)
@@ -3093,6 +3110,32 @@ def api_chat():
     except Exception as e:
         print(f"[chat] error: {e}")
         return jsonify({"reply": f"出错了: {str(e)[:100]}", "tools_used": []}), 200
+
+
+@app.route("/api/chat/save", methods=["POST"])
+def api_chat_save():
+    """保存聊天记录，供后续提炼分析"""
+    data = request.json or {}
+    operator = data.get("operator", "unknown")
+    messages = data.get("messages", [])
+    if not messages:
+        return jsonify({"ok": True})
+
+    chat_dir = os.path.join(os.path.dirname(__file__), "chat_logs")
+    os.makedirs(chat_dir, exist_ok=True)
+
+    # 按运营+日期存一个jsonl文件
+    from datetime import datetime
+    today = datetime.now().strftime("%Y-%m-%d")
+    filepath = os.path.join(chat_dir, f"{operator}_{today}.jsonl")
+
+    with open(filepath, "a", encoding="utf-8") as f:
+        for m in messages:
+            line = json.dumps({"operator": operator, "role": m.get("role"), "content": m.get("content"), "ts": m.get("ts", "")}, ensure_ascii=False)
+            f.write(line + "\n")
+
+    print(f"[chat] saved {len(messages)} messages for {operator}")
+    return jsonify({"ok": True})
 
 
 def _ensure_debug_chrome():
