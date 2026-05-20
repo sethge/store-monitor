@@ -211,21 +211,11 @@ async function loadAlerts() {
   var authAlerts = data.filter(function(a) { return a.type === 'auth'; });
   var normalAlerts = data.filter(function(a) { return a.type !== 'auth'; });
 
-  // 按店铺分组
-  var byStore = {};
-  var storeOrder = [];
-  for (var i = 0; i < normalAlerts.length; i++) {
-    var a = normalAlerts[i];
-    var key = a.store || '未知';
-    if (!byStore[key]) { byStore[key] = []; storeOrder.push(key); }
-    byStore[key].push(a);
-  }
-
-  // 巡检时间（取第一条的ts）
-  var patrolTs = data[0] && data[0].ts ? data[0].ts : '';
+  // 巡检来源时间
+  var patrolTs = data[0] && data[0].patrol_ts ? data[0].patrol_ts : '';
   var html = '';
   if (patrolTs) {
-    html += '<div class="daily-meta">预警来源: ' + esc(patrolTs) + ' 巡检</div>';
+    html += '<div class="daily-meta">数据来源: ' + esc(patrolTs) + ' 巡检</div>';
   }
 
   // 授权失败的店
@@ -240,27 +230,53 @@ async function loadAlerts() {
     '</div>';
   }
 
-  // 正常预警按店铺分组
-  for (var si = 0; si < storeOrder.length; si++) {
-    var storeName = storeOrder[si];
-    var alerts = byStore[storeName];
-    html += '<div class="store-card"><div class="store-name">' + esc(storeName) + '</div>';
-    for (var j = 0; j < alerts.length; j++) {
-      var a = alerts[j];
-      var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
-      var timeStr = a.ts ? fmtHM(a.ts) : '';
-      var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
-      html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
-        '<div class="alert-dot ' + a.level + '"></div>' +
-        '<div class="alert-body">' +
-          '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
-          (a.detail ? '<div class="alert-detail">' + esc(a.detail) + '</div>' : '') +
-          (timeStr ? '<div style="font-size:9px;color:#bbb;margin-top:1px">' + timeStr + '</div>' : '') +
-        '</div>' +
-        '<button class="dismiss-btn">知道了</button>' +
-      '</div>';
+  // 正常预警按时间线+店铺分组
+  // 先按日期分组，再按店铺
+  var byDate = {};
+  var dateOrder = [];
+  for (var i = 0; i < normalAlerts.length; i++) {
+    var a = normalAlerts[i];
+    var eventDate = (a.event_time || '').slice(0, 10) || '未知';
+    if (!byDate[eventDate]) { byDate[eventDate] = []; dateOrder.push(eventDate); }
+    byDate[eventDate].push(a);
+  }
+  // 日期倒序
+  dateOrder.sort(function(a, b) { return b.localeCompare(a); });
+
+  for (var di = 0; di < dateOrder.length; di++) {
+    var date = dateOrder[di];
+    var dayAlerts = byDate[date];
+    html += '<div class="section-title">' + (date === '未知' ? '' : fmtDate(date + 'T00:00')) + '</div>';
+
+    // 按店铺分组
+    var byStore = {};
+    var storeOrder = [];
+    for (var i = 0; i < dayAlerts.length; i++) {
+      var a = dayAlerts[i];
+      var key = a.store || '未知';
+      if (!byStore[key]) { byStore[key] = []; storeOrder.push(key); }
+      byStore[key].push(a);
     }
-    html += '</div>';
+
+    for (var si = 0; si < storeOrder.length; si++) {
+      var storeName = storeOrder[si];
+      var alerts = byStore[storeName];
+      html += '<div class="store-card"><div class="store-name">' + esc(storeName) + '</div>';
+      for (var j = 0; j < alerts.length; j++) {
+        var a = alerts[j];
+        var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
+        var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'') + '|' + (a.detail||'').slice(0,20);
+        html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
+          '<div class="alert-dot ' + a.level + '"></div>' +
+          '<div class="alert-body">' +
+            '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
+            (a.detail ? '<div class="alert-detail">' + esc(a.detail) + '</div>' : '') +
+          '</div>' +
+          '<button class="dismiss-btn">知道了</button>' +
+        '</div>';
+      }
+      html += '</div>';
+    }
   }
 
   el.innerHTML = html;
@@ -764,17 +780,42 @@ function initSettings() {
   loadSettings();
 }
 
-function updateSettingsInfo() {
+async function updateSettingsInfo() {
   var el = document.getElementById('settingsInfo');
   if (!el) return;
   var patrolOn = document.getElementById('patrolToggle').classList.contains('on');
   var alertOn = document.getElementById('alertToggle').classList.contains('on');
   var patrolTime = document.getElementById('patrolTime').value || '10:00';
   var alertInterval = document.getElementById('alertInterval').value || '30';
+
+  // 检测server状态
+  var serverOk = false;
+  try {
+    var res = await fetch(SERVER_URL + '/health', { signal: AbortSignal.timeout(2000) });
+    serverOk = res.ok;
+  } catch(e) {}
+
   var lines = [];
-  lines.push(patrolOn ? '定时巡检: 每天' + patrolTime + '自动巡检' : '定时巡检: 关闭');
-  lines.push(alertOn ? '实时预警: 每' + alertInterval + '分钟检查一次' : '实时预警: 关闭');
+  if (serverOk) {
+    lines.push('<span style="color:#2e7d32">● 服务运行中</span>');
+  } else {
+    lines.push('<span style="color:#c62828">● 服务未启动</span> <button id="restartServerBtn" style="margin-left:6px;background:#e94560;color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer">启动服务</button>');
+  }
+  lines.push(patrolOn ? '定时巡检: 每天' + patrolTime + '自动巡检' : '定时巡检: <span style="color:#999">关闭</span>');
+  lines.push(alertOn ? '实时预警: 每' + alertInterval + '分钟检查一次' : '实时预警: <span style="color:#999">关闭</span>');
   el.innerHTML = lines.join('<br>');
+
+  // 绑定重启按钮
+  var restartBtn = document.getElementById('restartServerBtn');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', function() {
+      restartBtn.textContent = '启动中...';
+      restartBtn.disabled = true;
+      // 通过扩展发消息让background.js尝试启动
+      fetch(SERVER_URL + '/health').catch(function(){});
+      setTimeout(function() { updateSettingsInfo(); }, 5000);
+    });
+  }
 }
 
 // ========== Init ==========

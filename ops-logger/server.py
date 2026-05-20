@@ -1935,36 +1935,44 @@ def alerts():
                 platform = item.get("platform", "")
                 if t == "bad_review":
                     details = item.get("details", [])
-                    comments = []
-                    for d in details[:3]:
+                    # 每条差评单独一条预警，用差评原始时间
+                    for d in details[:5]:
                         if isinstance(d, dict):
-                            comments.append(f'{d.get("stars","")}星 "{(d.get("comment",""))[:30]}"')
-                    result.append({"type": "bad_review", "level": "red", "store": store_name,
-                                   "platform": platform, "msg": item.get("msg", ""), "detail": "; ".join(comments), "ts": ts})
+                            event_time = d.get("time", "")
+                            result.append({"type": "bad_review", "level": "red", "store": store_name,
+                                           "platform": platform,
+                                           "msg": f'{d.get("stars","")}星差评',
+                                           "detail": (d.get("comment",""))[:50],
+                                           "event_time": event_time, "patrol_ts": ts})
                 elif t == "expiring":
                     for d in item.get("details", []):
                         if isinstance(d, dict):
                             days = d.get("days", 99)
                             level = "red" if days <= 1 else "yellow"
                             result.append({"type": "expiring", "level": level, "store": store_name,
-                                           "platform": platform, "msg": f'{d.get("name","")} {days}天后到期', "detail": "", "ts": ts})
+                                           "platform": platform, "msg": f'{d.get("name","")} {days}天后到期', "detail": "",
+                                           "event_time": "", "patrol_ts": ts})
                 elif t == "promo":
                     result.append({"type": "promo", "level": "yellow", "store": store_name,
-                                   "platform": platform, "msg": item.get("msg", ""), "detail": "", "ts": ts})
+                                   "platform": platform, "msg": item.get("msg", ""), "detail": "",
+                                   "event_time": "", "patrol_ts": ts})
                 elif t == "auth":
                     result.append({"type": "auth", "level": "red", "store": store_name,
-                                   "platform": platform, "msg": "授权异常", "detail": "", "ts": ts})
+                                   "platform": platform, "msg": "授权异常", "detail": "",
+                                   "event_time": "", "patrol_ts": ts})
                 elif t == "error":
                     result.append({"type": "error", "level": "yellow", "store": store_name,
-                                   "platform": platform, "msg": item.get("msg", ""), "detail": "", "ts": ts})
+                                   "platform": platform, "msg": item.get("msg", ""), "detail": "",
+                                   "event_time": "", "patrol_ts": ts})
                 elif t == "notice":
                     details = item.get("details", [])
-                    # 只把重要通知（非配送范围类）加入预警
                     important = [d for d in details if isinstance(d, dict) and "配送范围" not in d.get("title", "")]
-                    if important:
-                        titles = "; ".join(d.get("title", "")[:20] for d in important[:3])
+                    # 每条通知单独一条预警，用通知原始时间
+                    for d in important[:5]:
+                        event_time = d.get("time", "")
                         result.append({"type": "notice", "level": "blue", "store": store_name,
-                                       "platform": platform, "msg": f"{len(important)}条通知", "detail": titles, "ts": ts})
+                                       "platform": platform, "msg": d.get("title", "")[:30], "detail": d.get("content", "")[:50],
+                                       "event_time": event_time, "patrol_ts": ts})
 
     # 2. 从操作追踪找到期TODO
     ops_conn = get_db()
@@ -1985,13 +1993,17 @@ def alerts():
             "platform": t["platform"] or "",
             "msg": f'{t["action_type"]} {t["check_type"]}到期',
             "detail": t["change_summary"] or "",
-            "ts": t["op_ts"] or "",
+            "event_time": t["op_ts"] or "",
+            "patrol_ts": "",
         })
     ops_conn.close()
 
-    # 按level排序: red > yellow > blue
+    # 按事件时间倒序（最新的在前），同时间按level排
     level_order = {"red": 0, "yellow": 1, "blue": 2}
-    result.sort(key=lambda x: level_order.get(x["level"], 9))
+    result.sort(key=lambda x: (-(x.get("event_time") or x.get("patrol_ts") or "0").replace("-","").replace(":","").replace(" ","").ljust(14,"0")[:14].isdigit(),
+                                x.get("event_time") or x.get("patrol_ts") or "0"), reverse=True)
+    # 简化：先按event_time倒序
+    result.sort(key=lambda x: x.get("event_time") or x.get("patrol_ts") or "", reverse=True)
 
     return jsonify(result)
 
