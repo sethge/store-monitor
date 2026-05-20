@@ -496,9 +496,17 @@ async function checkAgent() {
     loadAlerts();
   } else if (data.patrol && data.patrol.state === 'error') {
     dot.className = 'agent-dot off';
-    msg.textContent = data.patrol.message || '巡检异常';
+    var errMsg = data.patrol.message || '巡检异常';
+    // 登录过期时显示更友好的提示
+    if (errMsg.indexOf('登录') >= 0 || errMsg.indexOf('悟空') >= 0) {
+      msg.textContent = '登录过期，请在Chrome中重新登录悟空';
+      msg.style.color = '#c62828';
+    } else {
+      msg.textContent = errMsg;
+      msg.style.color = '';
+    }
     btn.disabled = false;
-    btn.textContent = '巡检';
+    btn.textContent = '重试';
   } else if (data.has_run_fast) {
     dot.className = 'agent-dot ok';
     msg.textContent = 'agent就绪';
@@ -525,6 +533,10 @@ async function startPatrol() {
   btn.disabled = true;
   btn.textContent = '启动中...';
   dot.className = 'agent-dot busy';
+  msg.style.color = '';
+
+  // 先刷新headless登录态（从Chrome同步cookies）
+  await apiPost('/api/headless/refresh', {});
 
   var result = await apiPost('/api/patrol/start', { operator: operator });
   if (result && result.ok) {

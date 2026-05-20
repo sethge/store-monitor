@@ -18,6 +18,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, check_verification, save_user_focus, restore_user_focus, stop_hider
+from browser import ensure_https
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
 from patrol_db import save_snapshot
@@ -469,6 +470,11 @@ async def run_once(brands, ctx, user_page=None):
                 await asyncio.sleep(2)  # 等Goku创建tab
                 await restore_user_focus(user_page)  # 再还焦点
 
+                # headless下Goku可能开http://，修正为https://
+                for x in ctx.pages:
+                    if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
+                        await ensure_https(x)
+
                 if acct['platform'] == 'meituan':
                     for x in ctx.pages:
                         if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
@@ -614,6 +620,11 @@ async def watch_open_all(brands, ctx, user_page=None):
                 await asyncio.sleep(2)  # 等Goku创建tab
                 await restore_user_focus(user_page)  # 再还焦点
 
+                # headless下Goku可能开http://，修正为https://
+                for x in ctx.pages:
+                    if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
+                        await ensure_https(x)
+
                 if acct['platform'] == 'meituan':
                     for x in ctx.pages:
                         if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
@@ -692,6 +703,7 @@ async def main():
     parser.add_argument('brands', nargs='*', help='品牌名')
     parser.add_argument('--watch', action='store_true', help='预警模式，到18:00自动结束')
     parser.add_argument('--watch-once', action='store_true', help='单轮预警：跑一轮就退出（cron调度用）')
+    parser.add_argument('--headless', action='store_true', help='无头模式，零窗口')
     parser.add_argument('-i', '--interval', type=int, default=10, help='预警间隔（分钟），默认10')
     args = parser.parse_args()
 
@@ -699,17 +711,23 @@ async def main():
     if not brands:
         print("用法:")
         print("  python3 run_fast.py 品牌1 品牌2                    # 跑一次")
+        print("  python3 run_fast.py --headless 品牌1 品牌2           # 无头巡检")
         print("  python3 run_fast.py --watch 品牌1 品牌2             # 预警模式（到18:00结束）")
         print("  python3 run_fast.py --watch -i 5 品牌1              # 5分钟一轮")
         return
 
-    port = int(os.environ.get("CHROME_PORT", "9222"))
-    from browser import launch as launch_browser
     pw = await async_playwright().start()
-    b, ctx = await launch_browser(pw, port)
 
-    # 记住用户当前看的页面，巡检时恢复焦点（静默巡检）
-    user_page = await save_user_focus(ctx)
+    if args.headless:
+        from browser import launch_headless
+        print("启动无头巡检...")
+        b, ctx = await launch_headless(pw)
+        user_page = None
+    else:
+        port = int(os.environ.get("CHROME_PORT", "9222"))
+        from browser import launch as launch_browser
+        b, ctx = await launch_browser(pw, port)
+        user_page = await save_user_focus(ctx)
 
     if args.watch_once:
         # === 单轮预警模式（cron调度用，跑一轮就退出） ===

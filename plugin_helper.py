@@ -94,36 +94,35 @@ async def pick_brand(ext, brand):
 
     await ext.evaluate("() => document.querySelectorAll('button,span').forEach(e=>{if(e.textContent.trim()==='重 置')e.click()})")
     await asyncio.sleep(0.5)
-    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
-    await asyncio.sleep(0.5)
     kw = brand.split("（")[0]
     sub = brand.split("（")[1].split("）")[0] if "（" in brand else ""
-    # 用JS直接操作输入框，绕过Playwright的editability检查
-    typed = await ext.evaluate(f"""() => {{
-        const inputs = document.querySelectorAll('input.ant-select-selection-search-input');
-        const input = inputs.length ? inputs[inputs.length - 1] : null;
-        if (!input) return false;
-        input.focus();
-        input.value = '';
-        input.dispatchEvent(new Event('input', {{bubbles: true}}));
-        input.value = '{kw}';
-        input.dispatchEvent(new Event('input', {{bubbles: true}}));
-        input.dispatchEvent(new Event('change', {{bubbles: true}}));
-        return true;
-    }}""")
-    if not typed:
-        return False, "搜索框未找到"
-    await asyncio.sleep(1)
-    found = await ext.evaluate(f"""() => {{
-        const opts = document.querySelectorAll('.ant-select-item-option');
-        for (const o of opts) {{ const t=o.textContent.trim(); if(t.includes('{kw}') && t.includes('{sub}')) {{ o.click(); return t }} }}
-        return null
-    }}""")
+    # 纯JS操作：打开下拉→nativeInputValueSetter输入→等搜索→点选
+    found = await ext.evaluate(f"""() => new Promise(resolve => {{
+        const sel = document.querySelectorAll('.ant-select-selector');
+        if (!sel.length) {{ resolve(null); return; }}
+        sel[sel.length-1].dispatchEvent(new MouseEvent('mousedown', {{bubbles:true}}));
+        setTimeout(() => {{
+            const inp = document.querySelectorAll('input.ant-select-selection-search-input');
+            if (!inp.length) {{ resolve(null); return; }}
+            const el = inp[inp.length-1];
+            el.focus();
+            const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            nativeSetter.call(el, '{kw}');
+            el.dispatchEvent(new Event('input', {{bubbles:true}}));
+            el.dispatchEvent(new Event('change', {{bubbles:true}}));
+            setTimeout(() => {{
+                const opts = document.querySelectorAll('.ant-select-item-option');
+                for (const o of opts) {{
+                    const t = o.textContent.trim();
+                    if (t.includes('{kw}') && t.includes('{sub}')) {{ o.click(); resolve(t); return; }}
+                }}
+                document.activeElement && document.activeElement.blur();
+                resolve(null);
+            }}, 1500);
+        }}, 500);
+    }})""")
     if not found:
-        await ext.keyboard.press("Escape")
         return False, "品牌未找到"
-    await asyncio.sleep(0.5)
-    await ext.keyboard.press("Escape")
     await asyncio.sleep(0.5)
     body = await ext.evaluate("() => document.body.innerText")
     status = "全部授权" if "全部授权" in body else "包含未授权" if "未授权" in body else "未知"

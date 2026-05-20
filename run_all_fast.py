@@ -6,6 +6,7 @@ sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 # 复用run_fast的所有逻辑
 from run_fast import fast_mt, fast_ele, sd, check_promo, THREE_DAYS, CUTOFF
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, stop_hider
+from browser import ensure_https
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -30,24 +31,45 @@ async def get_all_brands(ext):
         const opts = document.querySelectorAll('.ant-select-item-option');
         return Array.from(opts).map(o => o.textContent.trim()).filter(t => t.length > 2 && !t.match(/^\d+$/));
     }""")
-    await ext.keyboard.press("Escape")
+    await ext.evaluate("() => document.activeElement && document.activeElement.blur()")
     await asyncio.sleep(0.3)
     return brands
 
 
 async def main():
-    from browser import launch as launch_browser
-    pw = await async_playwright().start()
-    b, ctx = await launch_browser(pw)
+    import argparse
+    parser = argparse.ArgumentParser(description='全量巡检')
+    parser.add_argument('brands', nargs='*', help='品牌名')
+    parser.add_argument('--headless', action='store_true', help='无头模式，零窗口')
+    args = parser.parse_args()
 
-    # 记住用户当前看的页面，巡检时恢复焦点（静默巡检）
-    user_page = await save_user_focus(ctx)
+    pw = await async_playwright().start()
+
+    if args.headless:
+        from browser import launch_headless
+        print("启动无头巡检...")
+        b, ctx = await launch_headless(pw)
+        user_page = None
+    else:
+        from browser import launch as launch_browser
+        b, ctx = await launch_browser(pw)
+        user_page = await save_user_focus(ctx)
 
     ext = await get_ext(ctx)
 
+    # headless模式下检查登录态
+    if args.headless:
+        from browser import check_headless_login
+        login_ok, login_msg = await check_headless_login(ctx)
+        if not login_ok:
+            print(f"❌ 登录失败: {login_msg}")
+            print("请在Chrome中重新登录悟空插件，然后重试")
+            await pw.stop()
+            return
+
     # 优先用命令行传入的品牌名，没传则从插件下拉框读
-    if len(sys.argv) > 1:
-        brands = sys.argv[1:]
+    if args.brands:
+        brands = args.brands
         print(f"使用指定品牌: {brands}")
     else:
         brands = await get_all_brands(ext)
@@ -115,6 +137,11 @@ async def main():
                 if result != 'ok': continue
                 await asyncio.sleep(3)  # 等Goku创建tab
                 await restore_user_focus(user_page)  # 再还焦点
+
+                # headless下Goku可能开http://，修正为https://
+                for x in ctx.pages:
+                    if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
+                        await ensure_https(x)
 
                 if p == 'meituan':
                     pg = None

@@ -1,16 +1,21 @@
-"""浏览器模块 — 连接运营自己的Chrome，不开新实例"""
+"""浏览器模块 — 连接运营自己的Chrome，不开新实例；支持headless模式"""
 import asyncio
 import subprocess
 import json
 import os
 import sys
+import shutil
 from pathlib import Path
 
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
 
 EXT_PATH = str(Path(__file__).parent / "goku")
+OPS_LOGGER_PATH = str(Path(__file__).parent / "ops-logger")
 PORT = 9222
+HEADLESS_PORT = 9333
+HEADLESS_PROFILE = "/tmp/chrome-headless-patrol"
+SOURCE_PROFILE = os.path.expanduser("~/chrome-debug")
 
 
 def _get_front_app():
@@ -154,3 +159,148 @@ def _find_chrome():
         if os.path.exists(p):
             return p
     raise Exception("找不到Chrome，请安装Chrome")
+
+
+def _sync_headless_profile():
+    """同步headless profile的登录态。首次全拷，之后只增量同步Cookies"""
+    src = Path(SOURCE_PROFILE)
+    dst = Path(HEADLESS_PROFILE)
+
+    if not src.exists():
+        raise Exception(f"Chrome profile不存在: {src}，请先用带debug端口的Chrome登录过")
+
+    if not dst.exists():
+        # 首次：全量拷贝
+        print("  首次创建headless profile（拷贝登录态）...")
+        shutil.copytree(str(src), str(dst), symlinks=True,
+                        ignore=shutil.ignore_patterns('Cache', 'Code Cache', 'Service Worker',
+                                                       'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache',
+                                                       'GrShaderCache', 'ShaderCache', 'blob_storage'))
+        # 删除锁文件
+        for lock in dst.rglob("SingletonLock"):
+            lock.unlink(missing_ok=True)
+        for lock in dst.rglob("SingletonCookie"):
+            lock.unlink(missing_ok=True)
+        for lock in dst.rglob("SingletonSocket"):
+            lock.unlink(missing_ok=True)
+        print(f"  profile已创建: {dst}")
+    else:
+        # 增量：只同步关键登录文件
+        files_to_sync = [
+            "Default/Cookies",
+            "Default/Cookies-journal",
+            "Default/Extension Cookies",
+            "Default/Extension Cookies-journal",
+            "Local State",
+        ]
+        for f in files_to_sync:
+            s = src / f
+            d = dst / f
+            if s.exists():
+                d.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(s), str(d))
+        # 删除锁文件
+        for lock in dst.rglob("SingletonLock"):
+            lock.unlink(missing_ok=True)
+        for lock in dst.rglob("SingletonCookie"):
+            lock.unlink(missing_ok=True)
+        for lock in dst.rglob("SingletonSocket"):
+            lock.unlink(missing_ok=True)
+
+
+async def launch_headless(pw, port=HEADLESS_PORT):
+    """启动无头Chrome，零窗口巡检。返回 (browser, context)"""
+
+    # 1. 已有headless在跑 → 直连
+    ws = _cdp_ws(port)
+    if ws:
+        browser = await pw.chromium.connect_over_cdp(ws)
+        return browser, browser.contexts[0]
+
+    # 2. 同步profile登录态
+    _sync_headless_profile()
+
+    # 3. 杀掉旧的headless进程（如果有）
+    try:
+        r = subprocess.run(["lsof", "-i", f":{port}", "-t"], capture_output=True, text=True)
+        for pid in r.stdout.strip().split():
+            subprocess.run(["kill", "-9", pid], capture_output=True)
+        await asyncio.sleep(1)
+    except Exception:
+        pass
+
+    # 4. 启动headless Chrome
+    chrome = _find_chrome()
+    cmd = [
+        chrome,
+        "--headless=new",
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={HEADLESS_PROFILE}",
+        f"--load-extension={EXT_PATH},{OPS_LOGGER_PATH}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-gpu",
+        "--proxy-server=direct://",
+    ]
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # 等端口就绪
+    for _ in range(20):
+        await asyncio.sleep(1)
+        ws = _cdp_ws(port)
+        if ws:
+            browser = await pw.chromium.connect_over_cdp(ws)
+            await asyncio.sleep(2)
+            return browser, browser.contexts[0]
+
+    raise Exception("Headless Chrome启动超时")
+
+
+async def ensure_https(page):
+    """Goku的一键登录会打开http://，在headless下会失败。检测并修正为https://"""
+    url = page.url
+    if url.startswith("http://e.waimai.meituan.com"):
+        await page.goto(url.replace("http://", "https://"), wait_until="commit", timeout=15000)
+    elif url.startswith("http://melody.shop.ele.me"):
+        await page.goto(url.replace("http://", "https://"), wait_until="commit", timeout=15000)
+
+
+async def check_headless_login(ctx):
+    """检查headless的登录状态，返回 (ok, message)
+    检查Goku插件是否有品牌（=已登录），检查美团/饿了么cookies是否有效"""
+    from plugin_helper import get_ext
+    try:
+        ext = await get_ext(ctx)
+    except Exception:
+        return False, "找不到悟空插件，请确认Chrome已登录悟空"
+
+    # 检查悟空是否有品牌数据
+    for _ in range(3):
+        ready = await ext.evaluate("() => document.querySelectorAll('.ant-select-selector').length > 0")
+        if ready:
+            break
+        await asyncio.sleep(1)
+    if not ready:
+        return False, "悟空插件未就绪"
+
+    # 打开下拉看有没有品牌
+    await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
+    await asyncio.sleep(1)
+    count = await ext.evaluate("() => document.querySelectorAll('.ant-select-item-option').length")
+    await ext.evaluate("() => document.activeElement && document.activeElement.blur()")
+
+    if count == 0:
+        return False, "悟空登录已过期，请在Chrome中重新打开悟空插件登录"
+
+    return True, f"就绪（{count}个品牌）"
+
+
+def kill_headless(port=HEADLESS_PORT):
+    """关闭headless Chrome进程"""
+    try:
+        r = subprocess.run(["lsof", "-i", f":{port}", "-t"], capture_output=True, text=True)
+        for pid in r.stdout.strip().split():
+            if pid:
+                subprocess.run(["kill", "-9", pid], capture_output=True)
+    except Exception:
+        pass

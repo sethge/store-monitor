@@ -2105,7 +2105,23 @@ def api_agent_status():
             patrol = dict(_patrol_state)
     # 不把log塞进轮询响应，太大
     patrol_clean = {k: v for k, v in patrol.items() if k != "log"}
-    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean})
+    # 检查headless profile是否存在（粗判登录态）
+    headless_profile = os.path.join("/tmp", "chrome-headless-patrol")
+    has_profile = os.path.exists(headless_profile)
+    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile})
+
+
+@app.route("/api/headless/refresh", methods=["POST"])
+def api_headless_refresh():
+    """刷新headless登录态（从Chrome profile同步cookies）"""
+    try:
+        sys.path.insert(0, WORKSPACE)
+        from browser import _sync_headless_profile, kill_headless
+        kill_headless()
+        _sync_headless_profile()
+        return jsonify({"ok": True, "message": "登录态已同步"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
 
 
 @app.route("/api/patrol/log")
@@ -2175,15 +2191,21 @@ def api_patrol_start():
     if not os.path.exists(script):
         return jsonify({"ok": False, "message": "巡检脚本不存在"}), 500
 
+    headless = data.get("headless", True)  # 默认无头
+
     def _run_patrol():
         with _patrol_lock:
             _patrol_state["state"] = "running"
             _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
             _patrol_state["log"] = ""
-        print(f"[patrol] 启动: {brands}, 脚本: {script}")
+        cmd = [PYTHON, script]
+        if headless:
+            cmd.append("--headless")
+        cmd += brands
+        print(f"[patrol] 启动: headless={headless}, brands={brands}")
         try:
             proc = subprocess.Popen(
-                [PYTHON, script] + brands,
+                cmd,
                 cwd=WORKSPACE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -2627,7 +2649,7 @@ def _schedule_patrol():
         try:
             script = os.path.join(WORKSPACE, "run_all_fast.py")
             proc = subprocess.Popen(
-                [sys.executable, script] + brands,
+                [sys.executable, script, "--headless"] + brands,
                 cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             with _patrol_lock:
                 _patrol_state["pid"] = proc.pid
