@@ -2525,7 +2525,7 @@ def _exec_tool(name, args):
         conn.close()
 
 def _call_deepseek(messages, tools=None):
-    """Call DeepSeek API."""
+    """Call DeepSeek API (绕过系统代理)."""
     payload = {
         "model": DEEPSEEK_MODEL,
         "messages": messages,
@@ -2536,7 +2536,9 @@ def _call_deepseek(messages, tools=None):
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    resp = http_requests.post(
+    session = http_requests.Session()
+    session.trust_env = False  # 绕过系统代理，运营机器可能有代理干扰
+    resp = session.post(
         DEEPSEEK_API_URL,
         headers={
             "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
