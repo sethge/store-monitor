@@ -12,3 +12,6 @@ memory/interactions/
 memory/pending_review/
 memory/.last_digest
 memory/diagnosis/
+.venv/
+ops-logger/patrol_*.json
+*/_metadata/

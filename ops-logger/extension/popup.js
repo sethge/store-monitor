@@ -77,7 +77,30 @@ async function loadDaily() {
     return;
   }
 
-  var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) + '</div>';
+  // 品牌概览：统计授权状态
+  var totalStores = data.stores.length;
+  var authIssues = data.stores.filter(function(s) {
+    return s.platforms.some(function(p) { return p.has_auth_issue; });
+  });
+  var normalStores = totalStores - authIssues.length;
+
+  var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) +
+    (data.brands ? ' · ' + data.brands + '个品牌' : '') +
+    (data.duration ? ' · ' + data.duration + '秒' : '') + '</div>';
+
+  // 授权状态概览
+  if (authIssues.length > 0) {
+    html += '<div style="margin:6px 10px;background:#fff3e0;border-radius:8px;padding:8px 12px;font-size:12px">' +
+      '<span style="color:#e65100;font-weight:600">' + authIssues.length + '家店未授权</span>' +
+      '<span style="color:#999;margin-left:6px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">[详情]</span>' +
+      '<div style="display:none;margin-top:4px;font-size:11px;color:#666">';
+    for (var ai = 0; ai < authIssues.length; ai++) {
+      var as = authIssues[ai];
+      var authPlatforms = as.platforms.filter(function(p){return p.has_auth_issue}).map(function(p){return p.platform}).join('、');
+      html += '<div>' + esc(as.store) + ' — ' + esc(authPlatforms) + '</div>';
+    }
+    html += '</div></div>';
+  }
 
   for (var i = 0; i < data.stores.length; i++) {
     var store = data.stores[i];
@@ -481,15 +504,21 @@ async function checkAgent() {
   if (data.patrol && data.patrol.state === 'running') {
     dot.className = 'agent-dot busy';
     msg.textContent = data.patrol.message || '巡检中...';
-    btn.disabled = true;
-    btn.textContent = '巡检中';
+    btn.disabled = false;
+    btn.textContent = '停止';
+    btn.dataset.action = 'stop';
     setTimeout(checkAgent, 3000);
     return;
   }
+  btn.dataset.action = 'start';
 
   if (data.patrol && data.patrol.state === 'done') {
     dot.className = 'agent-dot ok';
-    msg.textContent = '巡检完成';
+    // 显示巡检概览：品牌数+问题数+定时状态
+    var doneMsg = '巡检完成';
+    if (data.patrol.summary) doneMsg = data.patrol.summary;
+    if (data.scheduled) doneMsg += ' · 每天' + data.scheduled + '自动巡检';
+    msg.textContent = doneMsg;
     btn.disabled = false;
     btn.textContent = '巡检';
     loadDaily();
@@ -540,7 +569,7 @@ async function startPatrol() {
 
   var result = await apiPost('/api/patrol/start', { operator: operator });
   if (result && result.ok) {
-    msg.textContent = result.message || '巡检已启动';
+    msg.textContent = '已开启巡检，完成后自动开启每日巡检和预警';
     btn.textContent = '巡检中';
     setTimeout(checkAgent, 2000);
   } else if (result && result.error === 'no_brands') {
@@ -553,6 +582,24 @@ async function startPatrol() {
     btn.disabled = false;
     btn.textContent = '巡检';
     dot.className = 'agent-dot off';
+  }
+}
+
+async function stopPatrol() {
+  var btn = document.getElementById('patrolBtn');
+  var msg = document.getElementById('agentMsg');
+  btn.disabled = true;
+  btn.textContent = '停止中...';
+  var result = await apiPost('/api/patrol/stop', {});
+  if (result && result.ok) {
+    msg.textContent = '巡检已停止';
+    btn.textContent = '巡检';
+    btn.disabled = false;
+    btn.dataset.action = 'start';
+    document.getElementById('agentDot').className = 'agent-dot off';
+  } else {
+    btn.disabled = false;
+    btn.textContent = '停止';
   }
 }
 
@@ -762,7 +809,11 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.getElementById('patrolBtn').addEventListener('click', function() {
-    startPatrol();
+    if (this.dataset.action === 'stop') {
+      stopPatrol();
+    } else {
+      startPatrol();
+    }
   });
 
   // Refresh every 30s

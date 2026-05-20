@@ -2202,7 +2202,84 @@ def api_agent_status():
     # 检查headless profile是否存在（粗判登录态）
     headless_profile = os.path.join("/tmp", "chrome-headless-patrol")
     has_profile = os.path.exists(headless_profile)
-    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile})
+    # 巡检完成时附带概览信息
+    if patrol_clean.get("state") == "done":
+        pr = _load_patrol_result()
+        if pr:
+            n_brands = pr.get("brands", 0)
+            n_issues = sum(len(v) for v in pr.get("issues", {}).values())
+            n_auth = sum(1 for items in pr.get("issues", {}).values() for i in items if i.get("type") == "auth")
+            parts = [f"{n_brands}个品牌"]
+            if n_issues > 0:
+                parts.append(f"{n_issues}个问题")
+            if n_auth > 0:
+                parts.append(f"{n_auth}个未授权")
+            if n_issues == 0:
+                parts.append("全部正常")
+            patrol_clean["summary"] = "、".join(parts)
+    # 定时巡检状态
+    cfg = load_config()
+    scheduled = cfg.get("patrol_time") if cfg.get("patrol_enabled") else None
+    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile, "scheduled": scheduled})
+
+
+@app.route("/api/setup/status")
+def api_setup_status():
+    """冷启动checklist状态"""
+    checks = {}
+
+    # 1. Chrome debug端口是否可用
+    chrome_ok = False
+    try:
+        r = subprocess.run(["curl", "--noproxy", "localhost", "-s", "--max-time", "2",
+                           "http://localhost:9222/json/version"],
+                          capture_output=True, text=True, timeout=5)
+        if r.returncode == 0 and r.stdout.strip():
+            chrome_ok = True
+    except Exception:
+        pass
+    checks["chrome_debug"] = chrome_ok
+
+    # 2. Goku插件是否已登录（有品牌数据）
+    goku_ok = False
+    goku_msg = ""
+    if chrome_ok:
+        try:
+            # 用playwright检查太重，直接看config里有没有operator+上次巡检结果
+            cfg = load_config()
+            pr = _load_patrol_result()
+            if pr and pr.get("brands", 0) > 0:
+                goku_ok = True
+                goku_msg = f"{pr['brands']}个品牌"
+            elif cfg.get("operator"):
+                goku_msg = "已设置运营名，未巡检"
+        except Exception:
+            pass
+    checks["goku_login"] = goku_ok
+    checks["goku_msg"] = goku_msg
+
+    # 3. 运营名是否已设置
+    cfg = load_config()
+    operator = cfg.get("operator", "")
+    checks["operator"] = operator
+    checks["operator_set"] = bool(operator)
+
+    # 4. 开发者模式（headless需要）
+    dev_mode = False
+    src_pref = os.path.expanduser("~/chrome-debug/Default/Secure Preferences")
+    if os.path.exists(src_pref):
+        try:
+            with open(src_pref) as f:
+                sp = json.load(f)
+            dev_mode = sp.get("extensions", {}).get("ui", {}).get("developer_mode", False)
+        except Exception:
+            pass
+    checks["developer_mode"] = dev_mode
+
+    # 整体就绪
+    checks["ready"] = chrome_ok and checks["operator_set"] and dev_mode
+
+    return jsonify(checks)
 
 
 @app.route("/api/headless/refresh", methods=["POST"])

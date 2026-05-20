@@ -161,6 +161,22 @@ def _find_chrome():
     raise Exception("找不到Chrome，请安装Chrome")
 
 
+def _enable_developer_mode(profile_dir):
+    """在profile的Preferences里开启扩展开发者模式（--load-extension需要）"""
+    import json as _json
+    for pref_name in ["Preferences", "Secure Preferences"]:
+        pref_path = Path(profile_dir) / "Default" / pref_name
+        if pref_path.exists():
+            try:
+                with open(pref_path) as f:
+                    data = _json.load(f)
+                data.setdefault("extensions", {}).setdefault("ui", {})["developer_mode"] = True
+                with open(pref_path, "w") as f:
+                    _json.dump(data, f)
+            except Exception:
+                pass
+
+
 def _sync_headless_profile():
     """同步headless profile的登录态。首次全拷，之后只增量同步Cookies"""
     import patrol_log as L
@@ -185,6 +201,8 @@ def _sync_headless_profile():
             lock.unlink(missing_ok=True)
         for lock in dst.rglob("SingletonSocket"):
             lock.unlink(missing_ok=True)
+        # 开启开发者模式（--load-extension需要）
+        _enable_developer_mode(dst)
         L.step("profile", f"首次拷贝完成: {dst}")
     else:
         # 增量：只同步关键登录文件

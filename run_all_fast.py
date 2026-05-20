@@ -243,44 +243,98 @@ async def main():
                     for x in ctx.pages:
                         if 'waimai.meituan.com' in x.url and 'chrome-extension' not in x.url: pg=x; break
                     if pg:
-                        L.step("scrape", f"美团数据采集: {pg.url[:60]}")
-                        try:
-                            issues = await fast_mt(pg)
-                            name = issues.pop('name','')
-                            if name and '*' not in name: real_name = name
-                            for k, v in issues.items():
-                                if k=='bad':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
-                                elif k=='notices':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"notice","msg":f"{len(v)}条通知","details":v})
-                                elif k=='promo':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
-                        except Exception as e:
-                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {str(e)[:30]}","details":[]})
-                        try: await pg.close()
-                        except: pass
+                        # 检查是否需要验证码
+                        from plugin_helper import check_verification
+                        blocked, block_msg = await check_verification(pg)
+                        if blocked:
+                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"auth","msg":f"需要验证: {block_msg}","details":[]})
+                            try: await pg.close()
+                            except: pass
+                        else:
+                            L.step("scrape", f"美团数据采集: {pg.url[:60]}")
+                            try:
+                                issues = await fast_mt(pg)
+                                name = issues.pop('name','')
+                                if name and '*' not in name: real_name = name
+                                for k, v in issues.items():
+                                    if k=='bad':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                    elif k=='notices':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"notice","msg":f"{len(v)}条通知","details":v})
+                                    elif k=='promo':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                            except Exception as e:
+                                err_msg = str(e)
+                                # ERR_ABORTED = 页面加载慢，刷新重试一次
+                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg:
+                                    L.step("scrape", f"美团页面加载失败，刷新重试")
+                                    try:
+                                        await pg.reload(wait_until="commit", timeout=15000)
+                                        await asyncio.sleep(3)
+                                        issues = await fast_mt(pg)
+                                        name = issues.pop('name','')
+                                        if name and '*' not in name: real_name = name
+                                        for k, v in issues.items():
+                                            if k=='bad':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                            elif k=='notices':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"notice","msg":f"{len(v)}条通知","details":v})
+                                            elif k=='promo':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                                    except Exception as e2:
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                else:
+                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
+                            try: await pg.close()
+                            except: pass
 
                 elif p == 'eleme':
                     pg = None
                     for x in ctx.pages:
                         if 'ele.me' in x.url and 'melody' in x.url: pg=x; break
                     if pg:
-                        L.step("scrape", f"饿了么数据采集: {pg.url[:60]}")
-                        try:
-                            issues = await fast_ele(pg)
-                            name = issues.pop('name','')
-                            if name: real_name = name
-                            for k, v in issues.items():
-                                if k=='bad':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
-                                elif k=='exp':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"expiring","msg":f"{len(v)}个活动即将到期","details":v})
-                                elif k=='promo':
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
-                        except Exception as e:
-                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {str(e)[:30]}","details":[]})
-                        try: await pg.close()
-                        except: pass
+                        from plugin_helper import check_verification
+                        blocked, block_msg = await check_verification(pg)
+                        if blocked:
+                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"auth","msg":f"需要验证: {block_msg}","details":[]})
+                            try: await pg.close()
+                            except: pass
+                        else:
+                            L.step("scrape", f"饿了么数据采集: {pg.url[:60]}")
+                            try:
+                                issues = await fast_ele(pg)
+                                name = issues.pop('name','')
+                                if name: real_name = name
+                                for k, v in issues.items():
+                                    if k=='bad':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                    elif k=='exp':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"expiring","msg":f"{len(v)}个活动即将到期","details":v})
+                                    elif k=='promo':
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                            except Exception as e:
+                                err_msg = str(e)
+                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg:
+                                    L.step("scrape", f"饿了么页面加载失败，刷新重试")
+                                    try:
+                                        await pg.reload(wait_until="commit", timeout=15000)
+                                        await asyncio.sleep(3)
+                                        issues = await fast_ele(pg)
+                                        name = issues.pop('name','')
+                                        if name: real_name = name
+                                        for k, v in issues.items():
+                                            if k=='bad':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                            elif k=='exp':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"expiring","msg":f"{len(v)}个活动即将到期","details":v})
+                                            elif k=='promo':
+                                                all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                                    except Exception as e2:
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                else:
+                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
+                            try: await pg.close()
+                            except: pass
 
         print(f"{time.time()-t_brand:.0f}s")
 
