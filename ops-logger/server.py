@@ -2584,9 +2584,24 @@ DEEPSEEK_API_KEY = "sk-e9a15a3b186f49308076422d2685f7b0"
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-chat"
 
-AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI助手。你跑在服务端，能查数据库、看日志、分析预警。
-说话风格：像微信聊天，短句直接，不啰嗦，不说技术术语。
-你有以下工具可以调用，根据用户问题选择合适的工具。"""
+AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI助手。
+
+## 你的职能
+1. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
+2. **反馈收集** — 运营说诊断哪里不对、哪个建议有问题，你记录下来
+3. **答疑交流** — 基于诊断报告和店铺数据，回答运营的疑问
+4. **会议纪要** — 查会议记录发给运营，总结关键行动项
+
+## 说话风格
+像微信聊天，短句直接，不啰嗦，不说技术术语。
+发诊断报告时用markdown格式，重点加粗，分段清晰。
+运营提反馈时先确认理解，再记录。
+
+## 当前运营
+{operator}
+
+## 工具使用
+根据运营的问题选择合适的工具。优先用CRM工具查诊断和会议纪要。"""
 
 AGENT_TOOLS = [
     {
@@ -2657,6 +2672,65 @@ AGENT_TOOLS = [
             "name": "query_shop_list",
             "description": "查询已缓存的店铺列表",
             "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crm_query_diagnosis",
+            "description": "查询品牌/店铺的诊断报告。运营问起某个品牌的诊断、问题、建议时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "store_name": {"type": "string", "description": "品牌名或店铺名关键词"},
+                    "operator": {"type": "string", "description": "运营姓名，可选，不填查所有"}
+                },
+                "required": ["store_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crm_query_meeting",
+            "description": "查询会议纪要。运营问起开会内容、会议记录时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "store_name": {"type": "string", "description": "品牌名关键词，可选"},
+                    "keyword": {"type": "string", "description": "搜索关键词，可选"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crm_list_stores",
+            "description": "查询CRM中所有品牌列表（含运营、阶段、诊断时间）。运营问'我有哪些店'或'最近诊断了哪些'时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operator": {"type": "string", "description": "运营姓名，可选"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crm_record_feedback",
+            "description": "记录运营对诊断的反馈。运营说某个建议不对、某个数据有误时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "store_name": {"type": "string", "description": "品牌名"},
+                    "content": {"type": "string", "description": "反馈内容"}
+                },
+                "required": ["store_name", "content"]
+            }
         }
     }
 ]
@@ -2792,12 +2866,139 @@ def _exec_tool(name, args):
                 return "还没有缓存任何店铺"
             return json.dumps([dict(r) for r in rows], ensure_ascii=False)
 
+        # ===== CRM Tools =====
+        elif name == "crm_query_diagnosis":
+            return _crm_query_diagnosis(args)
+        elif name == "crm_query_meeting":
+            return _crm_query_meeting(args)
+        elif name == "crm_list_stores":
+            return _crm_list_stores(args)
+        elif name == "crm_record_feedback":
+            return _crm_record_feedback(args)
+
         else:
             return f"未知工具: {name}"
     except Exception as e:
         return f"查询出错: {str(e)}"
     finally:
         conn.close()
+
+CRM_DB = os.path.join(os.path.expanduser("~"), "Downloads", "diagnosis-queue", "crm.db")
+
+def _crm_db():
+    if not os.path.exists(CRM_DB):
+        return None
+    conn = sqlite3.connect(CRM_DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _crm_query_diagnosis(args):
+    """查诊断报告"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    store_name = args.get("store_name", "")
+    operator = args.get("operator", "")
+    # 先找store
+    q = "SELECT id, store_name, branch, operator_name, stage, diagnosed_at FROM stores WHERE store_name LIKE ?"
+    p = [f"%{store_name}%"]
+    if operator:
+        q += " AND operator_name LIKE ?"
+        p.append(f"%{operator}%")
+    stores = conn.execute(q, p).fetchall()
+    if not stores:
+        conn.close()
+        return f"没有找到包含'{store_name}'的品牌"
+    results = []
+    for s in stores[:3]:  # 最多3个品牌
+        docs = conn.execute(
+            "SELECT doc_type, title, content, created_at FROM documents WHERE store_id=? ORDER BY created_at DESC",
+            (s["id"],)).fetchall()
+        store_info = {"brand": s["store_name"], "branch": s["branch"], "operator": s["operator_name"],
+                      "stage": s["stage"], "diagnosed_at": s["diagnosed_at"]}
+        reports = []
+        for d in docs:
+            if d["doc_type"] == "report":
+                # 报告可能很长，截取关键部分
+                content = d["content"]
+                if len(content) > 3000:
+                    content = content[:3000] + "\n\n...(报告较长，已截取前3000字)"
+                reports.append({"type": d["doc_type"], "title": d["title"], "content": content, "date": d["created_at"]})
+            else:
+                reports.append({"type": d["doc_type"], "title": d["title"], "content": d["content"], "date": d["created_at"]})
+        store_info["documents"] = reports
+        results.append(store_info)
+    conn.close()
+    return json.dumps(results, ensure_ascii=False)
+
+def _crm_query_meeting(args):
+    """查会议纪要"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    store_name = args.get("store_name", "")
+    keyword = args.get("keyword", "")
+    if store_name:
+        rows = conn.execute("""
+            SELECT d.title, d.content, d.created_at, s.store_name, s.branch
+            FROM documents d JOIN stores s ON d.store_id = s.id
+            WHERE d.doc_type IN ('meeting','review') AND s.store_name LIKE ?
+            ORDER BY d.created_at DESC LIMIT 10
+        """, (f"%{store_name}%",)).fetchall()
+    elif keyword:
+        rows = conn.execute("""
+            SELECT d.title, d.content, d.created_at, s.store_name, s.branch
+            FROM documents d JOIN stores s ON d.store_id = s.id
+            WHERE d.doc_type IN ('meeting','review') AND (d.content LIKE ? OR d.title LIKE ?)
+            ORDER BY d.created_at DESC LIMIT 10
+        """, (f"%{keyword}%", f"%{keyword}%")).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT d.title, d.content, d.created_at, s.store_name, s.branch
+            FROM documents d JOIN stores s ON d.store_id = s.id
+            WHERE d.doc_type IN ('meeting','review')
+            ORDER BY d.created_at DESC LIMIT 10
+        """).fetchall()
+    conn.close()
+    if not rows:
+        return "没有找到会议纪要"
+    return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+def _crm_list_stores(args):
+    """列出CRM品牌"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    operator = args.get("operator", "")
+    if operator:
+        rows = conn.execute(
+            "SELECT store_name, branch, operator_name, stage, diagnosed_at FROM stores WHERE operator_name LIKE ? ORDER BY diagnosed_at DESC",
+            (f"%{operator}%",)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT store_name, branch, operator_name, stage, diagnosed_at FROM stores ORDER BY diagnosed_at DESC").fetchall()
+    conn.close()
+    if not rows:
+        return "CRM中没有品牌记录"
+    return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+def _crm_record_feedback(args):
+    """记录反馈"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    store_name = args.get("store_name", "")
+    content = args.get("content", "")
+    # 找store_id
+    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
+    if not store:
+        conn.close()
+        return f"没有找到品牌'{store_name}'"
+    conn.execute("INSERT INTO events (store_id, event_type, content) VALUES (?, 'feedback', ?)",
+                 (store["id"], content))
+    conn.commit()
+    conn.close()
+    return f"已记录反馈: {content[:50]}"
 
 def _call_deepseek(messages, tools=None):
     """Call DeepSeek API (绕过系统代理)."""
@@ -2837,9 +3038,7 @@ def api_chat():
         return jsonify({"reply": "说点啥？", "tools_used": []}), 200
 
     # Build messages
-    system = AGENT_SYSTEM_PROMPT
-    if operator:
-        system += f"\n当前运营: {operator}"
+    system = AGENT_SYSTEM_PROMPT.replace("{operator}", operator or "未知")
 
     messages = [{"role": "system", "content": system}]
     # Add recent history (skip the last user msg, we'll add it fresh)
