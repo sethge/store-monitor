@@ -36,6 +36,30 @@ async def get_all_brands(ext):
     return brands
 
 
+def _log_error(error_type, message, context=None):
+    """记录错误到 patrol_errors.json（追加）"""
+    err_file = os.path.join(os.path.dirname(__file__), "ops-logger", "patrol_errors.json")
+    entry = {
+        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": error_type,
+        "msg": message,
+        "ctx": context or {}
+    }
+    try:
+        errors = []
+        if os.path.exists(err_file):
+            with open(err_file, "r") as f:
+                errors = json.load(f)
+        errors.append(entry)
+        # 只保留最近200条
+        errors = errors[-200:]
+        with open(err_file, "w") as f:
+            json.dump(errors, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+    print(f"[ERROR] [{error_type}] {message}")
+
+
 async def main():
     import argparse
     parser = argparse.ArgumentParser(description='全量巡检')
@@ -43,41 +67,79 @@ async def main():
     parser.add_argument('--headless', action='store_true', help='无头模式，零窗口')
     args = parser.parse_args()
 
-    pw = await async_playwright().start()
+    # ========== Preflight Check ==========
+    print("--- 启动前检查 ---")
+    checks_ok = True
 
+    # Check 1: playwright可用
+    try:
+        pw = await async_playwright().start()
+        print("  [OK] playwright")
+    except Exception as e:
+        _log_error("preflight", f"playwright启动失败: {e}")
+        print(f"  [FAIL] playwright: {e}")
+        return
+
+    # Check 2: Chrome连接
     if args.headless:
         from browser import launch_headless
-        print("启动无头巡检...")
-        b, ctx = await launch_headless(pw)
+        try:
+            print("  启动无头Chrome...", end=" ", flush=True)
+            b, ctx = await launch_headless(pw)
+            print("[OK]")
+        except Exception as e:
+            _log_error("preflight", f"headless Chrome启动失败: {e}")
+            print(f"[FAIL] {e}")
+            await pw.stop()
+            return
         user_page = None
     else:
         from browser import launch as launch_browser
-        b, ctx = await launch_browser(pw)
+        try:
+            b, ctx = await launch_browser(pw)
+            print("  [OK] Chrome连接")
+        except Exception as e:
+            _log_error("preflight", f"Chrome连接失败: {e}")
+            print(f"  [FAIL] Chrome: {e}")
+            await pw.stop()
+            return
         user_page = await save_user_focus(ctx)
 
-    ext = await get_ext(ctx)
+    # Check 3: 悟空插件
+    try:
+        ext = await get_ext(ctx)
+        print("  [OK] 悟空插件")
+    except Exception as e:
+        _log_error("preflight", f"悟空插件找不到: {e}", {"pages": [p.url[:80] for p in ctx.pages]})
+        print(f"  [FAIL] 悟空插件: {e}")
+        await pw.stop()
+        return
 
-    # headless模式下检查登录态
+    # Check 4: headless登录态
     if args.headless:
         from browser import check_headless_login
         login_ok, login_msg = await check_headless_login(ctx)
         if not login_ok:
-            print(f"❌ 登录失败: {login_msg}")
-            print("请在Chrome中重新登录悟空插件，然后重试")
+            _log_error("preflight", f"登录失败: {login_msg}")
+            print(f"  [FAIL] 登录: {login_msg}")
             await pw.stop()
             return
+        print(f"  [OK] 登录: {login_msg}")
 
-    # 优先用命令行传入的品牌名，没传则从插件下拉框读
+    # Check 5: 品牌列表
     if args.brands:
         brands = args.brands
-        print(f"使用指定品牌: {brands}")
+        print(f"  [OK] 指定品牌: {brands}")
     else:
         brands = await get_all_brands(ext)
 
     if not brands:
-        print("❌ 未获取到品牌列表，请确认悟空插件已登录或传入品牌参数")
+        _log_error("preflight", "未获取到品牌列表")
+        print("  [FAIL] 品牌列表为空")
         await pw.stop()
         return
+    print(f"  [OK] {len(brands)}个品牌")
+    print("--- 检查通过，开始巡检 ---\n")
 
     print(f"盯店全量巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print(f"共 {len(brands)} 个品牌\n")
@@ -94,15 +156,30 @@ async def main():
         brand_short = brand.split("（")[0]
         print(f"  [{bi+1}/{len(brands)}] {brand}...", end=" ", flush=True)
 
-        await close_store_pages(ctx)
-        ext = await get_ext(ctx)
+        try:
+            await close_store_pages(ctx)
+            ext = await get_ext(ctx)
+        except Exception as e:
+            _log_error("brand_setup", f"get_ext失败，跳过{brand}", {"brand": brand, "error": str(e)})
+            print(f"❌ 插件连接失败，跳过")
+            all_issues[brand] = [{"platform":"","type":"error","msg":f"插件连接失败: {str(e)[:50]}","details":[]}]
+            continue
+
         ok, status = await pick_brand(ext, brand)
         if not ok:
+            _log_error("brand_pick", f"品牌未找到: {brand}")
             print(f"❌")
             all_issues[brand] = [{"platform":"","type":"error","msg":"品牌未找到","details":[]}]
             continue
 
-        stores = await get_stores(ext)
+        try:
+            stores = await get_stores(ext)
+        except Exception as e:
+            _log_error("brand_stores", f"获取店铺失败: {brand}", {"error": str(e)})
+            print(f"❌ 获取店铺失败")
+            all_issues[brand] = [{"platform":"","type":"error","msg":f"获取店铺失败: {str(e)[:50]}","details":[]}]
+            continue
+
         print(f"{len(stores)}店", end=" ", flush=True)
 
         for store_key, accounts in stores.items():
@@ -130,18 +207,23 @@ async def main():
                     continue
                 if acct['action'] != '一键登录': continue
 
-                await close_store_pages(ctx)
-                ext = await get_ext(ctx)
-                await pick_brand(ext, brand)
-                result = await click_store_platform(ext, acct['account'])
-                if result != 'ok': continue
-                await asyncio.sleep(3)  # 等Goku创建tab
-                await restore_user_focus(user_page)  # 再还焦点
+                try:
+                    await close_store_pages(ctx)
+                    ext = await get_ext(ctx)
+                    await pick_brand(ext, brand)
+                    result = await click_store_platform(ext, acct['account'])
+                    if result != 'ok': continue
+                    await asyncio.sleep(3)  # 等Goku创建tab
+                    await restore_user_focus(user_page)  # 再还焦点
 
-                # headless下Goku可能开http://，修正为https://
-                for x in ctx.pages:
-                    if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
-                        await ensure_https(x)
+                    # headless下Goku可能开http://，修正为https://
+                    for x in ctx.pages:
+                        if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
+                            await ensure_https(x)
+                except Exception as e:
+                    _log_error("store_login", f"登录店铺失败，跳过", {"brand": brand, "store": store_key, "account": acct.get('account',''), "platform": p_name, "error": str(e)})
+                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录失败: {str(e)[:40]}","details":[]})
+                    continue
 
                 if p == 'meituan':
                     pg = None

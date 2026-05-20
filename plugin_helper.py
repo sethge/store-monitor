@@ -49,36 +49,61 @@ KNOWN_EXT_IDS = [
     "imnjpdamkohlnjmnlfngaoogfnahlldd",
     "ghppggbdmkaicdgohkkdaebbpcochkfe",
     "kocmiihdllcmbjanolpggoafghdfnglg",
+    "jhmgkfkfdojnpccjiihkdfjinbkcfhfc",
 ]
 EXT_ID = KNOWN_EXT_IDS[0]
 
+# 运行时缓存发现的ID，避免每次都扫
+_discovered_ext_id = None
+
 
 async def get_ext(ctx):
+    global _discovered_ext_id
+
+    # 构建搜索顺序：已发现的ID优先，然后是已知列表
+    search_ids = list(KNOWN_EXT_IDS)
+    if _discovered_ext_id and _discovered_ext_id not in search_ids:
+        search_ids.insert(0, _discovered_ext_id)
+    elif _discovered_ext_id:
+        search_ids.remove(_discovered_ext_id)
+        search_ids.insert(0, _discovered_ext_id)
+
     # 先找已打开的悟空页面（按已知ID匹配）
     for p in ctx.pages:
-        for eid in KNOWN_EXT_IDS:
-            if eid in p.url: return p
-    # 兜底：找任何chrome-extension页面，检查是否是悟空（含"品牌选择"文字）
+        for eid in search_ids:
+            if eid in p.url:
+                _discovered_ext_id = eid
+                return p
+
+    # 兜底：找任何chrome-extension页面，检查是否是悟空（含"品牌"/"重 置"文字）
     for p in ctx.pages:
         if 'chrome-extension://' in p.url:
             try:
                 text = await p.evaluate("() => document.body.innerText.substring(0,100)")
                 if '品牌' in text or '重 置' in text or '授权' in text:
+                    # 缓存这个新发现的ID
+                    import re as _re
+                    m = _re.search(r'chrome-extension://([a-z]+)/', p.url)
+                    if m:
+                        _discovered_ext_id = m.group(1)
+                        print(f"[plugin] 发现悟空插件ID: {_discovered_ext_id}")
                     return p
             except:
                 pass
+
     # 尝试用已知ID打开
     front_app = _get_frontmost_app()
-    for eid in KNOWN_EXT_IDS:
+    for eid in search_ids:
         p = await ctx.new_page()
         _activate_app(front_app)  # 立刻还焦点
         try:
             await p.goto(f"chrome-extension://{eid}/index.html", wait_until="commit", timeout=10000)
             await asyncio.sleep(2)
+            _discovered_ext_id = eid
             return p
         except:
             await p.close()
-    raise Exception("找不到悟空插件，请在Chrome中手动打开悟空插件页面")
+    raise Exception(f"找不到悟空插件(tried {len(search_ids)} IDs, pages={[p.url[:50] for p in ctx.pages]})")
 
 
 async def pick_brand(ext, brand):

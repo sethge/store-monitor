@@ -1728,7 +1728,67 @@ def download_file(filename):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+    """增强版健康检查：返回各组件状态"""
+    import subprocess as _hc_sp
+
+    # 检查headless Chrome
+    headless_ok = False
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://localhost:9333/json/version")
+        req.add_header("Host", "localhost")
+        with urllib.request.urlopen(req, timeout=2) as r:
+            headless_ok = r.status == 200
+    except Exception:
+        pass
+
+    # 最近巡检结果
+    last_patrol = None
+    last_patrol_status = None
+    try:
+        pr = _load_patrol_result()
+        if pr:
+            last_patrol = pr.get("ts")
+            last_patrol_status = "ok" if pr.get("issues") is not None else "unknown"
+    except Exception:
+        pass
+
+    # 最近错误
+    last_error = None
+    err_file = os.path.join(WORKSPACE, "ops-logger", "patrol_errors.json")
+    try:
+        if os.path.exists(err_file):
+            with open(err_file) as f:
+                errs = json.load(f)
+            if errs:
+                last_error = errs[-1]
+    except Exception:
+        pass
+
+    return jsonify({
+        "status": "ok",
+        "time": datetime.now().isoformat(),
+        "headless_chrome": headless_ok,
+        "last_patrol": last_patrol,
+        "last_patrol_status": last_patrol_status,
+        "last_error": last_error,
+        "patrol_state": _patrol_state.get("state", "idle"),
+    })
+
+
+@app.route("/api/errors")
+def api_errors():
+    """返回最近的巡检错误日志"""
+    limit = request.args.get("limit", 50, type=int)
+    err_file = os.path.join(WORKSPACE, "ops-logger", "patrol_errors.json")
+    try:
+        if os.path.exists(err_file):
+            with open(err_file) as f:
+                errs = json.load(f)
+            return jsonify(errs[-limit:])
+    except Exception:
+        pass
+    return jsonify([])
 
 # ========== Patrol APIs (日报 + 预警) ==========
 # 读 patrol_result.json（run_all_fast.py巡检结束后写入）
