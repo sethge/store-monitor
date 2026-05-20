@@ -2,6 +2,7 @@
 
 var SERVER_URL = 'http://127.0.0.1:5500';
 var MY_SHOPS = []; // 当前运营名下的店铺名列表
+var _dismissedAlerts = {}; // 已dismiss的预警key
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -63,6 +64,7 @@ function initTabs() {
       tab.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      // 切到预警Tab时不自动清红点，由用户点"知道了"逐条清
     });
   });
 }
@@ -190,8 +192,20 @@ async function loadAlerts() {
     return;
   }
 
+  // 过滤掉已dismiss的预警
+  var dismissed = _dismissedAlerts || {};
+  data = data.filter(function(a) {
+    var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
+    return !dismissed[key];
+  });
+
   var redCount = data.filter(function(a) { return a.level === 'red'; }).length;
-  updateBadge('alertBadge', redCount);
+  updateBadge('alertBadge', data.length);
+
+  if (data.length === 0) {
+    el.innerHTML = '<div class="empty">暂无预警</div>';
+    return;
+  }
 
   // 分离授权失败和正常预警
   var authAlerts = data.filter(function(a) { return a.type === 'auth'; });
@@ -218,9 +232,11 @@ async function loadAlerts() {
   for (var ai = 0; ai < authAlerts.length; ai++) {
     var aa = authAlerts[ai];
     var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
-    html += '<div class="store-card" style="border-left:3px solid #e65100">' +
+    var akey = (aa.store||'') + '|' + (aa.type||'') + '|' + (aa.msg||'');
+    html += '<div class="store-card alert-dismissable" data-alert-key="' + esc(akey) + '" style="border-left:3px solid #e65100;position:relative">' +
       '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
       '<div class="issue-line red">未授权 · ' + esc(pname) + '</div>' +
+      '<button class="dismiss-btn">知道了</button>' +
     '</div>';
   }
 
@@ -233,19 +249,42 @@ async function loadAlerts() {
       var a = alerts[j];
       var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
       var timeStr = a.ts ? fmtHM(a.ts) : '';
-      html += '<div class="alert-item" style="margin:2px 0;padding:4px 0;box-shadow:none">' +
+      var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
+      html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
         '<div class="alert-dot ' + a.level + '"></div>' +
         '<div class="alert-body">' +
           '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
           (a.detail ? '<div class="alert-detail">' + esc(a.detail) + '</div>' : '') +
           (timeStr ? '<div style="font-size:9px;color:#bbb;margin-top:1px">' + timeStr + '</div>' : '') +
         '</div>' +
+        '<button class="dismiss-btn">知道了</button>' +
       '</div>';
     }
     html += '</div>';
   }
 
   el.innerHTML = html;
+
+  // 绑定"知道了"按钮
+  el.querySelectorAll('.alert-dismissable').forEach(function(item) {
+    item.querySelector('.dismiss-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var key = item.dataset.alertKey;
+      _dismissedAlerts[key] = true;
+      try { chrome.storage.local.set({ dismissed_alerts: _dismissedAlerts }); } catch(e) {}
+      item.style.transition = 'opacity 0.3s';
+      item.style.opacity = '0';
+      setTimeout(function() {
+        item.remove();
+        // 更新红点
+        var remaining = el.querySelectorAll('.alert-dismissable').length;
+        updateBadge('alertBadge', remaining);
+        if (remaining === 0) {
+          el.innerHTML = '<div class="empty">暂无预警</div>';
+        }
+      }, 300);
+    });
+  });
 }
 
 // ========== Tab 3: Logs ==========
@@ -688,6 +727,7 @@ async function loadSettings() {
   if (data.alert_enabled === true) alertToggle.classList.add('on');
   if (data.patrol_time) patrolTime.value = data.patrol_time;
   if (data.alert_interval) alertInterval.value = data.alert_interval;
+  updateSettingsInfo();
 }
 
 async function saveSettings() {
@@ -704,18 +744,12 @@ async function saveSettings() {
 }
 
 function initSettings() {
-  var btn = document.getElementById('settingsBtn');
-  var panel = document.getElementById('settingsPanel');
-
-  btn.addEventListener('click', function() {
-    panel.classList.toggle('open');
-  });
-
   // Toggle switches
   ['patrolToggle', 'alertToggle'].forEach(function(id) {
     document.getElementById(id).addEventListener('click', function() {
       this.classList.toggle('on');
       saveSettings();
+      updateSettingsInfo();
     });
   });
 
@@ -723,15 +757,35 @@ function initSettings() {
   ['patrolTime', 'alertInterval'].forEach(function(id) {
     document.getElementById(id).addEventListener('change', function() {
       saveSettings();
+      updateSettingsInfo();
     });
   });
 
   loadSettings();
 }
 
+function updateSettingsInfo() {
+  var el = document.getElementById('settingsInfo');
+  if (!el) return;
+  var patrolOn = document.getElementById('patrolToggle').classList.contains('on');
+  var alertOn = document.getElementById('alertToggle').classList.contains('on');
+  var patrolTime = document.getElementById('patrolTime').value || '10:00';
+  var alertInterval = document.getElementById('alertInterval').value || '30';
+  var lines = [];
+  lines.push(patrolOn ? '定时巡检: 每天' + patrolTime + '自动巡检' : '定时巡检: 关闭');
+  lines.push(alertOn ? '实时预警: 每' + alertInterval + '分钟检查一次' : '实时预警: 关闭');
+  el.innerHTML = lines.join('<br>');
+}
+
 // ========== Init ==========
 
 async function init() {
+  // 加载dismissed预警
+  try {
+    var stored = await chrome.storage.local.get('dismissed_alerts');
+    _dismissedAlerts = stored.dismissed_alerts || {};
+  } catch(e) { _dismissedAlerts = {}; }
+
   chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, async function(state) {
     if (chrome.runtime.lastError || !state) {
       setTimeout(init, 300);
@@ -857,6 +911,20 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       startPatrol();
     }
+  });
+
+  // Chat: 绑定发送按钮和回车键（MV3不支持inline事件）
+  document.getElementById('sendBtn').addEventListener('click', function() {
+    sendMsg();
+  });
+  document.getElementById('chatInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendMsg();
+  });
+  // Quick buttons
+  document.querySelectorAll('.quick-btn[data-quick]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      sendQuick(btn.dataset.quick);
+    });
   });
 
   // Refresh every 30s

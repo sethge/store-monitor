@@ -60,6 +60,10 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .alert-dot.red { background: #c62828; }
 .alert-dot.yellow { background: #e65100; }
 .alert-dot.blue { background: #1565c0; }
+.alert-row { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; position: relative; }
+.dismiss-btn { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 10px; color: #999; padding: 2px 8px; cursor: pointer; }
+.dismiss-btn:hover { background: #eee; color: #666; }
+.alert-dismissable:hover .dismiss-btn { display: block; }
 .alert-body { flex: 1; }
 .alert-msg { font-size: 13px; font-weight: 600; color: #111; }
 .alert-detail { font-size: 11px; color: #888; margin-top: 2px; }
@@ -86,11 +90,7 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .patrol-btn:hover { background: #c23152; }
 .patrol-btn:disabled { background: #ddd; color: #999; cursor: default; }
 
-/* Settings panel */
-.settings-btn { background: none; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; }
-.settings-btn:hover { color: #666; }
-.settings-panel { display: none; background: #fff; border-bottom: 1px solid #eee; padding: 10px 12px; }
-.settings-panel.open { display: block; }
+/* Settings */
 .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .setting-row:last-child { margin-bottom: 0; }
 .setting-label { font-size: 12px; color: #333; flex: 1; }
@@ -178,31 +178,9 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
     <div class="agent-dot off" id="agentDot"></div>
     <div class="agent-msg" id="agentMsg">检测中...</div>
     <button class="patrol-btn" id="patrolBtn" disabled>巡检</button>
-    <button class="settings-btn" id="settingsBtn" title="设置">&#9881;</button>
   </div>
   <div id="startHint" style="display:none;background:#fff8e1;padding:8px 12px;font-size:11px;color:#e65100;border-bottom:1px solid #eee">
     双击桌面「启动小q」启动服务后刷新
-  </div>
-  <div class="settings-panel" id="settingsPanel">
-    <div class="setting-row">
-      <span class="setting-label">定时巡检</span>
-      <input class="setting-input" id="patrolTime" type="time" value="10:00" />
-      <button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">
-        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
-        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
-        <span class="toggle-knob" style="width:16px;height:16px"></span>
-      </button>
-    </div>
-    <div class="setting-row">
-      <span class="setting-label">实时预警</span>
-      <input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />
-      <span class="setting-unit">分钟</span>
-      <button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">
-        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
-        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
-        <span class="toggle-knob" style="width:16px;height:16px"></span>
-      </button>
-    </div>
   </div>
 
   <div class="tabs">
@@ -211,6 +189,7 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
     <button class="tab" data-tab="logs">日志</button>
     <button class="tab" data-tab="tracking">复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
     <button class="tab" data-tab="chat">会话</button>
+    <button class="tab" data-tab="settings">设置</button>
   </div>
 
   <div id="tab-daily" class="tab-content active"></div>
@@ -223,15 +202,41 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
         <div style="font-size:15px;font-weight:600;color:#666;margin-bottom:6px">跟小q聊</div>
         <div style="font-size:11px;line-height:1.6">问我店铺数据、预警、菜单分析</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px" id="quickBtns">
-          <button class="quick-btn" onclick="sendQuick('今天有什么预警？')">今日预警</button>
-          <button class="quick-btn" onclick="sendQuick('最近操作日志')">操作日志</button>
-          <button class="quick-btn" onclick="sendQuick('哪些店有差评？')">差评情况</button>
+          <button class="quick-btn" data-quick="今天有什么预警？">今日预警</button>
+          <button class="quick-btn" data-quick="最近操作日志">操作日志</button>
+          <button class="quick-btn" data-quick="哪些店有差评？">差评情况</button>
         </div>
       </div>
     </div>
     <div style="padding:8px 10px;background:#fff;border-top:1px solid #eee;display:flex;gap:6px">
-      <input id="chatInput" type="text" placeholder="跟小q说..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')sendMsg()" />
-      <button id="sendBtn" onclick="sendMsg()" style="background:#e94560;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">发送</button>
+      <input id="chatInput" type="text" placeholder="跟小q说..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" />
+      <button id="sendBtn" style="background:#e94560;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">发送</button>
+    </div>
+  </div>
+  <div id="tab-settings" class="tab-content">
+    <div style="padding:12px">
+      <div class="setting-row">
+        <span class="setting-label">定时巡检</span>
+        <input class="setting-input" id="patrolTime" type="time" value="10:00" />
+        <button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">
+          <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
+          <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
+          <span class="toggle-knob" style="width:16px;height:16px"></span>
+        </button>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">实时预警</span>
+        <input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />
+        <span class="setting-unit">分钟</span>
+        <button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">
+          <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
+          <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
+          <span class="toggle-knob" style="width:16px;height:16px"></span>
+        </button>
+      </div>
+      <div style="margin-top:12px;padding-top:8px;border-top:1px solid #eee">
+        <div style="font-size:11px;color:#999" id="settingsInfo"></div>
+      </div>
     </div>
   </div>
 </div>
