@@ -11,7 +11,7 @@ _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
 
 EXT_PATH = str(Path(__file__).parent / "goku")
-OPS_LOGGER_PATH = str(Path(__file__).parent / "ops-logger")
+OPS_LOGGER_PATH = str(Path(__file__).parent / "ops-logger" / "extension")
 PORT = 9222
 HEADLESS_PORT = 9333
 HEADLESS_PROFILE = "/tmp/chrome-headless-patrol"

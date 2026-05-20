@@ -34,7 +34,7 @@ USER_DIR = os.path.expanduser("~/tabbit-debug")
 DEFAULT_PORT = 9222
 
 # 扩展路径
-OPS_LOGGER_DIR = str(Path(__file__).parent)
+OPS_LOGGER_DIR = str(Path(__file__).parent / "extension")
 GOKU_DIR = str(Path(__file__).parent.parent / "goku")
 
 
