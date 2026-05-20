@@ -6,7 +6,7 @@ sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 # 复用run_fast的所有逻辑
 from run_fast import fast_mt, fast_ele, sd, check_promo, THREE_DAYS, CUTOFF
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages, save_user_focus, restore_user_focus, stop_hider
-from browser import ensure_https
+from browser import ensure_https, kill_headless
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -113,6 +113,7 @@ async def main():
     except Exception as e:
         L.error("preflight", f"悟空插件找不到: {e}", detail=str([p.url[:80] for p in ctx.pages]))
         _log_error("preflight", f"悟空插件找不到: {e}", {"pages": [p.url[:80] for p in ctx.pages]})
+        if args.headless: kill_headless()
         await pw.stop()
         return
 
@@ -123,6 +124,7 @@ async def main():
         if not login_ok:
             L.error("preflight", f"登录失败: {login_msg}")
             _log_error("preflight", f"登录失败: {login_msg}")
+            kill_headless()
             await pw.stop()
             return
         L.step("preflight", f"登录 OK: {login_msg}")
@@ -137,6 +139,7 @@ async def main():
     if not brands:
         L.error("preflight", "品牌列表为空")
         _log_error("preflight", "未获取到品牌列表")
+        if args.headless: kill_headless()
         await pw.stop()
         return
     L.step("preflight", f"{len(brands)}个品牌，检查通过")
@@ -336,6 +339,7 @@ async def main():
     issue_count = sum(len(items) for items in all_issues.values())
     log_interaction("usage", f"全量巡检 {len(brands)}品牌，{issue_count}个问题，{total:.0f}秒")
     await stop_hider()
+    if args.headless: kill_headless()
     await pw.stop()
 
 

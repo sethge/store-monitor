@@ -224,17 +224,36 @@ async def launch_headless(pw, port=HEADLESS_PORT):
     # 2. 同步profile登录态
     _sync_headless_profile()
 
-    # 3. 杀掉旧的headless进程（如果有）
+    # 3. 杀掉旧的headless进程（端口+进程名双重检查）
+    killed = False
     try:
         r = subprocess.run(["lsof", "-i", f":{port}", "-t"], capture_output=True, text=True)
         pids = r.stdout.strip().split()
         if pids and pids[0]:
             for pid in pids:
                 subprocess.run(["kill", "-9", pid], capture_output=True)
-            L.step("headless", f"杀掉旧进程: {pids}")
-            await asyncio.sleep(1)
+            L.step("headless", f"杀掉端口{port}旧进程: {pids}")
+            killed = True
     except Exception:
         pass
+    try:
+        r = subprocess.run(["pgrep", "-f", "headless=new"], capture_output=True, text=True)
+        pids = r.stdout.strip().split()
+        if pids and pids[0]:
+            for pid in pids:
+                subprocess.run(["kill", "-9", pid], capture_output=True)
+            if not killed:
+                L.step("headless", f"杀掉残留headless进程: {pids}")
+            killed = True
+    except Exception:
+        pass
+    if killed:
+        await asyncio.sleep(2)
+    # 清理锁文件
+    from pathlib import Path as _P
+    for lock in _P(HEADLESS_PROFILE).glob("Singleton*"):
+        try: lock.unlink()
+        except: pass
 
     # 4. 启动headless Chrome
     chrome = _find_chrome()
