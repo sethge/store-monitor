@@ -2617,7 +2617,11 @@ AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
 
 ## 工具使用
 根据运营的问题选择合适的工具。优先用CRM工具查诊断和会议纪要。
-运营闲聊或请教运营问题时，结合你的运营认知直接回答，不需要调工具。"""
+运营闲聊或请教运营问题时，结合你的运营认知直接回答，不需要调工具。
+
+## 重要：诊断报告必须原文转发
+查到诊断报告后，直接把原文完整发给运营，不要改写、不要重新生成、不要自己编内容。
+报告是专业团队做的，你的工作是转发，不是重写。可以在报告前后加一两句话引导，但报告本身一个字不改。"""
 
 AGENT_TOOLS = [
     {
@@ -2934,14 +2938,7 @@ def _crm_query_diagnosis(args):
                       "stage": s["stage"], "diagnosed_at": s["diagnosed_at"]}
         reports = []
         for d in docs:
-            if d["doc_type"] == "report":
-                # 报告可能很长，截取关键部分
-                content = d["content"]
-                if len(content) > 3000:
-                    content = content[:3000] + "\n\n...(报告较长，已截取前3000字)"
-                reports.append({"type": d["doc_type"], "title": d["title"], "content": content, "date": d["created_at"]})
-            else:
-                reports.append({"type": d["doc_type"], "title": d["title"], "content": d["content"], "date": d["created_at"]})
+            reports.append({"type": d["doc_type"], "title": d["title"], "content": d["content"], "date": d["created_at"]})
         store_info["documents"] = reports
         results.append(store_info)
     conn.close()
@@ -3022,14 +3019,15 @@ def _call_deepseek(messages, tools=None):
         "model": DEEPSEEK_MODEL,
         "messages": messages,
         "temperature": 0.7,
-        "max_tokens": 2000,
+        "max_tokens": 8000,
     }
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
     session = http_requests.Session()
-    session.trust_env = False  # 绕过系统代理，运营机器可能有代理干扰
+    session.trust_env = False  # 绕过系统代理
+    session.proxies = {"http": None, "https": None}  # 显式禁用代理
     resp = session.post(
         DEEPSEEK_API_URL,
         headers={
@@ -3037,7 +3035,7 @@ def _call_deepseek(messages, tools=None):
             "Content-Type": "application/json"
         },
         json=payload,
-        timeout=30
+        timeout=60
     )
     resp.raise_for_status()
     return resp.json()

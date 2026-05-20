@@ -959,7 +959,7 @@ async function init() {
     _currentOperator = state.operator;
 
     document.getElementById('setup').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
+    document.getElementById('main').style.display = 'flex';
 
     // 加载运营的店铺列表
     await discoverServer();
