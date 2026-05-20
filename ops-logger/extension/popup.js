@@ -77,37 +77,38 @@ async function loadDaily() {
     return;
   }
 
-  // 品牌概览：统计授权状态
-  var totalStores = data.stores.length;
-  var authIssues = data.stores.filter(function(s) {
-    return s.platforms.some(function(p) { return p.has_auth_issue; });
-  });
-  var normalStores = totalStores - authIssues.length;
+  // 分离授权失败和正常店铺
+  var authStores = [];
+  var normalStores = [];
+  for (var i = 0; i < data.stores.length; i++) {
+    var s = data.stores[i];
+    var allAuth = s.platforms.every(function(p) { return p.has_auth_issue; });
+    if (allAuth) { authStores.push(s); }
+    else { normalStores.push(s); }
+  }
 
   var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) +
     (data.brands ? ' · ' + data.brands + '个品牌' : '') +
     (data.duration ? ' · ' + data.duration + '秒' : '') + '</div>';
 
-  // 授权状态概览
-  if (authIssues.length > 0) {
-    html += '<div style="margin:6px 10px;background:#fff3e0;border-radius:8px;padding:8px 12px;font-size:12px">' +
-      '<span style="color:#e65100;font-weight:600">' + authIssues.length + '家店未授权</span>' +
-      '<span style="color:#999;margin-left:6px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">[详情]</span>' +
-      '<div style="display:none;margin-top:4px;font-size:11px;color:#666">';
-    for (var ai = 0; ai < authIssues.length; ai++) {
-      var as = authIssues[ai];
-      var authPlatforms = as.platforms.filter(function(p){return p.has_auth_issue}).map(function(p){return p.platform}).join('、');
-      html += '<div>' + esc(as.store) + ' — ' + esc(authPlatforms) + '</div>';
-    }
-    html += '</div></div>';
+  // 授权失败的店直接展示
+  for (var ai = 0; ai < authStores.length; ai++) {
+    var as = authStores[ai];
+    var authPlatforms = as.platforms.map(function(p){return p.platform}).join('、');
+    html += '<div class="store-card" style="border-left:3px solid #e65100">' +
+      '<div class="store-name" style="color:#e65100">' + esc(as.store) + '</div>' +
+      '<div class="issue-line red">未授权 · ' + esc(authPlatforms) + '</div>' +
+    '</div>';
   }
 
-  for (var i = 0; i < data.stores.length; i++) {
-    var store = data.stores[i];
+  // 正常店铺
+  for (var i = 0; i < normalStores.length; i++) {
+    var store = normalStores[i];
     html += '<div class="store-card"><div class="store-name">' + esc(store.store) + '</div>';
 
     for (var j = 0; j < store.platforms.length; j++) {
       var p = store.platforms[j];
+      if (p.has_auth_issue) continue; // 跳过授权失败的平台
       html += '<div class="platform-section">';
       html += '<div class="platform-label">' + esc(p.platform) + '</div>';
 
@@ -143,11 +144,6 @@ async function loadDaily() {
           hasIssue = true;
           html += '<div class="issue-line ' + promoClass + '">推广余额 ¥' + p.promo_balance.toFixed(0) + promoNote + '</div>';
         }
-      }
-
-      if (p.has_auth_issue) {
-        hasIssue = true;
-        html += '<div class="issue-line red">授权异常</div>';
       }
 
       if (p.notice_count > 0) {
@@ -192,19 +188,58 @@ async function loadAlerts() {
   var redCount = data.filter(function(a) { return a.level === 'red'; }).length;
   updateBadge('alertBadge', redCount);
 
+  // 分离授权失败和正常预警
+  var authAlerts = data.filter(function(a) { return a.type === 'auth'; });
+  var normalAlerts = data.filter(function(a) { return a.type !== 'auth'; });
+
+  // 按店铺分组
+  var byStore = {};
+  var storeOrder = [];
+  for (var i = 0; i < normalAlerts.length; i++) {
+    var a = normalAlerts[i];
+    var key = a.store || '未知';
+    if (!byStore[key]) { byStore[key] = []; storeOrder.push(key); }
+    byStore[key].push(a);
+  }
+
+  // 巡检时间（取第一条的ts）
+  var patrolTs = data[0] && data[0].ts ? data[0].ts : '';
   var html = '';
-  for (var i = 0; i < data.length; i++) {
-    var a = data[i];
-    var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
-    html += '<div class="alert-item">' +
-      '<div class="alert-dot ' + a.level + '"></div>' +
-      '<div class="alert-body">' +
-        '<div class="alert-msg">' + esc(a.msg) + '</div>' +
-        (a.detail ? '<div class="alert-detail">' + esc(a.detail) + '</div>' : '') +
-        '<div class="alert-store">' + esc(a.store) + (pname ? ' · ' + pname : '') + '</div>' +
-      '</div>' +
+  if (patrolTs) {
+    html += '<div class="daily-meta">预警来源: ' + esc(patrolTs) + ' 巡检</div>';
+  }
+
+  // 授权失败的店
+  for (var ai = 0; ai < authAlerts.length; ai++) {
+    var aa = authAlerts[ai];
+    var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
+    html += '<div class="store-card" style="border-left:3px solid #e65100">' +
+      '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
+      '<div class="issue-line red">未授权 · ' + esc(pname) + '</div>' +
     '</div>';
   }
+
+  // 正常预警按店铺分组
+  for (var si = 0; si < storeOrder.length; si++) {
+    var storeName = storeOrder[si];
+    var alerts = byStore[storeName];
+    html += '<div class="store-card"><div class="store-name">' + esc(storeName) + '</div>';
+    for (var j = 0; j < alerts.length; j++) {
+      var a = alerts[j];
+      var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
+      var timeStr = a.ts ? fmtHM(a.ts) : '';
+      html += '<div class="alert-item" style="margin:2px 0;padding:4px 0;box-shadow:none">' +
+        '<div class="alert-dot ' + a.level + '"></div>' +
+        '<div class="alert-body">' +
+          '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
+          (a.detail ? '<div class="alert-detail">' + esc(a.detail) + '</div>' : '') +
+          (timeStr ? '<div style="font-size:9px;color:#bbb;margin-top:1px">' + timeStr + '</div>' : '') +
+        '</div>' +
+      '</div>';
+    }
+    html += '</div>';
+  }
+
   el.innerHTML = html;
 }
 
