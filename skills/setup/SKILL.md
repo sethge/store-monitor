@@ -75,12 +75,26 @@ curl --noproxy localhost -s --max-time 2 http://localhost:9222/json/version 2>/d
 
 ## 安装完怎么说
 
+如果setup.sh成功启动了Chrome（扩展自动加载了）：
 ```
 环境好了，Chrome已经打开。
 
-现在两步：
+两步就能用：
 1. 点Chrome右上角「悟空」图标，登录食亨
 2. 登录后点「小q助手」图标，输入你的名字
+
+好了跟我说。
+```
+
+如果Chrome没有自动加载扩展（比如运营自己开的Chrome、没走start.sh启动）：
+```
+环境好了。
+
+小q助手插件需要手动装一下：
+1. 下载插件: https://gitee.com/sethgeshiheng/store-monitor/raw/feature/watch-mode/ops-logger/ops-logger-v4.1.0.zip
+2. 解压zip
+3. Chrome地址栏输入 chrome://extensions → 打开「开发者模式」→「加载已解压的扩展程序」→ 选解压出来的文件夹
+4. 点「悟空」登录食亨 → 点「小q助手」输名字
 
 好了跟我说。
 ```
