@@ -188,6 +188,7 @@ DEFAULT_CONFIG = {
         "PackageItemService.getRecommendPackageMigradeList",
         "PersonalCustomerManageService.personalCustomerGray",
         "ShopService.queryAgreement",
+        "AssistantService2.getShopIntelligentSortStatus",
         "queryShop.getShopView",
         "shopRating.countNewShopRating",
         "ShopMessageService.setNotifiedV2",
@@ -849,6 +850,18 @@ def receive_logs():
             item_id = extract_item_id_from_body(api_method, body)
         if not item_name:
             item_name = extract_item_name_from_body(api_method, body)
+        # 从food_cache补全item_name（冷启动时extension的foodCache可能为空）
+        if item_id and not item_name:
+            names = []
+            for iid in item_id.split(","):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                row = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (iid,)).fetchone()
+                if row and row["name"]:
+                    names.append(row["name"])
+            if names:
+                item_name = ",".join(names)
 
         # Use extension's beforeSnapshot if provided (captured at onBeforeRequest time, most accurate).
         # Only fallback to food_cache when extension didn't send beforeSnapshot.
@@ -1013,16 +1026,27 @@ def backfill_summary():
 
 @app.route("/api/tracking", methods=["GET"])
 def get_tracking():
-    """Get tracking records. ?status=pending|done|disabled&log_id=X"""
+    """Get tracking records. ?status=pending|done|disabled&log_id=X&operator=X"""
     conn = get_db()
     status = request.args.get("status", "")
     log_id = request.args.get("log_id", "")
+    operator = request.args.get("operator", "")
+    # 所有查询都JOIN logs拿产品名和店铺名
+    base_sql = """SELECT ct.*, l.item_name, l.shop_name, l.change_summary, l.action_type as log_action_type, l.operator
+                  FROM change_tracking ct LEFT JOIN logs l ON ct.log_id = l.id"""
     if log_id:
-        rows = conn.execute("SELECT * FROM change_tracking WHERE log_id=? ORDER BY check_date", (log_id,)).fetchall()
+        rows = conn.execute(base_sql + " WHERE ct.log_id=? ORDER BY ct.check_date", (log_id,)).fetchall()
+    elif operator:
+        sql = base_sql + " WHERE l.operator = ?"
+        if status:
+            sql += " AND ct.status = ?"
+            rows = conn.execute(sql + " ORDER BY ct.check_date LIMIT 200", (operator, status)).fetchall()
+        else:
+            rows = conn.execute(sql + " ORDER BY ct.id DESC LIMIT 200", (operator,)).fetchall()
     elif status:
-        rows = conn.execute("SELECT * FROM change_tracking WHERE status=? ORDER BY check_date LIMIT 200", (status,)).fetchall()
+        rows = conn.execute(base_sql + " WHERE ct.status=? ORDER BY ct.check_date LIMIT 200", (status,)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM change_tracking ORDER BY id DESC LIMIT 200").fetchall()
+        rows = conn.execute(base_sql + " ORDER BY ct.id DESC LIMIT 200").fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
 
@@ -1713,7 +1737,7 @@ def dashboard():
 
 @app.route("/api/extension/version")
 def extension_version():
-    manifest_path = os.path.join(os.path.dirname(__file__), "manifest.json")
+    manifest_path = os.path.join(os.path.dirname(__file__), "extension", "manifest.json")
     try:
         with open(manifest_path) as f:
             m = json.load(f)

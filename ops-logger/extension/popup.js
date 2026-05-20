@@ -339,8 +339,11 @@ function actionTagClass(t) {
 async function loadTracking() {
   var el = document.getElementById('tab-tracking');
 
-  // Only show items that are not disabled (i.e. 复盘 is on)
-  var allData = await api('/api/tracking?limit=200');
+  // 按运营过滤，只显示自己的复盘
+  var opData = await chrome.storage.local.get('ops_operator');
+  var opName = opData.ops_operator || '';
+  var trackUrl = '/api/tracking?limit=200' + (opName ? '&operator=' + encodeURIComponent(opName) : '');
+  var allData = await api(trackUrl);
   var allItems = (allData || []).filter(function(t) { return t.status !== 'disabled'; });
 
   if (allItems.length === 0) {
