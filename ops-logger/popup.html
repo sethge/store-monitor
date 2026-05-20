@@ -65,8 +65,8 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .log-meta { font-size: 10px; color: #aaa; margin-top: 1px; }
 .log-todo { font-size: 10px; color: #1565c0; margin-top: 1px; }
 
-/* Agent bar */
-.agent-bar { background: #fff; border-bottom: 1px solid #eee; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
+/* Agent bar — sticky */
+.agent-bar { background: #fff; border-bottom: 1px solid #eee; padding: 6px 12px; display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 100; }
 .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .agent-dot.ok { background: #34c759; }
 .agent-dot.off { background: #ccc; }
@@ -76,17 +76,13 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .patrol-btn { background: #e94560; color: #fff; border: none; padding: 4px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
 .patrol-btn:hover { background: #c23152; }
 .patrol-btn:disabled { background: #ddd; color: #999; cursor: default; }
-
-/* Settings panel */
-.settings-btn { background: none; border: none; color: #999; font-size: 14px; cursor: pointer; padding: 2px 4px; flex-shrink: 0; }
-.settings-btn:hover { color: #666; }
-.settings-panel { display: none; background: #fff; border-bottom: 1px solid #eee; padding: 10px 12px; }
-.settings-panel.open { display: block; }
-.setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.setting-row:last-child { margin-bottom: 0; }
-.setting-label { font-size: 12px; color: #333; flex: 1; }
-.setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
-.setting-unit { font-size: 10px; color: #999; }
+.bar-sep { width: 1px; height: 16px; background: #e0e0e0; flex-shrink: 0; }
+.bar-toggle { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.bar-toggle-label { font-size: 9px; color: #999; white-space: nowrap; }
+.mini-switch { width: 28px; height: 16px; border-radius: 8px; background: #ddd; position: relative; cursor: pointer; border: none; padding: 0; transition: background 0.2s; flex-shrink: 0; }
+.mini-switch.on { background: #34c759; }
+.mini-switch .mini-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: transform 0.2s; }
+.mini-switch.on .mini-knob { transform: translateX(12px); }
 
 /* Tags */
 .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-right: 3px; }
@@ -169,33 +165,22 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
     <div class="agent-dot off" id="agentDot"></div>
     <div class="agent-msg" id="agentMsg">检测中...</div>
     <button class="patrol-btn" id="patrolBtn" disabled>巡检</button>
-    <button class="settings-btn" id="settingsBtn" title="设置">&#9881;</button>
+    <div class="bar-sep"></div>
+    <div class="bar-toggle">
+      <span class="bar-toggle-label">巡检</span>
+      <button class="mini-switch" id="patrolToggle"><span class="mini-knob"></span></button>
+    </div>
+    <div class="bar-toggle">
+      <span class="bar-toggle-label">预警</span>
+      <button class="mini-switch" id="alertToggle"><span class="mini-knob"></span></button>
+    </div>
   </div>
   <div id="patrolDebug" style="display:none;background:#f5f5f5;padding:6px 10px;font-size:10px;color:#555;border-bottom:1px solid #eee;max-height:120px;overflow-y:auto;font-family:monospace;line-height:1.5"></div>
   <div id="startHint" style="display:none;background:#fff8e1;padding:8px 12px;font-size:11px;color:#e65100;border-bottom:1px solid #eee">
     双击桌面「启动小q」启动服务后刷新
   </div>
-  <div class="settings-panel" id="settingsPanel">
-    <div class="setting-row">
-      <span class="setting-label">定时巡检</span>
-      <input class="setting-input" id="patrolTime" type="time" value="10:00" />
-      <button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">
-        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
-        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
-        <span class="toggle-knob" style="width:16px;height:16px"></span>
-      </button>
-    </div>
-    <div class="setting-row">
-      <span class="setting-label">实时预警</span>
-      <input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />
-      <span class="setting-unit">分钟</span>
-      <button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">
-        <span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>
-        <span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>
-        <span class="toggle-knob" style="width:16px;height:16px"></span>
-      </button>
-    </div>
-  </div>
+  <input type="hidden" id="patrolTime" value="10:00" />
+  <input type="hidden" id="alertInterval" value="30" />
 
   <div class="tabs">
     <button class="tab active" data-tab="daily">巡店</button>

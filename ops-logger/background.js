@@ -332,6 +332,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
+  if (msg.type === "OPS_RELOAD") {
+    chrome.runtime.reload();
+    return;
+  }
   if (msg.type === "OPS_SET_OPERATOR") {
     chrome.storage.local.set({ ops_operator: msg.name }, () => {
       sendResponse({ ok: true });

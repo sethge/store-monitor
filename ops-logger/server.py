@@ -1737,13 +1737,19 @@ def dashboard():
 
 @app.route("/api/extension/version")
 def extension_version():
-    manifest_path = os.path.join(os.path.dirname(__file__), "extension", "manifest.json")
-    try:
-        with open(manifest_path) as f:
-            m = json.load(f)
-        return jsonify({"version": m.get("version", "0")})
-    except:
-        return jsonify({"version": "0"})
+    # Try extension/ first, fallback to root manifest
+    base = os.path.dirname(__file__)
+    for subdir in ["extension", "."]:
+        manifest_path = os.path.join(base, subdir, "manifest.json")
+        try:
+            with open(manifest_path) as f:
+                m = json.load(f)
+            v = m.get("version", "0")
+            if v != "0":
+                return jsonify({"version": v})
+        except:
+            pass
+    return jsonify({"version": "0"})
 
 @app.route("/download/<path:filename>")
 def download_file(filename):

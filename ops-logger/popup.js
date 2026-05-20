@@ -660,24 +660,10 @@ async function saveSettings() {
 }
 
 function initSettings() {
-  var btn = document.getElementById('settingsBtn');
-  var panel = document.getElementById('settingsPanel');
-
-  btn.addEventListener('click', function() {
-    panel.classList.toggle('open');
-  });
-
-  // Toggle switches
+  // Mini toggle switches in agent bar
   ['patrolToggle', 'alertToggle'].forEach(function(id) {
     document.getElementById(id).addEventListener('click', function() {
       this.classList.toggle('on');
-      saveSettings();
-    });
-  });
-
-  // Time/interval inputs
-  ['patrolTime', 'alertInterval'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', function() {
       saveSettings();
     });
   });
