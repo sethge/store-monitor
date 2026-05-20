@@ -163,15 +163,17 @@ def _find_chrome():
 
 def _sync_headless_profile():
     """同步headless profile的登录态。首次全拷，之后只增量同步Cookies"""
+    import patrol_log as L
     src = Path(SOURCE_PROFILE)
     dst = Path(HEADLESS_PROFILE)
 
     if not src.exists():
+        L.error("profile", f"Chrome profile不存在: {src}")
         raise Exception(f"Chrome profile不存在: {src}，请先用带debug端口的Chrome登录过")
 
     if not dst.exists():
         # 首次：全量拷贝
-        print("  首次创建headless profile（拷贝登录态）...")
+        L.step("profile", f"首次拷贝 {src} → {dst}")
         shutil.copytree(str(src), str(dst), symlinks=True,
                         ignore=shutil.ignore_patterns('Cache', 'Code Cache', 'Service Worker',
                                                        'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache',
@@ -183,7 +185,7 @@ def _sync_headless_profile():
             lock.unlink(missing_ok=True)
         for lock in dst.rglob("SingletonSocket"):
             lock.unlink(missing_ok=True)
-        print(f"  profile已创建: {dst}")
+        L.step("profile", f"首次拷贝完成: {dst}")
     else:
         # 增量：只同步关键登录文件
         files_to_sync = [
@@ -210,10 +212,12 @@ def _sync_headless_profile():
 
 async def launch_headless(pw, port=HEADLESS_PORT):
     """启动无头Chrome，零窗口巡检。返回 (browser, context)"""
+    import patrol_log as L
 
     # 1. 已有headless在跑 → 直连
     ws = _cdp_ws(port)
     if ws:
+        L.step("headless", f"复用已有headless (port {port})")
         browser = await pw.chromium.connect_over_cdp(ws)
         return browser, browser.contexts[0]
 
@@ -223,20 +227,25 @@ async def launch_headless(pw, port=HEADLESS_PORT):
     # 3. 杀掉旧的headless进程（如果有）
     try:
         r = subprocess.run(["lsof", "-i", f":{port}", "-t"], capture_output=True, text=True)
-        for pid in r.stdout.strip().split():
-            subprocess.run(["kill", "-9", pid], capture_output=True)
-        await asyncio.sleep(1)
+        pids = r.stdout.strip().split()
+        if pids and pids[0]:
+            for pid in pids:
+                subprocess.run(["kill", "-9", pid], capture_output=True)
+            L.step("headless", f"杀掉旧进程: {pids}")
+            await asyncio.sleep(1)
     except Exception:
         pass
 
     # 4. 启动headless Chrome
     chrome = _find_chrome()
+    ext_load = f"{EXT_PATH},{OPS_LOGGER_PATH}"
+    L.step("headless", f"启动 --headless=new port={port}", detail=f"extensions={ext_load}")
     cmd = [
         chrome,
         "--headless=new",
         f"--remote-debugging-port={port}",
         f"--user-data-dir={HEADLESS_PROFILE}",
-        f"--load-extension={EXT_PATH},{OPS_LOGGER_PATH}",
+        f"--load-extension={ext_load}",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-gpu",
@@ -245,14 +254,17 @@ async def launch_headless(pw, port=HEADLESS_PORT):
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 等端口就绪
-    for _ in range(20):
+    for i in range(20):
         await asyncio.sleep(1)
         ws = _cdp_ws(port)
         if ws:
             browser = await pw.chromium.connect_over_cdp(ws)
             await asyncio.sleep(2)
+            pages = [p.url[:60] for p in browser.contexts[0].pages]
+            L.step("headless", f"连接成功 ({i+1}s), {len(pages)}个页面", detail=str(pages))
             return browser, browser.contexts[0]
 
+    L.error("headless", "启动超时(20s)")
     raise Exception("Headless Chrome启动超时")
 
 

@@ -4,6 +4,7 @@ import json
 import sys
 import subprocess as _sp
 from collections import defaultdict
+import patrol_log as L
 
 _IS_WIN = sys.platform == 'win32'
 _IS_MAC = sys.platform == 'darwin'
@@ -68,11 +69,15 @@ async def get_ext(ctx):
         search_ids.remove(_discovered_ext_id)
         search_ids.insert(0, _discovered_ext_id)
 
+    pages_info = [p.url[:60] for p in ctx.pages]
+    L.step("plugin", f"查找悟空插件 ({len(ctx.pages)}个页面)", detail=str(pages_info))
+
     # 先找已打开的悟空页面（按已知ID匹配）
     for p in ctx.pages:
         for eid in search_ids:
             if eid in p.url:
                 _discovered_ext_id = eid
+                L.step("plugin", f"找到悟空(已知ID): {eid[:8]}...")
                 return p
 
     # 兜底：找任何chrome-extension页面，检查是否是悟空（含"品牌"/"重 置"文字）
@@ -86,12 +91,13 @@ async def get_ext(ctx):
                     m = _re.search(r'chrome-extension://([a-z]+)/', p.url)
                     if m:
                         _discovered_ext_id = m.group(1)
-                        print(f"[plugin] 发现悟空插件ID: {_discovered_ext_id}")
+                        L.step("plugin", f"发现悟空插件ID: {_discovered_ext_id}")
                     return p
             except:
                 pass
 
     # 尝试用已知ID打开
+    L.step("plugin", "页面中未找到悟空，尝试用已知ID打开")
     front_app = _get_frontmost_app()
     for eid in search_ids:
         p = await ctx.new_page()
@@ -100,14 +106,17 @@ async def get_ext(ctx):
             await p.goto(f"chrome-extension://{eid}/index.html", wait_until="commit", timeout=10000)
             await asyncio.sleep(2)
             _discovered_ext_id = eid
+            L.step("plugin", f"悟空插件打开成功: {eid[:8]}...")
             return p
         except:
             await p.close()
+    L.error("plugin", f"找不到悟空插件", detail=f"tried {len(search_ids)} IDs, pages={pages_info}")
     raise Exception(f"找不到悟空插件(tried {len(search_ids)} IDs, pages={[p.url[:50] for p in ctx.pages]})")
 
 
 async def pick_brand(ext, brand):
     """搜索并选择品牌，返回 (成功, 状态)"""
+    L.step("plugin", f"选择品牌: {brand}")
     # 等插件页面就绪（selector出现）
     for _wait in range(5):
         ready = await ext.evaluate("() => document.querySelectorAll('.ant-select-selector').length > 0")
@@ -115,6 +124,7 @@ async def pick_brand(ext, brand):
             break
         await asyncio.sleep(1)
     if not ready:
+        L.error("plugin", f"插件未就绪(等了5秒)")
         return False, "插件未就绪"
 
     await ext.evaluate("() => document.querySelectorAll('button,span').forEach(e=>{if(e.textContent.trim()==='重 置')e.click()})")
@@ -147,7 +157,9 @@ async def pick_brand(ext, brand):
         }}, 500);
     }})""")
     if not found:
+        L.error("plugin", f"品牌未找到: {brand}")
         return False, "品牌未找到"
+    L.step("plugin", f"品牌已选中: {found}")
     await asyncio.sleep(0.5)
     body = await ext.evaluate("() => document.body.innerText")
     status = "全部授权" if "全部授权" in body else "包含未授权" if "未授权" in body else "未知"
@@ -169,11 +181,13 @@ async def pick_brand(ext, brand):
             });
         }""")
         await asyncio.sleep(1)
+    L.step("plugin", f"品牌状态: {status}, 展开行数: {has_rows}")
     return True, status
 
 
 async def get_stores(ext):
     """解析展开后的账号列表，按店铺名分组，返回 {storeName: [{platform, account, action}]}"""
+    L.step("plugin", "解析店铺列表")
     rows = await ext.evaluate(r"""() => {
         const results = [];
         const trs = document.querySelectorAll('tr');
@@ -220,11 +234,15 @@ async def get_stores(ext):
             if i < len(elm_unnamed):
                 named[key].append(elm_unnamed[i])
 
-    return dict(named)
+    result = dict(named)
+    store_info = {k: [r['platform'] + '/' + r['action'] for r in v] for k, v in result.items()}
+    L.step("plugin", f"找到{len(result)}家店铺", detail=str(store_info))
+    return result
 
 
 async def click_store_platform(ext, account):
     """点击指定账号的一键登录，返回 'ok'/'need_auth'/'not_found'"""
+    L.step("plugin", f"点击一键登录: {account}")
     for attempt in range(3):
         r = await ext.evaluate(f"""() => {{
             const trs = document.querySelectorAll('tr');
@@ -241,9 +259,11 @@ async def click_store_platform(ext, account):
             return 'not_found';
         }}""")
         if r != 'not_found':
+            L.step("plugin", f"一键登录结果: {r} (account={account})")
             return r
         await ext.evaluate("() => document.querySelectorAll('.ant-table-row-expand-icon,[class*=expand]').forEach(b=>b.click())")
         await asyncio.sleep(1)
+    L.error("plugin", f"账号未找到: {account}")
     return 'not_found'
 
 

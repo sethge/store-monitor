@@ -22,6 +22,7 @@ from browser import ensure_https
 from promo_check import parse_promo_data, check_promo
 from learn import log_interaction
 from patrol_db import save_snapshot
+import patrol_log as L
 
 THREE_DAYS = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')
 CUTOFF = datetime.now().timestamp() - 3*86400
@@ -35,6 +36,7 @@ def sd(d):
 
 async def fast_mt(page):
     """美团极速检查 ~15s"""
+    L.step("mt", f"美团检查开始: {page.url[:60]}")
     issues = {}
     captured = {}
     checked = {"msgs": False, "reviews": False, "promo": False}  # 跟踪是否成功
@@ -126,6 +128,7 @@ async def fast_mt(page):
     checked['msgs'] = 'msgs' in captured
     checked['reviews'] = len(captured.get('reviews', [])) > 0
     checked['promo'] = 'promo_text' in captured and len(captured.get('promo_text', '')) > 100
+    L.step("mt", f"美团数据: msgs={checked['msgs']}, reviews={len(captured.get('reviews',[]))}条, promo={checked['promo']}")
 
     # 解析
     name = ""
@@ -180,6 +183,7 @@ async def fast_mt(page):
 
 async def fast_ele(page):
     """饿了么极速检查 ~12s"""
+    L.step("ele", f"饿了么检查开始: {page.url[:60]}")
     issues = {}
     captured = {}
     checked = {"reviews": False, "acts": False, "promo": False}
@@ -254,6 +258,7 @@ async def fast_ele(page):
     checked['reviews'] = 'reviews' in captured
     checked['acts'] = 'acts' in captured or 'acts_date' in captured
     checked['promo'] = len(promo_text) > 100
+    L.step("ele", f"饿了么数据: reviews={checked['reviews']}, acts={checked['acts']}, promo={checked['promo']}")
 
     # 解析
     name = ""
@@ -716,11 +721,12 @@ async def main():
         print("  python3 run_fast.py --watch -i 5 品牌1              # 5分钟一轮")
         return
 
+    L.start()
     pw = await async_playwright().start()
 
     if args.headless:
         from browser import launch_headless
-        print("启动无头巡检...")
+        L.step("preflight", "启动无头巡检...")
         b, ctx = await launch_headless(pw)
         user_page = None
     else:

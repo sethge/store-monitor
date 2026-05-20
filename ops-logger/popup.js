@@ -440,6 +440,28 @@ function updateBadge(elemId, count) {
 
 var agentReady = false;
 
+async function showPatrolDebug() {
+  var el = document.getElementById('patrolDebug');
+  if (!el) return;
+  try {
+    var data = await api('/api/patrol/debug');
+    if (!data || !data.log || data.log.length === 0) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    // 只显示最近8条
+    var recent = data.log.slice(-8);
+    el.innerHTML = recent.map(function(e) {
+      var icon = e.ok ? '<span style="color:#4caf50">✓</span>' : '<span style="color:#c62828">✗</span>';
+      return icon + ' <span style="color:#888">' + e.t + '</span> [' + e.phase + '] ' + e.msg;
+    }).join('<br>');
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { el.style.display = 'none'; }
+}
+
+function hidePatrolDebug() {
+  var el = document.getElementById('patrolDebug');
+  if (el) el.style.display = 'none';
+}
+
 async function checkAgent() {
   var dot = document.getElementById('agentDot');
   var msg = document.getElementById('agentMsg');
@@ -480,11 +502,17 @@ async function checkAgent() {
 
   if (data.patrol && data.patrol.state === 'running') {
     dot.className = 'agent-dot busy';
-    msg.textContent = data.patrol.message || '巡检中...';
-    btn.disabled = true;
-    btn.textContent = '巡检中';
+    msg.textContent = data.patrol.last_step || data.patrol.message || '巡检中...';
+    btn.disabled = false;
+    btn.textContent = '停止';
+    btn.onclick = stopPatrol;
+    // 显示debug日志
+    showPatrolDebug();
     setTimeout(checkAgent, 3000);
     return;
+  } else {
+    btn.onclick = startPatrol;
+    hidePatrolDebug();
   }
 
   if (data.patrol && data.patrol.state === 'done') {
@@ -501,6 +529,9 @@ async function checkAgent() {
     if (errMsg.indexOf('登录') >= 0 || errMsg.indexOf('悟空') >= 0) {
       msg.textContent = '登录过期，请在Chrome中重新登录悟空';
       msg.style.color = '#c62828';
+    } else if (errMsg.indexOf('超时') >= 0) {
+      msg.textContent = errMsg;
+      msg.style.color = '#e65100';
     } else {
       msg.textContent = errMsg;
       msg.style.color = '';
@@ -518,6 +549,21 @@ async function checkAgent() {
     btn.disabled = true;
     btn.style.display = 'none';
   }
+}
+
+async function stopPatrol() {
+  var btn = document.getElementById('patrolBtn');
+  var msg = document.getElementById('agentMsg');
+  btn.disabled = true;
+  btn.textContent = '停止中...';
+  var result = await apiPost('/api/patrol/stop', {});
+  if (result && result.ok) {
+    msg.textContent = '巡检已停止';
+  } else {
+    msg.textContent = (result && result.message) || '停止失败';
+  }
+  btn.onclick = startPatrol;
+  setTimeout(checkAgent, 1000);
 }
 
 async function startPatrol() {

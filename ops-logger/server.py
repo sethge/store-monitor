@@ -2147,6 +2147,34 @@ WORKSPACE = os.path.dirname(os.path.dirname(__file__))  # ops-logger/../ = store
 _patrol_state = {"state": "idle", "message": "", "pid": None}
 _patrol_lock = threading.Lock()
 
+
+def _cleanup_headless():
+    """巡检失败/超时后清理headless Chrome进程"""
+    try:
+        sys.path.insert(0, WORKSPACE)
+        from browser import kill_headless
+        kill_headless()
+        print("[patrol] 已清理headless Chrome")
+    except Exception as e:
+        print(f"[patrol] 清理headless失败: {e}")
+
+
+def _get_last_debug_step():
+    """读patrol_debug.json的最后一条日志，用于错误提示"""
+    try:
+        debug_file = os.path.join(os.path.dirname(__file__), "patrol_debug.json")
+        if not os.path.exists(debug_file):
+            return ""
+        with open(debug_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logs = data.get("log", [])
+        if not logs:
+            return ""
+        last = logs[-1]
+        return f"[{last.get('phase','')}] {last.get('msg','')}"
+    except Exception:
+        return ""
+
 @app.route("/api/agent/status")
 def api_agent_status():
     """检查agent就绪状态 + 巡检进程状态"""
@@ -2165,6 +2193,12 @@ def api_agent_status():
             patrol = dict(_patrol_state)
     # 不把log塞进轮询响应，太大
     patrol_clean = {k: v for k, v in patrol.items() if k != "log"}
+    # 巡检中时附带最后一步debug信息
+    if patrol_clean.get("state") == "running":
+        patrol_clean["last_step"] = _get_last_debug_step()
+    # 出错时也附带最后一步
+    if patrol_clean.get("state") == "error":
+        patrol_clean["last_step"] = _get_last_debug_step()
     # 检查headless profile是否存在（粗判登录态）
     headless_profile = os.path.join("/tmp", "chrome-headless-patrol")
     has_profile = os.path.exists(headless_profile)
@@ -2193,6 +2227,20 @@ def api_patrol_log():
             "message": _patrol_state["message"],
             "log": _patrol_state.get("log", ""),
         })
+
+
+@app.route("/api/patrol/debug")
+def api_patrol_debug():
+    """查看巡检详细debug日志（patrol_debug.json）"""
+    debug_file = os.path.join(os.path.dirname(__file__), "patrol_debug.json")
+    if not os.path.exists(debug_file):
+        return jsonify({"updated": None, "count": 0, "errors": 0, "log": []})
+    try:
+        with open(debug_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/patrol/brands", methods=["GET"])
@@ -2262,7 +2310,9 @@ def api_patrol_start():
         if headless:
             cmd.append("--headless")
         cmd += brands
-        print(f"[patrol] 启动: headless={headless}, brands={brands}")
+        # 每品牌最多1分钟 + 2分钟buffer（preflight+收尾）
+        timeout_sec = len(brands) * 60 + 120
+        print(f"[patrol] 启动: headless={headless}, brands={brands}, timeout={timeout_sec}s")
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -2282,7 +2332,7 @@ def api_patrol_start():
                     _patrol_state["message"] = text[:100] or _patrol_state["message"]
                     # 保留最后50行
                     _patrol_state["log"] = "\n".join(output_lines[-50:])
-            proc.wait(timeout=600)
+            proc.wait(timeout=timeout_sec)
             with _patrol_lock:
                 if proc.returncode == 0:
                     _patrol_state["state"] = "done"
@@ -2304,18 +2354,23 @@ def api_patrol_start():
                     except Exception as _e:
                         print(f"[patrol] 自动开启失败: {_e}")
                 else:
+                    _cleanup_headless()
+                    last_step = _get_last_debug_step()
                     _patrol_state["state"] = "error"
-                    _patrol_state["message"] = f"巡检异常(code={proc.returncode})"
+                    _patrol_state["message"] = f"巡检异常: {last_step}" if last_step else f"巡检异常(code={proc.returncode})"
                 _patrol_state["pid"] = None
             print(f"[patrol] 结束: code={proc.returncode}")
         except subprocess.TimeoutExpired:
             proc.kill()
+            _cleanup_headless()
+            last_step = _get_last_debug_step()
             with _patrol_lock:
                 _patrol_state["state"] = "error"
-                _patrol_state["message"] = "巡检超时(10分钟)"
+                _patrol_state["message"] = f"巡检超时({timeout_sec}秒)，卡在: {last_step}"
                 _patrol_state["pid"] = None
-            print("[patrol] 超时")
+            print(f"[patrol] 超时({timeout_sec}s)，卡在: {last_step}")
         except Exception as e:
+            _cleanup_headless()
             with _patrol_lock:
                 _patrol_state["state"] = "error"
                 _patrol_state["message"] = str(e)[:100]
@@ -2325,6 +2380,26 @@ def api_patrol_start():
     t = threading.Thread(target=_run_patrol, daemon=True)
     t.start()
     return jsonify({"ok": True, "message": f"巡检已启动: {', '.join(brands)}"})
+
+
+@app.route("/api/patrol/stop", methods=["POST"])
+def api_patrol_stop():
+    """手动终止卡住的巡检"""
+    with _patrol_lock:
+        pid = _patrol_state.get("pid")
+        if _patrol_state["state"] != "running" or not pid:
+            return jsonify({"ok": False, "message": "没有运行中的巡检"})
+    try:
+        import signal
+        os.kill(pid, signal.SIGTERM)
+        _cleanup_headless()
+        with _patrol_lock:
+            _patrol_state["state"] = "error"
+            _patrol_state["message"] = "巡检已手动终止"
+            _patrol_state["pid"] = None
+        return jsonify({"ok": True, "message": "巡检已终止"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
 
 
 # ========== Settings ==========
@@ -2722,13 +2797,30 @@ def _schedule_patrol():
                 with _patrol_lock:
                     _patrol_state["message"] = text[:100]
                     _patrol_state["log"] = "\n".join(output_lines[-50:])
-            proc.wait(timeout=600)
+            timeout_sec = len(brands) * 60 + 120
+            proc.wait(timeout=timeout_sec)
             with _patrol_lock:
-                _patrol_state["state"] = "done" if proc.returncode == 0 else "error"
-                _patrol_state["message"] = "巡检完成" if proc.returncode == 0 else f"异常({proc.returncode})"
+                if proc.returncode == 0:
+                    _patrol_state["state"] = "done"
+                    _patrol_state["message"] = "巡检完成"
+                else:
+                    _cleanup_headless()
+                    last_step = _get_last_debug_step()
+                    _patrol_state["state"] = "error"
+                    _patrol_state["message"] = f"巡检异常: {last_step}" if last_step else f"异常({proc.returncode})"
                 _patrol_state["pid"] = None
             print(f"[schedule] {label}结束: code={proc.returncode}")
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            _cleanup_headless()
+            last_step = _get_last_debug_step()
+            with _patrol_lock:
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = f"巡检超时，卡在: {last_step}"
+                _patrol_state["pid"] = None
+            print(f"[schedule] {label}超时，卡在: {last_step}")
         except Exception as e:
+            _cleanup_headless()
             with _patrol_lock:
                 _patrol_state["state"] = "error"
                 _patrol_state["message"] = str(e)[:100]

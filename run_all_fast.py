@@ -10,6 +10,7 @@ from browser import ensure_https
 from collections import OrderedDict
 from datetime import datetime
 from playwright.async_api import async_playwright
+import patrol_log as L
 
 
 async def get_all_brands(ext):
@@ -68,28 +69,28 @@ async def main():
     args = parser.parse_args()
 
     # ========== Preflight Check ==========
-    print("--- 启动前检查 ---")
-    checks_ok = True
+    L.start()
+    L.step("preflight", "启动前检查开始")
 
     # Check 1: playwright可用
     try:
         pw = await async_playwright().start()
-        print("  [OK] playwright")
+        L.step("preflight", "playwright OK")
     except Exception as e:
+        L.error("preflight", f"playwright启动失败: {e}")
         _log_error("preflight", f"playwright启动失败: {e}")
-        print(f"  [FAIL] playwright: {e}")
         return
 
     # Check 2: Chrome连接
     if args.headless:
         from browser import launch_headless
         try:
-            print("  启动无头Chrome...", end=" ", flush=True)
+            L.step("preflight", "启动无头Chrome...")
             b, ctx = await launch_headless(pw)
-            print("[OK]")
+            L.step("preflight", "无头Chrome OK")
         except Exception as e:
+            L.error("preflight", f"headless Chrome启动失败: {e}")
             _log_error("preflight", f"headless Chrome启动失败: {e}")
-            print(f"[FAIL] {e}")
             await pw.stop()
             return
         user_page = None
@@ -97,10 +98,10 @@ async def main():
         from browser import launch as launch_browser
         try:
             b, ctx = await launch_browser(pw)
-            print("  [OK] Chrome连接")
+            L.step("preflight", "Chrome连接 OK")
         except Exception as e:
+            L.error("preflight", f"Chrome连接失败: {e}")
             _log_error("preflight", f"Chrome连接失败: {e}")
-            print(f"  [FAIL] Chrome: {e}")
             await pw.stop()
             return
         user_page = await save_user_focus(ctx)
@@ -108,10 +109,10 @@ async def main():
     # Check 3: 悟空插件
     try:
         ext = await get_ext(ctx)
-        print("  [OK] 悟空插件")
+        L.step("preflight", "悟空插件 OK")
     except Exception as e:
+        L.error("preflight", f"悟空插件找不到: {e}", detail=str([p.url[:80] for p in ctx.pages]))
         _log_error("preflight", f"悟空插件找不到: {e}", {"pages": [p.url[:80] for p in ctx.pages]})
-        print(f"  [FAIL] 悟空插件: {e}")
         await pw.stop()
         return
 
@@ -120,25 +121,25 @@ async def main():
         from browser import check_headless_login
         login_ok, login_msg = await check_headless_login(ctx)
         if not login_ok:
+            L.error("preflight", f"登录失败: {login_msg}")
             _log_error("preflight", f"登录失败: {login_msg}")
-            print(f"  [FAIL] 登录: {login_msg}")
             await pw.stop()
             return
-        print(f"  [OK] 登录: {login_msg}")
+        L.step("preflight", f"登录 OK: {login_msg}")
 
     # Check 5: 品牌列表
     if args.brands:
         brands = args.brands
-        print(f"  [OK] 指定品牌: {brands}")
+        L.step("preflight", f"指定品牌: {brands}")
     else:
         brands = await get_all_brands(ext)
 
     if not brands:
+        L.error("preflight", "品牌列表为空")
         _log_error("preflight", "未获取到品牌列表")
-        print("  [FAIL] 品牌列表为空")
         await pw.stop()
         return
-    print(f"  [OK] {len(brands)}个品牌")
+    L.step("preflight", f"{len(brands)}个品牌，检查通过")
     print("--- 检查通过，开始巡检 ---\n")
 
     print(f"盯店全量巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -154,12 +155,14 @@ async def main():
     for bi, brand in enumerate(brands):
         t_brand = time.time()
         brand_short = brand.split("（")[0]
+        L.step("brand", f"[{bi+1}/{len(brands)}] {brand}")
         print(f"  [{bi+1}/{len(brands)}] {brand}...", end=" ", flush=True)
 
         try:
             await close_store_pages(ctx)
             ext = await get_ext(ctx)
         except Exception as e:
+            L.error("brand", f"get_ext失败，跳过{brand}", detail=str(e))
             _log_error("brand_setup", f"get_ext失败，跳过{brand}", {"brand": brand, "error": str(e)})
             print(f"❌ 插件连接失败，跳过")
             all_issues[brand] = [{"platform":"","type":"error","msg":f"插件连接失败: {str(e)[:50]}","details":[]}]
@@ -167,6 +170,7 @@ async def main():
 
         ok, status = await pick_brand(ext, brand)
         if not ok:
+            L.error("brand", f"品牌未找到: {brand}")
             _log_error("brand_pick", f"品牌未找到: {brand}")
             print(f"❌")
             all_issues[brand] = [{"platform":"","type":"error","msg":"品牌未找到","details":[]}]
@@ -175,11 +179,13 @@ async def main():
         try:
             stores = await get_stores(ext)
         except Exception as e:
+            L.error("brand", f"获取店铺失败: {brand}", detail=str(e))
             _log_error("brand_stores", f"获取店铺失败: {brand}", {"error": str(e)})
             print(f"❌ 获取店铺失败")
             all_issues[brand] = [{"platform":"","type":"error","msg":f"获取店铺失败: {str(e)[:50]}","details":[]}]
             continue
 
+        L.step("brand", f"{brand_short}: {len(stores)}家店铺")
         print(f"{len(stores)}店", end=" ", flush=True)
 
         for store_key, accounts in stores.items():
@@ -212,15 +218,19 @@ async def main():
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
                     result = await click_store_platform(ext, acct['account'])
-                    if result != 'ok': continue
+                    if result != 'ok':
+                        L.step("store", f"跳过 {acct['account']} (result={result})")
+                        continue
                     await asyncio.sleep(3)  # 等Goku创建tab
                     await restore_user_focus(user_page)  # 再还焦点
 
                     # headless下Goku可能开http://，修正为https://
                     for x in ctx.pages:
                         if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
+                            L.step("store", f"修正http→https: {x.url[:60]}")
                             await ensure_https(x)
                 except Exception as e:
+                    L.error("store", f"登录失败: {p_name} {acct.get('account','')}", detail=str(e))
                     _log_error("store_login", f"登录店铺失败，跳过", {"brand": brand, "store": store_key, "account": acct.get('account',''), "platform": p_name, "error": str(e)})
                     all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录失败: {str(e)[:40]}","details":[]})
                     continue
@@ -230,6 +240,7 @@ async def main():
                     for x in ctx.pages:
                         if 'waimai.meituan.com' in x.url and 'chrome-extension' not in x.url: pg=x; break
                     if pg:
+                        L.step("scrape", f"美团数据采集: {pg.url[:60]}")
                         try:
                             issues = await fast_mt(pg)
                             name = issues.pop('name','')
@@ -251,6 +262,7 @@ async def main():
                     for x in ctx.pages:
                         if 'ele.me' in x.url and 'melody' in x.url: pg=x; break
                     if pg:
+                        L.step("scrape", f"饿了么数据采集: {pg.url[:60]}")
                         try:
                             issues = await fast_ele(pg)
                             name = issues.pop('name','')
@@ -276,6 +288,8 @@ async def main():
             del all_issues[store]
 
     total = time.time() - t0
+    issue_count = sum(len(items) for items in all_issues.values())
+    L.step("summary", f"巡检完成: {len(brands)}品牌, {issue_count}个问题, {total:.0f}秒")
     print(f"\n摘要\n")
 
     if all_issues:
