@@ -154,6 +154,7 @@ async def main():
     t0 = time.time()
     all_issues = OrderedDict()
     all_stores = OrderedDict()  # 记录所有巡过的店: {display_name: [platform_name, ...]}
+    brand_stores = OrderedDict()  # 品牌→店铺映射: {brand: [display_name, ...]}
 
     for bi, brand in enumerate(brands):
         t_brand = time.time()
@@ -205,10 +206,13 @@ async def main():
             for acct in accounts:
                 p, p_name = acct['platform'], "美团" if acct['platform']=='meituan' else "饿了么"
 
-                # 记录每个巡过的店+平台
+                # 记录每个巡过的店+平台+品牌映射
                 all_stores.setdefault(display_name(), [])
                 if p_name not in all_stores[display_name()]:
                     all_stores[display_name()].append(p_name)
+                brand_stores.setdefault(brand, [])
+                if display_name() not in brand_stores[brand]:
+                    brand_stores[brand].append(display_name())
 
                 if acct['action'] == '立刻授权':
                     all_issues.setdefault(display_name(), []).append(
@@ -380,6 +384,7 @@ async def main():
             "brands": len(brands),
             "duration": int(total),
             "all_stores": dict(all_stores),
+            "brand_stores": dict(brand_stores),
             "issues": {store: items for store, items in all_issues.items()},
         }
         with open(result_file, "w", encoding="utf-8") as f:

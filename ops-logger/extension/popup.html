@@ -32,16 +32,25 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
 .section-title { font-size: 11px; font-weight: 600; color: #999; margin: 10px 12px 4px; text-transform: uppercase; }
 
-/* Daily report */
-.store-card { margin: 6px 10px; background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+/* Daily report — 品牌→门店→平台 */
+.brand-header { font-size: 15px; font-weight: 800; color: #222; padding: 10px 12px 2px; display: flex; align-items: baseline; gap: 6px; }
+.brand-count { font-size: 11px; font-weight: 400; color: #999; }
+.store-card { margin: 4px 10px 4px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.store-card.auth-fail { opacity: 0.7; border-left: 3px solid #e65100; }
 .store-name { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 6px; }
-.platform-section { margin-bottom: 6px; }
+.store-name-line { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.platform-section { margin-bottom: 3px; line-height: 1.6; }
 .platform-label { font-size: 11px; font-weight: 600; color: #666; margin-bottom: 3px; }
+.issue-inline { font-size: 11px; margin-left: 4px; }
+.issue-inline.red { color: #c62828; }
+.issue-inline.yellow { color: #e65100; }
+.issue-inline.green { color: #2e7d32; }
+.issue-inline.blue { color: #1565c0; }
 .issue-line { font-size: 12px; line-height: 1.6; padding-left: 4px; }
 .issue-line.red { color: #c62828; }
 .issue-line.yellow { color: #e65100; }
 .issue-line.green { color: #2e7d32; }
-    .issue-line.blue { color: #1565c0; }
+.issue-line.blue { color: #1565c0; }
 .review-detail { font-size: 11px; color: #888; padding-left: 16px; line-height: 1.4; }
 .daily-meta { font-size: 10px; color: #aaa; padding: 6px 12px; }
 

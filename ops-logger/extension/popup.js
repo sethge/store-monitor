@@ -77,98 +77,103 @@ async function loadDaily() {
     return;
   }
 
-  // 分离授权失败和正常店铺
-  var authStores = [];
-  var normalStores = [];
-  for (var i = 0; i < data.stores.length; i++) {
-    var s = data.stores[i];
-    var allAuth = s.platforms.every(function(p) { return p.has_auth_issue; });
-    if (allAuth) { authStores.push(s); }
-    else { normalStores.push(s); }
-  }
-
   var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) +
     (data.brands ? ' · ' + data.brands + '个品牌' : '') +
     (data.duration ? ' · ' + data.duration + '秒' : '') + '</div>';
 
-  // 授权失败的店直接展示
-  for (var ai = 0; ai < authStores.length; ai++) {
-    var as = authStores[ai];
-    var authPlatforms = as.platforms.map(function(p){return p.platform}).join('、');
-    html += '<div class="store-card" style="border-left:3px solid #e65100">' +
-      '<div class="store-name" style="color:#e65100">' + esc(as.store) + '</div>' +
-      '<div class="issue-line red">未授权 · ' + esc(authPlatforms) + '</div>' +
-    '</div>';
+  // 用品牌分组渲染（品牌→门店→平台）
+  var groups = data.brands_grouped || [];
+  // 回退：没有brands_grouped时用旧的stores平铺
+  if (groups.length === 0 && data.stores.length > 0) {
+    groups = [{ brand: '', stores: data.stores }];
   }
 
-  // 正常店铺
-  for (var i = 0; i < normalStores.length; i++) {
-    var store = normalStores[i];
-    html += '<div class="store-card"><div class="store-name">' + esc(store.store) + '</div>';
+  for (var gi = 0; gi < groups.length; gi++) {
+    var group = groups[gi];
+    if (group.brand) {
+      html += '<div class="brand-header">' + esc(group.brand) +
+        ' <span class="brand-count">' + group.stores.length + '家店</span></div>';
+    }
 
-    for (var j = 0; j < store.platforms.length; j++) {
-      var p = store.platforms[j];
-      if (p.has_auth_issue) continue; // 跳过授权失败的平台
-      html += '<div class="platform-section">';
-      html += '<div class="platform-label">' + esc(p.platform) + '</div>';
+    for (var si = 0; si < group.stores.length; si++) {
+      var store = group.stores[si];
+      // 判断是否全部授权失败
+      var allAuth = store.platforms.every(function(p) { return p.has_auth_issue; });
 
-      var hasIssue = false;
+      html += '<div class="store-card' + (allAuth ? ' auth-fail' : '') + '">';
+      html += '<div class="store-name-line">' + esc(store.store) + '</div>';
 
-      if (p.bad_review_count > 0) {
-        hasIssue = true;
-        html += '<div class="issue-line red">差评 ' + p.bad_review_count + '条</div>';
-        for (var k = 0; k < p.bad_reviews.length && k < 3; k++) {
-          var r = p.bad_reviews[k];
-          html += '<div class="review-detail">' + r.stars + '星 "' + esc((r.comment||'').substring(0,40)) + '"</div>';
+      if (allAuth) {
+        var authPlatforms = store.platforms.map(function(p){return p.platform}).join('、');
+        html += '<div class="issue-line red">未授权 · ' + esc(authPlatforms) + '</div>';
+      } else {
+        for (var j = 0; j < store.platforms.length; j++) {
+          var p = store.platforms[j];
+          html += '<div class="platform-section">';
+          var pTag = p.platform === '美团' ? 'tag-meituan' : p.platform === '饿了么' ? 'tag-eleme' : 'tag-gray';
+          html += '<span class="tag ' + pTag + '">' + esc(p.platform) + '</span>';
+
+          if (p.has_auth_issue) {
+            html += '<span class="issue-inline red">未授权</span>';
+            html += '</div>';
+            continue;
+          }
+
+          var issues = [];
+
+          if (p.bad_review_count > 0) {
+            var revHtml = '<span class="issue-inline red">差评' + p.bad_review_count + '条</span>';
+            for (var k = 0; k < p.bad_reviews.length && k < 2; k++) {
+              var r = p.bad_reviews[k];
+              revHtml += '<div class="review-detail">' + r.stars + '星 "' + esc((r.comment||'').substring(0,35)) + '"</div>';
+            }
+            issues.push(revHtml);
+          }
+
+          if (p.expiring_count > 0) {
+            for (var k = 0; k < p.activities.length; k++) {
+              var a = p.activities[k];
+              var cls = (a.days_left || 99) <= 1 ? 'red' : 'yellow';
+              issues.push('<span class="issue-inline ' + cls + '">' + esc(a.name) + ' ' + a.days_left + '天到期</span>');
+            }
+          }
+
+          if (p.promo_balance !== null && p.promo_balance !== undefined) {
+            if (p.promo_daily_spend && p.promo_daily_spend > 0) {
+              var daysLeft = p.promo_balance / p.promo_daily_spend;
+              if (daysLeft < 1) {
+                issues.push('<span class="issue-inline red">推广余额¥' + p.promo_balance.toFixed(0) + ' 今天可能用完</span>');
+              } else if (daysLeft < 3) {
+                issues.push('<span class="issue-inline yellow">推广余额¥' + p.promo_balance.toFixed(0) + ' ' + daysLeft.toFixed(1) + '天</span>');
+              }
+            }
+          }
+
+          if (p.notice_count > 0) {
+            var noticeHtml = '<span class="issue-inline blue">' + p.notice_count + '条通知</span>';
+            for (var k = 0; k < (p.notices || []).length && k < 2; k++) {
+              noticeHtml += '<div class="review-detail">' + esc(p.notices[k].title) + '</div>';
+            }
+            issues.push(noticeHtml);
+          }
+
+          if ((p.errors || []).length > 0) {
+            for (var k = 0; k < p.errors.length; k++) {
+              issues.push('<span class="issue-inline yellow">' + esc(p.errors[k]) + '</span>');
+            }
+          }
+
+          if (issues.length === 0) {
+            html += '<span class="issue-inline green">正常</span>';
+          } else {
+            html += issues.join('');
+          }
+
+          html += '</div>';
         }
       }
-
-      if (p.expiring_count > 0) {
-        hasIssue = true;
-        for (var k = 0; k < p.activities.length; k++) {
-          var a = p.activities[k];
-          var cls = (a.days_left || 99) <= 1 ? 'red' : 'yellow';
-          html += '<div class="issue-line ' + cls + '">' + esc(a.name) + ' ' + a.days_left + '天后到期</div>';
-        }
-      }
-
-      if (p.promo_balance !== null && p.promo_balance !== undefined) {
-        var promoClass = 'green';
-        var promoNote = '';
-        if (p.promo_daily_spend && p.promo_daily_spend > 0) {
-          var daysLeft = p.promo_balance / p.promo_daily_spend;
-          if (daysLeft < 1) { promoClass = 'red'; promoNote = ' 今天可能用完'; }
-          else if (daysLeft < 3) { promoClass = 'yellow'; promoNote = ' 预计' + daysLeft.toFixed(1) + '天用完'; }
-        }
-        if (promoClass !== 'green') {
-          hasIssue = true;
-          html += '<div class="issue-line ' + promoClass + '">推广余额 ¥' + p.promo_balance.toFixed(0) + promoNote + '</div>';
-        }
-      }
-
-      if (p.notice_count > 0) {
-        hasIssue = true;
-        html += '<div class="issue-line blue">' + p.notice_count + '条通知</div>';
-        for (var k = 0; k < (p.notices || []).length && k < 3; k++) {
-          var n = p.notices[k];
-          html += '<div class="review-detail">' + esc(n.title) + '</div>';
-        }
-      }
-
-      if ((p.errors || []).length > 0) {
-        hasIssue = true;
-        for (var k = 0; k < p.errors.length; k++) {
-          html += '<div class="issue-line yellow">' + esc(p.errors[k]) + '</div>';
-        }
-      }
-
-      if (!hasIssue) {
-        html += '<div class="issue-line green">正常</div>';
-      }
-
       html += '</div>';
     }
-    html += '</div>';
   }
 
   el.innerHTML = html;

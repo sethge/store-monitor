@@ -1898,7 +1898,26 @@ def daily_report():
                                            "notice_count": 0, "notices": []})
             stores.append(store)
 
-    return jsonify({"ts": ts, "stores": stores, "brands": data.get("brands", 0), "duration": data.get("duration", 0)})
+    # 按品牌分组
+    brand_stores_map = data.get("brand_stores", {})
+    store_map = {s["store"]: s for s in stores}
+    brands_grouped = []
+    assigned = set()
+    for brand_name, store_names in brand_stores_map.items():
+        brand_obj = {"brand": brand_name, "stores": []}
+        for sn in store_names:
+            if sn in store_map:
+                brand_obj["stores"].append(store_map[sn])
+                assigned.add(sn)
+        if brand_obj["stores"]:
+            brands_grouped.append(brand_obj)
+    # 没有归到品牌的店
+    orphans = [s for s in stores if s["store"] not in assigned]
+    if orphans:
+        brands_grouped.append({"brand": "其他", "stores": orphans})
+
+    return jsonify({"ts": ts, "stores": stores, "brands_grouped": brands_grouped,
+                     "brands": data.get("brands", 0), "duration": data.get("duration", 0)})
 
 
 @app.route("/api/alerts")
