@@ -220,7 +220,11 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    saveLog(entry);
+    // 记录时就打上当前operator，换人不影响已有log
+    chrome.storage.local.get("ops_operator", (data) => {
+      entry.operator = data.ops_operator || "";
+      saveLog(entry);
+    });
     debouncedPush();
     console.log("[OpsLogger]", apiMethod, shopName || shopId, itemName || itemId);
   },
@@ -273,6 +277,9 @@ async function pushLogs() {
     const { ops_logs = [] } = await chrome.storage.local.get("ops_logs");
     const unpushed = ops_logs.filter(l => !l.pushed);
     if (unpushed.length === 0) return;
+
+    // 用log自带的operator（记录时绑定），没有的fallback到当前operator
+    unpushed.forEach(l => { if (!l.operator) l.operator = ops_operator; });
 
     const res = await fetch(SERVER_URL + "/api/logs", {
       method: "POST",
