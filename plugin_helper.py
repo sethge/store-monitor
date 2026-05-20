@@ -96,8 +96,23 @@ async def get_ext(ctx):
             except:
                 pass
 
+    # 从service_workers/background_pages发现扩展ID（headless模式下扩展没有打开的页面）
+    import re as _re
+    sw_ids = set()
+    for sw in getattr(ctx, 'service_workers', []):
+        m = _re.search(r'chrome-extension://([a-z]+)/', sw.url)
+        if m: sw_ids.add(m.group(1))
+    for bp in getattr(ctx, 'background_pages', []):
+        m = _re.search(r'chrome-extension://([a-z]+)/', bp.url)
+        if m: sw_ids.add(m.group(1))
+    if sw_ids:
+        L.step("plugin", f"从service_workers发现扩展ID: {sw_ids}")
+        for eid in sw_ids:
+            if eid not in search_ids:
+                search_ids.insert(0, eid)
+
     # 尝试用已知ID打开
-    L.step("plugin", "页面中未找到悟空，尝试用已知ID打开")
+    L.step("plugin", f"尝试打开悟空 ({len(search_ids)}个ID)")
     front_app = _get_frontmost_app()
     for eid in search_ids:
         p = await ctx.new_page()
