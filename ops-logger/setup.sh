@@ -152,8 +152,8 @@ if ! curl --noproxy localhost -s http://localhost:$PORT/json/version > /dev/null
     fi
 
     if [ -f "$CHROME" ]; then
-        # 自动加载扩展
-        LOAD_EXT="$OPS_DIR"
+        # 自动加载扩展（用extension子目录，避免运行时文件触发Chrome重载）
+        LOAD_EXT="$OPS_DIR/extension"
         [ -d "$INSTALL_DIR/goku" ] && LOAD_EXT="$LOAD_EXT,$INSTALL_DIR/goku"
 
         "$CHROME" \

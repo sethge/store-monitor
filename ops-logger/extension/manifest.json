@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "小q助手",
+  "version": "4.1.0",
+  "description": "运营助手 — 巡店/预警/操作日志/数据复盘/AI会话",
+  "permissions": [
+    "storage",
+    "webRequest",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.waimai.meituan.com/*",
+    "*://*.meituan.com/*",
+    "*://*.ele.me/*",
+    "*://*.eleme.cn/*",
+    "*://*.koubei.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "小q助手"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["operators.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

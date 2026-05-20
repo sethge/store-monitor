@@ -39,8 +39,8 @@ echo "[2/2] 检查 Chrome..."
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 PORT=9222
 
-# 扩展路径
-EXT_OPSLOGGER="$DIR"
+# 扩展路径（用extension子目录，避免运行时文件触发Chrome重载）
+EXT_OPSLOGGER="$DIR/extension"
 EXT_GOKU="$PARENT/goku"
 LOAD_EXT=""
 [ -d "$EXT_OPSLOGGER" ] && LOAD_EXT="$EXT_OPSLOGGER"
