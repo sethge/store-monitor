@@ -2497,10 +2497,18 @@ def api_settings_get():
 def api_settings_set():
     data = request.get_json(silent=True) or {}
     cfg = load_config()
+    old_operator = cfg.get("operator", "")
     for key in ("patrol_enabled", "alert_enabled", "patrol_time", "alert_interval", "operator"):
         if key in data:
             cfg[key] = data[key]
     save_config(cfg)
+    # 换人时清掉旧巡检数据，避免新运营看到上一个人的日报
+    new_operator = data.get("operator", "")
+    if new_operator and new_operator != old_operator:
+        for f in ("patrol_result.json", "patrol_errors.json", "patrol_debug.json"):
+            p = os.path.join(os.path.dirname(__file__), f)
+            if os.path.exists(p):
+                os.remove(p)
     return jsonify({"ok": True})
 
 
