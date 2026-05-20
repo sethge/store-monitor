@@ -11,15 +11,36 @@ OPS_DIR="$INSTALL_DIR/ops-logger"
 echo "[小q] 开始安装..."
 
 # ─── 1. 拉代码 ───
+REPO_URL="https://gitee.com/sethgeshiheng/store-monitor"
+BRANCH="feature/watch-mode"
+
 if [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
-    git pull origin feature/watch-mode 2>/dev/null || true
+    git pull origin $BRANCH 2>/dev/null || true
     echo "[小q] 代码已更新"
-else
+elif command -v git &>/dev/null; then
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone https://gitee.com/sethgeshiheng/store-monitor.git -b feature/watch-mode "$INSTALL_DIR" 2>/dev/null
+    git clone "$REPO_URL.git" -b $BRANCH "$INSTALL_DIR"
     echo "[小q] 代码已下载"
+else
+    # 没有git，用zip下载
+    mkdir -p "$INSTALL_DIR"
+    ZIP_URL="$REPO_URL/repository/archive/$BRANCH.zip"
+    curl -fsSL "$ZIP_URL" -o /tmp/store-monitor.zip
+    unzip -qo /tmp/store-monitor.zip -d /tmp/store-monitor-tmp
+    # Gitee zip解压后目录名是 store-monitor-feature-watch-mode
+    cp -R /tmp/store-monitor-tmp/store-monitor-*/* "$INSTALL_DIR/"
+    rm -rf /tmp/store-monitor.zip /tmp/store-monitor-tmp
+    echo "[小q] 代码已下载(zip)"
 fi
+
+# 链接skills到QClaw
+mkdir -p "$HOME/.qclaw/skills"
+for skill in setup store-patrol store-alert store-diagnosis ops-scheduler; do
+    src="$INSTALL_DIR/skills/$skill"
+    dst="$HOME/.qclaw/skills/$skill"
+    [ -d "$src" ] && [ ! -e "$dst" ] && ln -sf "$src" "$dst"
+done
 
 # ─── 2. Python 环境 ───
 if [ "$(uname -s)" = "Darwin" ]; then
