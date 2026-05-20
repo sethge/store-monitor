@@ -1751,6 +1751,33 @@ def extension_version():
             pass
     return jsonify({"version": "0"})
 
+@app.route("/api/extension/download")
+def extension_download():
+    """打包当前ops-logger目录为zip供下载，只含扩展文件"""
+    import zipfile, io, glob as _glob
+    from flask import send_file
+    base = os.path.dirname(__file__)
+    # 读版本号
+    try:
+        with open(os.path.join(base, "manifest.json")) as f:
+            ver = json.load(f).get("version", "0")
+    except:
+        ver = "0"
+    # 只打包扩展需要的文件
+    ext_files = ["manifest.json", "popup.html", "popup.js", "background.js",
+                 "content.js", "content-bridge.js", "content-cache.js",
+                 "content-inject.js", "injector.js", "operators.json"]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for fn in ext_files:
+            fp = os.path.join(base, fn)
+            if os.path.exists(fp):
+                zf.write(fp, fn)
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip",
+                     as_attachment=True,
+                     download_name=f"xiaoq-v{ver}.zip")
+
 @app.route("/download/<path:filename>")
 def download_file(filename):
     from flask import send_from_directory
