@@ -1,34 +1,27 @@
 #!/bin/bash
 # 小q助手 — 一键安装+启动
-# 运营只需要跑这一句，剩下全自动
-# 用法: bash <(curl -fsSL https://gitee.com/sethgeshiheng/store-monitor/raw/feature/watch-mode/ops-logger/setup.sh)
+# QClaw自动调用，运营不碰终端
+# 幂等：跑多少次都安全
 
 set -e
 
-echo ""
-echo "================================"
-echo "  小q助手 一键安装"
-echo "================================"
-echo ""
-
-# ─── 0. 安装目录 ───
 INSTALL_DIR="$HOME/.qclaw/workspace/store-monitor"
 OPS_DIR="$INSTALL_DIR/ops-logger"
 
+echo "[小q] 开始安装..."
+
 # ─── 1. 拉代码 ───
-echo "[1/5] 下载代码..."
 if [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
-    git pull origin feature/watch-mode 2>/dev/null || git pull 2>/dev/null || true
-    echo "  已更新"
+    git pull origin feature/watch-mode 2>/dev/null || true
+    echo "[小q] 代码已更新"
 else
     mkdir -p "$(dirname "$INSTALL_DIR")"
     git clone https://gitee.com/sethgeshiheng/store-monitor.git -b feature/watch-mode "$INSTALL_DIR" 2>/dev/null
-    echo "  已下载"
+    echo "[小q] 代码已下载"
 fi
 
 # ─── 2. Python 环境 ───
-echo "[2/5] 检查 Python..."
 if [ "$(uname -s)" = "Darwin" ]; then
     export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.ustc.edu.cn/brew.git"
     export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.ustc.edu.cn/homebrew-core.git"
@@ -37,11 +30,9 @@ if [ "$(uname -s)" = "Darwin" ]; then
 
     if ! command -v /opt/homebrew/bin/python3 &>/dev/null && ! command -v python3 &>/dev/null; then
         command -v brew &>/dev/null || {
-            echo "  安装 Homebrew (国内镜像)..."
             /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
             eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
         }
-        echo "  安装 Python3..."
         brew install python3
     fi
 fi
@@ -50,18 +41,13 @@ PYTHON=""
 for p in "/opt/homebrew/bin/python3" "python3"; do
     if command -v "$p" &>/dev/null; then PYTHON="$p"; break; fi
 done
-echo "  Python: $($PYTHON --version)"
 
 # ─── 3. venv + 依赖 ───
-echo "[3/5] 安装依赖..."
 VENV="$OPS_DIR/venv"
-if [ ! -d "$VENV" ]; then
-    $PYTHON -m venv "$VENV"
-fi
+[ ! -d "$VENV" ] && $PYTHON -m venv "$VENV"
 VPIP="$VENV/bin/pip3"
 VPYTHON="$VENV/bin/python3"
 
-# 找可用PyPI镜像
 PIP_MIRROR=""
 for mirror in \
     "-i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com" \
@@ -74,23 +60,18 @@ for mirror in \
 done
 
 for pkg in flask requests; do
-    $VPYTHON -c "import $pkg" 2>/dev/null || {
-        echo "  安装 $pkg..."
-        $VPIP install $PIP_MIRROR $pkg 2>/dev/null || $VPIP install $pkg
-    }
+    $VPYTHON -c "import $pkg" 2>/dev/null || $VPIP install $PIP_MIRROR $pkg 2>/dev/null || $VPIP install $pkg
 done
 
 PLAYWRIGHT_VER="1.44.0"
 $VPYTHON -c "import playwright" 2>/dev/null || {
-    echo "  安装 playwright..."
     $VPIP install $PIP_MIRROR "playwright==$PLAYWRIGHT_VER" 2>/dev/null || $VPIP install "playwright==$PLAYWRIGHT_VER"
     PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" $VPYTHON -m playwright install chromium 2>/dev/null || \
     $VPYTHON -m playwright install chromium
 }
-echo "  依赖 OK"
+echo "[小q] 依赖 OK"
 
-# ─── 4. 开机自启(LaunchAgent) ───
-echo "[4/5] 设置开机自启..."
+# ─── 4. LaunchAgent: server.py 开机自启 ───
 PLIST_NAME="com.xiaoq.server"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME.plist"
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -121,31 +102,54 @@ cat > "$PLIST_PATH" << PEOF
 PEOF
 launchctl unload "$PLIST_PATH" 2>/dev/null || true
 launchctl load "$PLIST_PATH" 2>/dev/null || true
-echo "  server.py 开机自启 OK"
+echo "[小q] server 开机自启 OK"
 
-# ─── 5. 桌面快捷方式 ───
-echo "[5/5] 创建桌面快捷方式..."
-SHORTCUT="$HOME/Desktop/启动小q.command"
-cat > "$SHORTCUT" << SEOF
-#!/bin/bash
-cd "$OPS_DIR"
-bash start.sh
-SEOF
-chmod +x "$SHORTCUT"
-echo "  桌面「启动小q」已创建"
+# ─── 5. 启动 server.py ───
+if ! curl -s --max-time 2 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+    lsof -i :5500 -t | xargs kill -9 2>/dev/null || true
+    sleep 1
+    nohup $VPYTHON "$OPS_DIR/server.py" > "$OPS_DIR/server.log" 2>&1 &
+    sleep 2
+fi
 
-# ─── 启动 ───
-echo ""
-echo "  正在启动..."
-cd "$OPS_DIR"
-bash start.sh
+if curl -s --max-time 2 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+    echo "[小q] server 已启动 (port 5500)"
+else
+    echo "[小q] ERROR: server 启动失败"
+    exit 1
+fi
 
-echo ""
-echo "================================"
-echo "  安装完成!"
-echo ""
-echo "  接下来两步:"
-echo "  1. 点Chrome右上角「悟空」登录食亨"
-echo "  2. 点「小q助手」输入你的名字"
-echo "================================"
-echo ""
+# ─── 6. 启动 Chrome (debug端口 + 自动加载扩展) ───
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+PORT=9222
+
+if ! curl --noproxy localhost -s http://localhost:$PORT/json/version > /dev/null 2>&1; then
+    # Chrome在跑但没debug端口 → 重启
+    if pgrep -f "Google Chrome" > /dev/null 2>&1; then
+        pkill -f "Google Chrome" 2>/dev/null
+        sleep 2
+    fi
+
+    if [ -f "$CHROME" ]; then
+        # 自动加载扩展
+        LOAD_EXT="$OPS_DIR"
+        [ -d "$INSTALL_DIR/goku" ] && LOAD_EXT="$LOAD_EXT,$INSTALL_DIR/goku"
+
+        "$CHROME" \
+            --remote-debugging-port=$PORT \
+            --no-first-run \
+            --no-default-browser-check \
+            --proxy-server="direct://" \
+            --load-extension="$LOAD_EXT" \
+            > /dev/null 2>&1 &
+        sleep 3
+        echo "[小q] Chrome 已启动 (debug + 扩展自动加载)"
+    else
+        echo "[小q] ERROR: 找不到Chrome"
+        exit 1
+    fi
+else
+    echo "[小q] Chrome 已在运行"
+fi
+
+echo "[小q] 安装完成！"
