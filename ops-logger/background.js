@@ -6,12 +6,12 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "4.0.1";
+const VERSION = "4.1.0";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
 const CONFIG_REFRESH = 300000;
-const UPDATE_CHECK_INTERVAL = 60000; // 1 min
+const UPDATE_CHECK_INTERVAL = 86400000; // 24h
 
 // ========== Caches ==========
 let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
@@ -56,7 +56,7 @@ async function fetchConfig() {
   }
 }
 
-// ========== Auto-update ==========
+// ========== Auto-update (notify only, no auto-reload) ==========
 async function checkForUpdate() {
   if (!SERVER_URL) return;
   try {
@@ -64,8 +64,8 @@ async function checkForUpdate() {
     if (!res.ok) return;
     const data = await res.json();
     if (data.version && data.version !== VERSION) {
-      console.log("[OpsLogger] Update:", VERSION, "->", data.version, "reloading...");
-      chrome.runtime.reload();
+      console.log("[OpsLogger] New version available:", VERSION, "->", data.version);
+      chrome.storage.local.set({ ops_update_available: data.version });
     }
   } catch (e) {}
 }
