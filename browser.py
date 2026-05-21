@@ -278,9 +278,21 @@ async def launch_headless(pw, port=HEADLESS_PORT):
         if ws:
             browser = await pw.chromium.connect_over_cdp(ws)
             await asyncio.sleep(2)
-            pages = [p.url[:60] for p in browser.contexts[0].pages]
+            ctx = browser.contexts[0]
+            pages = [p.url[:60] for p in ctx.pages]
             L.step("headless", f"连接成功 ({i+1}s), {len(pages)}个页面", detail=str(pages))
-            return browser, browser.contexts[0]
+
+            # 唤醒MV3扩展的service worker：访问平台页面触发content script
+            try:
+                wake_page = await ctx.new_page()
+                await wake_page.goto("https://e.waimai.meituan.com", wait_until="commit", timeout=10000)
+                await asyncio.sleep(3)  # 等service worker启动
+                await wake_page.close()
+                L.step("headless", "扩展service worker已唤醒")
+            except Exception as e:
+                L.step("headless", f"唤醒扩展跳过: {e}")
+
+            return browser, ctx
 
     L.error("headless", "启动超时(20s)")
     raise Exception("Headless Chrome启动超时")
