@@ -187,45 +187,26 @@ def _sync_headless_profile():
         L.error("profile", f"Chrome profile不存在: {src}")
         raise Exception(f"Chrome profile不存在: {src}，请先用带debug端口的Chrome登录过")
 
-    if not dst.exists():
-        # 首次：全量拷贝
-        L.step("profile", f"首次拷贝 {src} → {dst}")
-        shutil.copytree(str(src), str(dst), symlinks=True,
-                        ignore=shutil.ignore_patterns('Cache', 'Code Cache', 'Service Worker',
-                                                       'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache',
-                                                       'GrShaderCache', 'ShaderCache', 'blob_storage'))
-        # 删除锁文件
-        for lock in dst.rglob("SingletonLock"):
-            lock.unlink(missing_ok=True)
-        for lock in dst.rglob("SingletonCookie"):
-            lock.unlink(missing_ok=True)
-        for lock in dst.rglob("SingletonSocket"):
-            lock.unlink(missing_ok=True)
-        # 开启开发者模式（--load-extension需要）
-        _enable_developer_mode(dst)
-        L.step("profile", f"首次拷贝完成: {dst}")
-    else:
-        # 增量：只同步关键登录文件
-        files_to_sync = [
-            "Default/Cookies",
-            "Default/Cookies-journal",
-            "Default/Extension Cookies",
-            "Default/Extension Cookies-journal",
-            "Local State",
-        ]
-        for f in files_to_sync:
-            s = src / f
-            d = dst / f
-            if s.exists():
-                d.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(s), str(d))
-        # 删除锁文件
-        for lock in dst.rglob("SingletonLock"):
-            lock.unlink(missing_ok=True)
-        for lock in dst.rglob("SingletonCookie"):
-            lock.unlink(missing_ok=True)
-        for lock in dst.rglob("SingletonSocket"):
-            lock.unlink(missing_ok=True)
+    # 每次都全量拷贝，避免增量遗漏扩展登录态（悟空插件等）
+    if dst.exists():
+        L.step("profile", f"清理旧 headless profile: {dst}")
+        shutil.rmtree(str(dst))
+
+    L.step("profile", f"全量拷贝 {src} → {dst}")
+    shutil.copytree(str(src), str(dst), symlinks=True,
+                    ignore=shutil.ignore_patterns('Cache', 'Code Cache', 'Service Worker',
+                                                   'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache',
+                                                   'GrShaderCache', 'ShaderCache', 'blob_storage'))
+    # 删除锁文件
+    for lock in dst.rglob("SingletonLock"):
+        lock.unlink(missing_ok=True)
+    for lock in dst.rglob("SingletonCookie"):
+        lock.unlink(missing_ok=True)
+    for lock in dst.rglob("SingletonSocket"):
+        lock.unlink(missing_ok=True)
+    # 开启开发者模式（--load-extension需要）
+    _enable_developer_mode(dst)
+    L.step("profile", f"profile同步完成: {dst}")
 
 
 async def launch_headless(pw, port=HEADLESS_PORT):
