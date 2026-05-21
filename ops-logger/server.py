@@ -2,7 +2,7 @@
 Ops Logger Server v4.0 - 接收运营操作日志 + 结构化解析 + 改前值追踪 + 巡检/预警直执行
 端口: 5500
 """
-import json, sqlite3, os, re, subprocess, threading, sys
+import json, sqlite3, os, re, subprocess, threading, sys, socket
 import requests as http_requests
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
@@ -2525,6 +2525,10 @@ def api_patrol_start():
                     _patrol_state["message"] = f"巡检异常: {last_step}" if last_step else f"巡检异常(code={proc.returncode})"
                 _patrol_state["pid"] = None
             print(f"[patrol] 结束: code={proc.returncode}")
+            # 上报日志
+            _report_logs("patrol")
+            if proc.returncode != 0:
+                _report_logs("error")
         except subprocess.TimeoutExpired:
             proc.kill()
             _cleanup_headless()
@@ -2534,6 +2538,7 @@ def api_patrol_start():
                 _patrol_state["message"] = f"巡检超时({timeout_sec}秒)，卡在: {last_step}"
                 _patrol_state["pid"] = None
             print(f"[patrol] 超时({timeout_sec}s)，卡在: {last_step}")
+            _report_logs("error")
         except Exception as e:
             _cleanup_headless()
             with _patrol_lock:
@@ -2541,6 +2546,7 @@ def api_patrol_start():
                 _patrol_state["message"] = str(e)[:100]
                 _patrol_state["pid"] = None
             print(f"[patrol] 异常: {e}")
+            _report_logs("error")
 
     t = threading.Thread(target=_run_patrol, daemon=True)
     t.start()
@@ -2936,6 +2942,58 @@ def _exec_tool(name, args):
     finally:
         conn.close()
 
+# ========== 日志上报（远程→管理员） ==========
+
+def _report_logs(log_type="error"):
+    """将本地日志上报给管理员server（非阻塞）"""
+    def _do_report():
+        url = _discover_crm_remote()
+        if not url:
+            return
+        try:
+            operator = load_config().get("operator", "unknown")
+            hostname = socket.gethostname() if hasattr(socket, 'gethostname') else "unknown"
+
+            entries = []
+            if log_type == "error":
+                err_file = os.path.join(os.path.dirname(__file__), "patrol_errors.json")
+                if os.path.exists(err_file):
+                    with open(err_file) as f:
+                        entries = json.load(f)
+            elif log_type == "patrol":
+                result_file = os.path.join(os.path.dirname(__file__), "patrol_result.json")
+                if os.path.exists(result_file):
+                    with open(result_file) as f:
+                        result = json.load(f)
+                    # 只上报摘要和issues
+                    entries = [{
+                        "ts": result.get("ts", ""),
+                        "brands": result.get("brands", 0),
+                        "duration": result.get("duration", 0),
+                        "issues": result.get("issues", {}),
+                    }]
+            elif log_type == "health":
+                entries = [{
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "state": _patrol_state.get("state", "idle"),
+                    "message": _patrol_state.get("message", ""),
+                }]
+
+            if not entries:
+                return
+
+            session = http_requests.Session()
+            session.trust_env = False
+            session.post(f"{url}/api/logs/report",
+                        json={"operator": operator, "hostname": hostname,
+                              "type": log_type, "entries": entries},
+                        timeout=10)
+        except Exception as e:
+            print(f"[log-report] 上报失败: {e}")
+
+    threading.Thread(target=_do_report, daemon=True).start()
+
+
 CRM_DB = os.path.join(os.path.expanduser("~"), "Downloads", "diagnosis-queue", "crm.db")
 # 公网CRM API地址，本地没有crm.db时走远程（自动从OSS发现）
 CRM_REMOTE_URL = os.environ.get("CRM_REMOTE_URL", "")
@@ -2982,6 +3040,70 @@ def _crm_remote_call(tool_name, args):
         return f"CRM服务不可用({resp.status_code})"
     except Exception as e:
         return f"CRM连接失败: {str(e)[:50]}"
+
+# ========== 远程日志上报 ==========
+
+REMOTE_LOGS_DIR = os.path.join(os.path.dirname(__file__), "remote_logs")
+
+@app.route("/api/logs/report", methods=["POST"])
+def api_logs_report():
+    """接收远程server上报的日志"""
+    data = request.json or {}
+    operator = data.get("operator", "unknown")
+    hostname = data.get("hostname", "unknown")
+    log_type = data.get("type", "error")  # error / patrol / health
+    entries = data.get("entries", [])
+    if not entries:
+        return jsonify({"ok": True, "msg": "empty"})
+
+    os.makedirs(REMOTE_LOGS_DIR, exist_ok=True)
+    today = datetime.now().strftime("%Y-%m-%d")
+    filepath = os.path.join(REMOTE_LOGS_DIR, f"{operator}_{today}.jsonl")
+    with open(filepath, "a", encoding="utf-8") as f:
+        for entry in entries:
+            entry["_operator"] = operator
+            entry["_hostname"] = hostname
+            entry["_type"] = log_type
+            entry["_received"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(f"[remote-log] 收到 {operator}@{hostname} 的 {len(entries)} 条 {log_type} 日志")
+    return jsonify({"ok": True, "received": len(entries)})
+
+
+@app.route("/api/logs/query")
+def api_logs_query():
+    """查询远程上报的日志"""
+    operator = request.args.get("operator", "")
+    date = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    log_type = request.args.get("type", "")
+    limit = request.args.get("limit", 100, type=int)
+
+    if not os.path.exists(REMOTE_LOGS_DIR):
+        return jsonify([])
+
+    results = []
+    for fname in sorted(os.listdir(REMOTE_LOGS_DIR), reverse=True):
+        if not fname.endswith(".jsonl"):
+            continue
+        if operator and operator not in fname:
+            continue
+        if date and date not in fname:
+            continue
+        fpath = os.path.join(REMOTE_LOGS_DIR, fname)
+        with open(fpath, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line.strip())
+                    if log_type and entry.get("_type") != log_type:
+                        continue
+                    results.append(entry)
+                except:
+                    pass
+    results = results[-limit:]
+    return jsonify(results)
+
+
+# ========== CRM公网API ==========
 
 @app.route("/api/crm/tool", methods=["POST"])
 def api_crm_tool():
