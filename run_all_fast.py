@@ -224,12 +224,42 @@ async def main():
                     await close_store_pages(ctx)
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
-                    result = await click_store_platform(ext, acct['account'])
+
+                    # 登录重试机制：点击后验证平台页面是否打开，最多3次
+                    login_ok = False
+                    for login_attempt in range(3):
+                        result = await click_store_platform(ext, acct['account'])
+                        if result != 'ok':
+                            L.step("store", f"跳过 {acct['account']} (result={result})")
+                            break
+                        await asyncio.sleep(3 + login_attempt)  # 每次多等1秒
+
+                        # 验证平台页面是否真的打开了
+                        found_page = False
+                        if p == 'meituan':
+                            found_page = any('waimai.meituan.com' in x.url and 'chrome-extension' not in x.url for x in ctx.pages)
+                        elif p == 'eleme':
+                            found_page = any('ele.me' in x.url and 'melody' in x.url for x in ctx.pages)
+
+                        if found_page:
+                            login_ok = True
+                            break
+                        else:
+                            L.step("store", f"登录后未检测到{p_name}页面，第{login_attempt+1}次重试")
+                            # 关掉可能残留的空白页再重试
+                            await close_store_pages(ctx)
+                            ext = await get_ext(ctx)
+                            await pick_brand(ext, brand)
+
                     if result != 'ok':
-                        L.step("store", f"跳过 {acct['account']} (result={result})")
                         continue
-                    await asyncio.sleep(3)  # 等Goku创建tab
-                    await restore_user_focus(user_page)  # 再还焦点
+                    if not login_ok:
+                        L.error("store", f"3次登录均未打开{p_name}页面: {acct['account']}")
+                        _log_error("store_login", f"3次重试仍未打开平台页面", {"brand": brand, "account": acct.get('account',''), "platform": p_name})
+                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录3次未成功","details":[]})
+                        continue
+
+                    await restore_user_focus(user_page)  # 还焦点
 
                     # headless下Goku可能开http://，修正为https://
                     for x in ctx.pages:

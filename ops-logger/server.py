@@ -2937,6 +2937,28 @@ def _exec_tool(name, args):
         conn.close()
 
 CRM_DB = os.path.join(os.path.expanduser("~"), "Downloads", "diagnosis-queue", "crm.db")
+# 公网CRM API地址，本地没有crm.db时走远程（自动从OSS发现）
+CRM_REMOTE_URL = os.environ.get("CRM_REMOTE_URL", "")
+
+def _discover_crm_remote():
+    """从OSS读取管理员tunnel URL，缓存10分钟"""
+    global CRM_REMOTE_URL, _crm_url_ts
+    now = time.time()
+    if CRM_REMOTE_URL and hasattr(_discover_crm_remote, '_ts') and now - _discover_crm_remote._ts < 600:
+        return CRM_REMOTE_URL
+    try:
+        session = http_requests.Session()
+        session.trust_env = False
+        resp = session.get("https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json", timeout=5)
+        if resp.ok:
+            url = resp.json().get("url", "")
+            if url:
+                CRM_REMOTE_URL = url
+                _discover_crm_remote._ts = now
+                print(f"[crm] 发现管理员服务: {url}")
+    except Exception as e:
+        print(f"[crm] 发现管理员服务失败: {e}")
+    return CRM_REMOTE_URL
 
 def _crm_db():
     if not os.path.exists(CRM_DB):
@@ -2945,8 +2967,47 @@ def _crm_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def _crm_remote_call(tool_name, args):
+    """本地没有crm.db时，调用管理员公网CRM API"""
+    url = _discover_crm_remote()
+    if not url:
+        return "CRM服务暂时连不上，稍后再试"
+    try:
+        session = http_requests.Session()
+        session.trust_env = False
+        resp = session.post(f"{url}/api/crm/tool",
+                           json={"tool": tool_name, "args": args}, timeout=15)
+        if resp.ok:
+            return resp.json().get("result", "查询失败")
+        return f"CRM服务不可用({resp.status_code})"
+    except Exception as e:
+        return f"CRM连接失败: {str(e)[:50]}"
+
+@app.route("/api/crm/tool", methods=["POST"])
+def api_crm_tool():
+    """公网CRM工具端点 — 供远程server调用"""
+    data = request.json or {}
+    tool = data.get("tool", "")
+    args = data.get("args", {})
+    handlers = {
+        "crm_query_diagnosis": _crm_query_diagnosis_local,
+        "crm_query_meeting": _crm_query_meeting_local,
+        "crm_list_stores": _crm_list_stores_local,
+        "crm_record_feedback": _crm_record_feedback_local,
+    }
+    fn = handlers.get(tool)
+    if not fn:
+        return jsonify({"result": f"未知CRM工具: {tool}"}), 400
+    return jsonify({"result": fn(args)})
+
 def _crm_query_diagnosis(args):
-    """查诊断报告"""
+    """查诊断报告 — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_query_diagnosis_local(args)
+    return _crm_remote_call("crm_query_diagnosis", args)
+
+def _crm_query_diagnosis_local(args):
+    """查诊断报告（本地）"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
@@ -2978,7 +3039,13 @@ def _crm_query_diagnosis(args):
     return json.dumps(results, ensure_ascii=False)
 
 def _crm_query_meeting(args):
-    """查会议纪要"""
+    """查会议纪要 — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_query_meeting_local(args)
+    return _crm_remote_call("crm_query_meeting", args)
+
+def _crm_query_meeting_local(args):
+    """查会议纪要（本地）"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
@@ -3011,7 +3078,13 @@ def _crm_query_meeting(args):
     return json.dumps([dict(r) for r in rows], ensure_ascii=False)
 
 def _crm_list_stores(args):
-    """列出CRM品牌"""
+    """列出CRM品牌 — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_list_stores_local(args)
+    return _crm_remote_call("crm_list_stores", args)
+
+def _crm_list_stores_local(args):
+    """列出CRM品牌（本地）"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
@@ -3029,7 +3102,13 @@ def _crm_list_stores(args):
     return json.dumps([dict(r) for r in rows], ensure_ascii=False)
 
 def _crm_record_feedback(args):
-    """记录反馈"""
+    """记录反馈 — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_record_feedback_local(args)
+    return _crm_remote_call("crm_record_feedback", args)
+
+def _crm_record_feedback_local(args):
+    """记录反馈（本地）"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
