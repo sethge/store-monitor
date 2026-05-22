@@ -584,15 +584,16 @@ async def run_once(brands, ctx, user_page=None):
 
 
 async def watch_open_all(brands, ctx, user_page=None):
-    """预警第一轮：打开所有品牌所有店的页面，返回 (pages列表, 拦截列表)"""
+    """预警第一轮：打开所有品牌所有店的页面，返回 (pages列表, 拦截列表)
+    注意：不能调close_store_pages，要保留所有已打开的平台页面供后续refresh"""
     all_pages = []  # [(display_name, platform, page)]
+    kept_pages = set()  # 已收录的page对象id，避免重复匹配
     blocked_stores = []  # [(display_name, platform_name, reason)]
 
     for bi, brand in enumerate(brands):
         t_brand = time.time()
         print(f"  [{bi+1}/{len(brands)}] {brand}...", end=" ", flush=True)
 
-        await close_store_pages(ctx)
         ext = await get_ext(ctx)
         ok, status = await pick_brand(ext, brand)
         if not ok:
@@ -620,6 +621,10 @@ async def watch_open_all(brands, ctx, user_page=None):
                 else:
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
+
+                # 记录点击前的页面，点击后找新打开的
+                before_pages = set(id(p) for p in ctx.pages)
+
                 result = await click_store_platform(ext, acct['account'])
                 if result != 'ok': continue
                 await asyncio.sleep(2)  # 等Goku创建tab
@@ -630,32 +635,43 @@ async def watch_open_all(brands, ctx, user_page=None):
                     if x.url.startswith("http://") and ('waimai.meituan.com' in x.url or 'ele.me' in x.url):
                         await ensure_https(x)
 
+                # 只在新打开的页面里找（避免匹配到之前品牌的页面）
+                new_page = None
                 if acct['platform'] == 'meituan':
                     for x in ctx.pages:
-                        if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
-                            blocked, reason = await check_verification(x)
-                            if blocked:
-                                p_name = "美团"
-                                print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
-                                blocked_stores.append((_dn(), p_name, reason))
-                                try: await x.close()
-                                except: pass
-                            else:
-                                all_pages.append((_dn(), 'meituan', x))
-                            break
+                        if id(x) in kept_pages: continue
+                        if id(x) not in before_pages or id(x) not in kept_pages:
+                            if ('waimai.meituan.com' in x.url or 'verify.meituan.com' in x.url) and 'chrome-extension' not in x.url:
+                                new_page = x
+                                break
+                    if new_page:
+                        blocked, reason = await check_verification(new_page)
+                        if blocked:
+                            print(f"⚠️{_dn()}(美团):{reason}", end=" ", flush=True)
+                            blocked_stores.append((_dn(), "美团", reason))
+                            try: await new_page.close()
+                            except: pass
+                        else:
+                            all_pages.append((_dn(), 'meituan', new_page))
+                            kept_pages.add(id(new_page))
+
                 elif acct['platform'] == 'eleme':
                     for x in ctx.pages:
-                        if 'ele.me' in x.url and 'melody' in x.url:
-                            blocked, reason = await check_verification(x)
-                            if blocked:
-                                p_name = "饿了么"
-                                print(f"⚠️{_dn()}({p_name}):{reason}", end=" ", flush=True)
-                                blocked_stores.append((_dn(), p_name, reason))
-                                try: await x.close()
-                                except: pass
-                            else:
-                                all_pages.append((_dn(), 'eleme', x))
-                            break
+                        if id(x) in kept_pages: continue
+                        if id(x) not in before_pages or id(x) not in kept_pages:
+                            if 'ele.me' in x.url and 'melody' in x.url:
+                                new_page = x
+                                break
+                    if new_page:
+                        blocked, reason = await check_verification(new_page)
+                        if blocked:
+                            print(f"⚠️{_dn()}(饿了么):{reason}", end=" ", flush=True)
+                            blocked_stores.append((_dn(), "饿了么", reason))
+                            try: await new_page.close()
+                            except: pass
+                        else:
+                            all_pages.append((_dn(), 'eleme', new_page))
+                            kept_pages.add(id(new_page))
 
         print(f"{time.time()-t_brand:.0f}s")
 
