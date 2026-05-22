@@ -906,6 +906,12 @@ def receive_logs():
 
         action_type, action_detail = parse_action(api_method, body, conn)
 
+        # 跳过查询型POST（get/query/list/count/check开头的方法名不是运营操作）
+        if action_type:
+            at_lower = action_type.lower()
+            if any(at_lower.startswith(p) for p in ('get', 'query', 'list', 'count', 'check', 'fetch', 'search', 'find')):
+                continue
+
         # Build one-line human-readable change summary
         change_summary = build_change_summary(action_type, api_method, body, before_snapshot)
 
