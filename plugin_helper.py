@@ -47,6 +47,7 @@ def _activate_app(handle):
 
 # 悟空插件ID（手动加载时Chrome会分配新ID，这里列已知的，自动检测兜底）
 KNOWN_EXT_IDS = [
+    "ljplecgkabpaemhfnmffajlpheeflocb",
     "imnjpdamkohlnjmnlfngaoogfnahlldd",
     "ghppggbdmkaicdgohkkdaebbpcochkfe",
     "kocmiihdllcmbjanolpggoafghdfnglg",
@@ -112,21 +113,51 @@ async def get_ext(ctx):
                 search_ids.insert(0, eid)
 
     # 尝试用已知ID打开
-    L.step("plugin", f"尝试打开悟空 ({len(search_ids)}个ID)")
+    L.step("plugin", f"尝试打开悟空 ({len(search_ids)}个ID)", detail=str(search_ids))
     front_app = _get_frontmost_app()
+    open_errors = []
     for eid in search_ids:
         p = await ctx.new_page()
         _activate_app(front_app)  # 立刻还焦点
         try:
-            await p.goto(f"chrome-extension://{eid}/index.html", wait_until="commit", timeout=10000)
-            await asyncio.sleep(2)
-            _discovered_ext_id = eid
-            L.step("plugin", f"悟空插件打开成功: {eid[:8]}...")
-            return p
-        except:
+            await p.goto(f"chrome-extension://{eid}/index.html", wait_until="domcontentloaded", timeout=10000)
+            # 等JS渲染完成（goku是SPA，需要额外等待）
+            for _retry in range(5):
+                await asyncio.sleep(2)
+                text = await p.evaluate("() => document.body ? document.body.innerText.substring(0,200) : ''")
+                if text.strip():
+                    break
+            # 验证页面内容确认是悟空
+            try:
+                if '品牌' in text or '重 置' in text or '授权' in text or '登录后使用' in text:
+                    _discovered_ext_id = eid
+                    L.step("plugin", f"悟空插件打开成功: {eid[:8]}...", detail=f"页面内容: {text[:80]}")
+                    return p
+                else:
+                    L.step("plugin", f"ID {eid[:8]} 打开成功但不是悟空", detail=f"页面内容: {text[:80]}")
+                    open_errors.append(f"{eid[:8]}: 不是悟空页面({text[:30]})")
+                    await p.close()
+            except Exception as ve:
+                # goto成功但evaluate失败，可能还是悟空
+                _discovered_ext_id = eid
+                L.step("plugin", f"悟空插件打开成功(evaluate失败): {eid[:8]}...", detail=str(ve)[:100])
+                return p
+        except Exception as e:
+            err_msg = str(e)[:100]
+            L.step("plugin", f"ID {eid[:8]} 打开失败: {err_msg}")
+            open_errors.append(f"{eid[:8]}: {err_msg}")
             await p.close()
-    L.error("plugin", f"找不到悟空插件", detail=f"tried {len(search_ids)} IDs, pages={pages_info}")
-    raise Exception(f"找不到悟空插件(tried {len(search_ids)} IDs, pages={[p.url[:50] for p in ctx.pages]})")
+
+    # 全部失败，记录详细信息
+    fail_detail = {
+        "tried_ids": len(search_ids),
+        "known_ids": [eid[:8] for eid in KNOWN_EXT_IDS],
+        "sw_ids": [eid[:8] for eid in sw_ids] if sw_ids else [],
+        "open_errors": open_errors,
+        "pages": [p.url[:60] for p in ctx.pages],
+    }
+    L.error("plugin", f"找不到悟空插件", detail=json.dumps(fail_detail, ensure_ascii=False))
+    raise Exception(f"找不到悟空插件(tried {len(search_ids)} IDs, errors={open_errors})")
 
 
 async def pick_brand(ext, brand):

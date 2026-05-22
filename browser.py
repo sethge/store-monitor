@@ -213,6 +213,14 @@ async def launch_headless(pw, port=HEADLESS_PORT):
     """启动无头Chrome，零窗口巡检。返回 (browser, context)"""
     import patrol_log as L
 
+    # 0. 先检查debug Chrome(9222)是否在跑 — 这是headless的前提
+    debug_ws = _cdp_ws(PORT)
+    if not debug_ws:
+        raise Exception(
+            "【需要操作】debug Chrome没有在运行。\n"
+            "请双击桌面的「盯店巡检」启动Chrome，确认悟空插件可用后再跑无头巡检。"
+        )
+
     # 1. 已有headless在跑 → 直连
     ws = _cdp_ws(port)
     if ws:
@@ -282,6 +290,35 @@ async def launch_headless(pw, port=HEADLESS_PORT):
             pages = [p.url[:60] for p in ctx.pages]
             L.step("headless", f"连接成功 ({i+1}s), {len(pages)}个页面", detail=str(pages))
 
+            # 从debug Chrome(9222)同步cookies到headless（Chrome 148内存中的cookies不在磁盘上）
+            try:
+                debug_ws = _cdp_ws(PORT)
+                if not debug_ws:
+                    L.error("headless", "debug Chrome(9222)已断开，无法同步cookies")
+                    raise Exception(
+                        "【需要操作】debug Chrome已断开。\n"
+                        "请双击桌面的「盯店巡检」重新启动Chrome，确认悟空插件可用后再跑。"
+                    )
+                debug_browser = await pw.chromium.connect_over_cdp(debug_ws)
+                debug_cdp = await debug_browser.new_browser_cdp_session()
+                result = await debug_cdp.send('Storage.getCookies')
+                cookies = result.get('cookies', [])
+                if not cookies:
+                    L.error("headless", "debug Chrome没有cookies，外卖通可能未登录")
+                    raise Exception(
+                        "【需要操作】debug Chrome里没有登录信息。\n"
+                        "请在Chrome里打开悟空插件，登出后重新用手机号登录外卖通，然后再跑无头巡检。"
+                    )
+                headless_cdp = await browser.new_browser_cdp_session()
+                await headless_cdp.send('Storage.setCookies', {'cookies': cookies})
+                L.step("headless", f"从debug Chrome同步{len(cookies)}个cookies")
+                debug_browser.contexts  # keep reference
+                await debug_cdp.detach()
+            except Exception as e:
+                if "【需要操作】" in str(e):
+                    raise  # 人话报错直接往上抛
+                L.step("headless", f"cookies同步跳过: {e}")
+
             # 唤醒MV3扩展的service worker：访问平台页面触发content script
             try:
                 wake_page = await ctx.new_page()
@@ -314,7 +351,21 @@ async def check_headless_login(ctx):
     try:
         ext = await get_ext(ctx)
     except Exception:
-        return False, "找不到悟空插件，请确认Chrome已登录悟空"
+        return False, (
+            "【卡在：打开悟空插件】悟空插件打不开。\n"
+            "请在Chrome里确认悟空插件正常，然后登出外卖通，重新用手机号登录，再跑无头巡检。"
+        )
+
+    # 检查页面是否显示"登录后使用"（悟空打开了但没登录）
+    try:
+        text = await ext.evaluate("() => document.body ? document.body.innerText.substring(0,200) : ''")
+        if '登录后使用' in text:
+            return False, (
+                "【卡在：悟空未登录】悟空插件打开了，但显示'登录后使用'。\n"
+                "请在Chrome里登出外卖通，重新用手机号登录，然后再跑无头巡检。"
+            )
+    except Exception:
+        pass
 
     # 检查悟空是否有品牌数据
     for _ in range(3):
@@ -323,7 +374,10 @@ async def check_headless_login(ctx):
             break
         await asyncio.sleep(1)
     if not ready:
-        return False, "悟空插件未就绪"
+        return False, (
+            "【卡在：悟空加载】悟空插件打开了，但品牌列表没加载出来。\n"
+            "请在Chrome里确认悟空插件能看到品牌列表，然后再跑无头巡检。"
+        )
 
     # 打开下拉看有没有品牌
     await ext.evaluate("() => {const s=document.querySelectorAll('.ant-select-selector');if(s.length)s[s.length-1].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}")
@@ -332,7 +386,10 @@ async def check_headless_login(ctx):
     await ext.evaluate("() => document.activeElement && document.activeElement.blur()")
 
     if count == 0:
-        return False, "悟空登录已过期，请在Chrome中重新打开悟空插件登录"
+        return False, (
+            "【卡在：悟空登录过期】悟空插件打开了，但没有品牌数据，说明登录过期了。\n"
+            "请在Chrome里登出外卖通，重新用手机号登录，然后再跑无头巡检。"
+        )
 
     return True, f"就绪（{count}个品牌）"
 

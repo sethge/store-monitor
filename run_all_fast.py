@@ -13,6 +13,61 @@ from playwright.async_api import async_playwright
 import patrol_log as L
 
 
+def _report_to_remote(log_type="error"):
+    """巡检结束后上报日志到管理员server，管理员实时可查"""
+    import requests as _req
+    try:
+        # 从OSS发现管理员URL
+        s = _req.Session()
+        s.trust_env = False
+        resp = s.get("https://meihu-video.oss-cn-hangzhou.aliyuncs.com/tools/ops-logger-server.json", timeout=5)
+        if not resp.ok:
+            return
+        url = resp.json().get("url", "")
+        if not url:
+            return
+
+        entries = []
+        ops_dir = os.path.join(os.path.dirname(__file__), "ops-logger")
+
+        if log_type == "error":
+            err_file = os.path.join(ops_dir, "patrol_errors.json")
+            if os.path.exists(err_file):
+                with open(err_file) as f:
+                    entries = json.load(f)
+            # 也上报debug日志
+            debug_file = os.path.join(ops_dir, "patrol_debug.json")
+            if os.path.exists(debug_file):
+                with open(debug_file) as f:
+                    debug = json.load(f)
+                entries.append({"_type": "debug", "steps": debug[-50:]})  # 最近50步
+        elif log_type == "patrol":
+            result_file = os.path.join(ops_dir, "patrol_result.json")
+            if os.path.exists(result_file):
+                with open(result_file) as f:
+                    result = json.load(f)
+                entries = [{"ts": result.get("ts", ""), "brands": result.get("brands", 0),
+                            "duration": result.get("duration", 0), "issues": result.get("issues", {})}]
+
+        if not entries:
+            return
+
+        import socket
+        hostname = socket.gethostname()
+        operator = "unknown"
+        cfg_file = os.path.join(ops_dir, "config.json")
+        if os.path.exists(cfg_file):
+            with open(cfg_file) as f:
+                operator = json.load(f).get("operator", "unknown")
+
+        s.post(f"{url}/api/logs/report",
+               json={"operator": operator, "hostname": hostname, "type": log_type, "entries": entries},
+               timeout=10)
+        print(f"[report] 已上报 {log_type} 日志到管理员")
+    except Exception as e:
+        print(f"[report] 上报失败: {e}")
+
+
 async def get_all_brands(ext):
     """获取插件下所有品牌列表"""
     # 等插件就绪
@@ -59,6 +114,12 @@ def _log_error(error_type, message, context=None):
     except Exception:
         pass
     print(f"[ERROR] [{error_type}] {message}")
+    # preflight失败时立即上报，管理员能远程看到
+    if error_type == "preflight":
+        try:
+            _report_to_remote("error")
+        except Exception:
+            pass
 
 
 async def main():
@@ -85,12 +146,22 @@ async def main():
     if args.headless:
         from browser import launch_headless
         try:
-            L.step("preflight", "启动无头Chrome...")
+            L.step("preflight", "启动无头Chrome...(步骤2/5)")
             b, ctx = await launch_headless(pw)
-            L.step("preflight", "无头Chrome OK")
+            # 记录启动后的状态
+            sw_urls = [sw.url[:60] for sw in getattr(ctx, 'service_workers', [])]
+            bg_urls = [bp.url[:60] for bp in getattr(ctx, 'background_pages', [])]
+            page_urls = [p.url[:60] for p in ctx.pages]
+            L.step("preflight", "无头Chrome OK", detail=f"pages={page_urls}, sw={sw_urls}, bg={bg_urls}")
         except Exception as e:
-            L.error("preflight", f"headless Chrome启动失败: {e}")
+            err_msg = str(e)
+            L.error("preflight", f"headless Chrome启动失败(步骤2): {e}", detail=err_msg)
             _log_error("preflight", f"headless Chrome启动失败: {e}")
+            # 人话报错直接打印
+            if "【需要操作】" in err_msg:
+                print(f"\n❌ {err_msg}\n")
+            else:
+                print(f"\n❌ 无头Chrome启动失败，请确认debug Chrome正在运行且悟空已登录。\n")
             await pw.stop()
             return
         user_page = None
@@ -109,10 +180,14 @@ async def main():
     # Check 3: 悟空插件
     try:
         ext = await get_ext(ctx)
-        L.step("preflight", "悟空插件 OK")
+        L.step("preflight", "悟空插件 OK(步骤3/5)")
     except Exception as e:
-        L.error("preflight", f"悟空插件找不到: {e}", detail=str([p.url[:80] for p in ctx.pages]))
+        L.error("preflight", f"悟空插件找不到(步骤3): {e}", detail=str([p.url[:80] for p in ctx.pages]))
         _log_error("preflight", f"悟空插件找不到: {e}", {"pages": [p.url[:80] for p in ctx.pages]})
+        print(
+            "\n❌ 【卡在：打开悟空插件】悟空插件打不开。\n"
+            "请在Chrome里确认悟空插件正常，登出外卖通后重新用手机号登录，再跑无头巡检。\n"
+        )
         if args.headless: kill_headless()
         await pw.stop()
         return
@@ -124,6 +199,7 @@ async def main():
         if not login_ok:
             L.error("preflight", f"登录失败: {login_msg}")
             _log_error("preflight", f"登录失败: {login_msg}")
+            print(f"\n❌ {login_msg}\n")
             kill_headless()
             await pw.stop()
             return
@@ -427,6 +503,14 @@ async def main():
     from learn import log_interaction
     issue_count = sum(len(items) for items in all_issues.values())
     log_interaction("usage", f"全量巡检 {len(brands)}品牌，{issue_count}个问题，{total:.0f}秒")
+
+    # 上报巡检结果+错误日志到远程（管理员实时可查）
+    try:
+        _report_to_remote("patrol")
+        _report_to_remote("error")
+    except Exception:
+        pass
+
     await stop_hider()
     if args.headless: kill_headless()
     await pw.stop()
