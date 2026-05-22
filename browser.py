@@ -275,6 +275,7 @@ async def launch_headless(pw, port=HEADLESS_PORT):
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-gpu",
+        "--mute-audio",
         "--proxy-server=direct://",
     ]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
