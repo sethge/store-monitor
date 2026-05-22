@@ -2234,6 +2234,7 @@ def api_operator_list():
 WORKSPACE = os.path.dirname(os.path.dirname(__file__))  # ops-logger/../ = store-monitor/
 _patrol_state = {"state": "idle", "message": "", "pid": None}
 _patrol_lock = threading.Lock()
+_task_queue = []  # 排队等待的任务: [{"brands": [...], "label": "...", "script": "..."}]
 
 
 def _cleanup_headless():
@@ -2637,16 +2638,24 @@ def _load_brain_knowledge():
 AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
 
 ## 你的职能
-1. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
-2. **反馈收集** — 运营说诊断哪里不对、哪个建议有问题，你记录下来
-3. **答疑交流** — 基于运营认知和店铺数据，回答运营的疑问、一起讨论运营策略
-4. **会议纪要** — 查会议记录发给运营，总结关键行动项
+1. **答疑交流** — 基于运营认知和店铺数据，回答运营的疑问、一起讨论运营策略
+2. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
+3. **反馈收集** — 运营遇到任何问题都帮忙记录：
+   - **产品bug**（product_bug）: 插件不好用、巡检跑不了、数据显示不对
+   - **诊断bug**（diagnosis_bug）: 诊断报告内容有误、建议不合理、数据不准
+   - **建议**（suggestion）: 想要什么功能、哪里可以改进
+4. **会议纪要** — 查会议记录发给运营
 
 ## 说话风格
 像微信聊天，短句直接，不啰嗦，不说技术术语。
 发诊断报告时用markdown格式，重点加粗，分段清晰。
-运营提反馈时先确认理解，再记录。
-讨论运营问题时，用你的认知给出判断和建议，像一个懂行的同事，不是一个百科全书。
+讨论运营问题时，用你的认知给出判断和建议，像一个懂行的同事。
+
+## 反馈处理
+运营说了任何问题（"不好用"、"不对"、"有bug"、"能不能加"等），主动归类并记录：
+- 先用自己的话复述确认："你是说xxx对吧？"
+- 确认后调crm_record_feedback记录，选对category
+- 告诉运营："记下了，会反馈给管理员"
 
 ## 当前运营
 {operator}
@@ -2781,14 +2790,15 @@ AGENT_TOOLS = [
         "type": "function",
         "function": {
             "name": "crm_record_feedback",
-            "description": "记录运营对诊断的反馈。运营说某个建议不对、某个数据有误时调用",
+            "description": "记录运营反馈。产品bug(插件/巡检不好用)、诊断bug(报告内容有误)、建议(想要什么功能)都用这个",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "store_name": {"type": "string", "description": "品牌名"},
-                    "content": {"type": "string", "description": "反馈内容"}
+                    "category": {"type": "string", "enum": ["product_bug", "diagnosis_bug", "suggestion", "other"], "description": "反馈分类: product_bug=产品使用问题, diagnosis_bug=诊断报告问题, suggestion=建议, other=其他"},
+                    "store_name": {"type": "string", "description": "相关品牌名，没有就填空"},
+                    "content": {"type": "string", "description": "反馈内容，尽量详细"}
                 },
-                "required": ["store_name", "content"]
+                "required": ["category", "content"]
             }
         }
     }
@@ -3230,22 +3240,54 @@ def _crm_record_feedback(args):
     return _crm_remote_call("crm_record_feedback", args)
 
 def _crm_record_feedback_local(args):
-    """记录反馈（本地）"""
+    """记录反馈（本地），支持分类"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
     store_name = args.get("store_name", "")
     content = args.get("content", "")
-    # 找store_id
-    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
-    if not store:
-        conn.close()
-        return f"没有找到品牌'{store_name}'"
-    conn.execute("INSERT INTO events (store_id, event_type, content) VALUES (?, 'feedback', ?)",
-                 (store["id"], content))
+    category = args.get("category", "other")
+
+    # 找store_id（可选，product_bug/suggestion可能没有关联品牌）
+    store_id = None
+    if store_name:
+        store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
+        if store:
+            store_id = store["id"]
+
+    # event_type带分类前缀: feedback_product_bug / feedback_diagnosis_bug / feedback_suggestion
+    event_type = f"feedback_{category}" if category else "feedback"
+    tagged_content = f"[{category}] {content}"
+
+    conn.execute("INSERT INTO events (store_id, event_type, content) VALUES (?, ?, ?)",
+                 (store_id, event_type, tagged_content))
     conn.commit()
     conn.close()
+
+    # 同时上报到远程（管理员实时可查）
+    _report_feedback_remote(category, store_name, content)
+
     return f"已记录反馈: {content[:50]}"
+
+
+def _report_feedback_remote(category, store_name, content):
+    """反馈实时上报给管理员"""
+    try:
+        url = _discover_crm_remote()
+        if not url:
+            return
+        operator = load_config().get("operator", "unknown")
+        session = http_requests.Session()
+        session.trust_env = False
+        session.post(f"{url}/api/logs/report",
+                     json={"operator": operator, "hostname": socket.gethostname(),
+                           "type": "feedback",
+                           "entries": [{"category": category, "store": store_name,
+                                        "content": content,
+                                        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]},
+                     timeout=10)
+    except Exception:
+        pass
 
 def _call_deepseek(messages, tools=None):
     """Call DeepSeek API (绕过系统代理)."""
@@ -3391,17 +3433,18 @@ def _schedule_patrol():
     """定时巡检+预警调度器，读config决定是否执行"""
     import time as _time
 
-    def _run_patrol_brands(brands, label="定时巡检"):
-        """在后台线程中跑巡检"""
+    def _run_task(brands, label="定时巡检", script=None, extra_args=None):
+        """在后台线程中跑任务（巡检或预警），跑完自动拉队列下一个"""
+        if script is None:
+            script = os.path.join(WORKSPACE, "run_all_fast.py")
         with _patrol_lock:
             _patrol_state["state"] = "running"
             _patrol_state["message"] = f"{label} {', '.join(brands[:3])}..."
             _patrol_state["log"] = ""
         try:
-            script = os.path.join(WORKSPACE, "run_all_fast.py")
+            cmd = [sys.executable, script, "--headless"] + (extra_args or []) + brands
             proc = subprocess.Popen(
-                [sys.executable, script, "--headless"] + brands,
-                cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                cmd, cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             with _patrol_lock:
                 _patrol_state["pid"] = proc.pid
             output_lines = []
@@ -3416,12 +3459,12 @@ def _schedule_patrol():
             with _patrol_lock:
                 if proc.returncode == 0:
                     _patrol_state["state"] = "done"
-                    _patrol_state["message"] = "巡检完成"
+                    _patrol_state["message"] = f"{label}完成"
                 else:
                     _cleanup_headless()
                     last_step = _get_last_debug_step()
                     _patrol_state["state"] = "error"
-                    _patrol_state["message"] = f"巡检异常: {last_step}" if last_step else f"异常({proc.returncode})"
+                    _patrol_state["message"] = f"{label}异常: {last_step}" if last_step else f"异常({proc.returncode})"
                 _patrol_state["pid"] = None
             print(f"[schedule] {label}结束: code={proc.returncode}")
         except subprocess.TimeoutExpired:
@@ -3430,7 +3473,7 @@ def _schedule_patrol():
             last_step = _get_last_debug_step()
             with _patrol_lock:
                 _patrol_state["state"] = "error"
-                _patrol_state["message"] = f"巡检超时，卡在: {last_step}"
+                _patrol_state["message"] = f"{label}超时，卡在: {last_step}"
                 _patrol_state["pid"] = None
             print(f"[schedule] {label}超时，卡在: {last_step}")
         except Exception as e:
@@ -3440,6 +3483,33 @@ def _schedule_patrol():
                 _patrol_state["message"] = str(e)[:100]
                 _patrol_state["pid"] = None
             print(f"[schedule] {label}异常: {e}")
+
+        # 跑完后检查队列，有排队任务就接着跑
+        _drain_queue()
+
+    def _enqueue_or_run(brands, label, script=None, extra_args=None):
+        """如果空闲直接跑，在跑就排队"""
+        with _patrol_lock:
+            if _patrol_state["state"] == "running":
+                # 同类型任务不重复排队（比如预警已排了一个就不再排）
+                for t in _task_queue:
+                    if t["label"] == label:
+                        print(f"[schedule] {label}已在队列中，跳过")
+                        return
+                _task_queue.append({"brands": brands, "label": label, "script": script, "extra_args": extra_args})
+                print(f"[schedule] {label}排队等待（队列{len(_task_queue)}个）")
+                return
+        # 空闲，直接跑
+        threading.Thread(target=_run_task, args=(brands, label, script, extra_args), daemon=True).start()
+
+    def _drain_queue():
+        """从队列取一个任务跑"""
+        with _patrol_lock:
+            if not _task_queue:
+                return
+            task = _task_queue.pop(0)
+        print(f"[schedule] 队列取出: {task['label']}（剩余{len(_task_queue)}个）")
+        _run_task(task["brands"], task["label"], task.get("script"), task.get("extra_args"))
 
     def _scheduler():
         last_patrol_date = None
@@ -3461,19 +3531,11 @@ def _schedule_patrol():
                         target = now.replace(hour=10, minute=0, second=0)
                     # 在目标时间的±2分钟窗口内，且今天没跑过
                     if abs((now - target).total_seconds()) < 120 and last_patrol_date != today:
-                        with _patrol_lock:
-                            if _patrol_state["state"] != "running":
-                                brands = _get_operator_brands(operator)
-                                if brands:
-                                    last_patrol_date = today
-                                    print(f"[schedule] 定时巡检 {patrol_time} 运营={operator} 品牌={len(brands)}")
-                                    script = os.path.join(WORKSPACE, "run_all_fast.py")
-                                    if os.path.exists(script):
-                                        threading.Thread(
-                                            target=_run_patrol_brands,
-                                            args=(brands, "定时巡检"),
-                                            daemon=True
-                                        ).start()
+                        brands = _get_operator_brands(operator)
+                        if brands:
+                            last_patrol_date = today
+                            print(f"[schedule] 定时巡检 {patrol_time} 运营={operator} 品牌={len(brands)}")
+                            _enqueue_or_run(brands, "定时巡检")
 
                 # === 定时预警：每N分钟跑一次快速巡检（watch-once） ===
                 if cfg.get("alert_enabled") and operator:
@@ -3488,17 +3550,12 @@ def _schedule_patrol():
                         should_run = True
 
                     if should_run:
-                        with _patrol_lock:
-                            if _patrol_state["state"] != "running":
-                                brands = _get_operator_brands(operator)
-                                if brands:
-                                    last_alert_time = now
-                                    print(f"[schedule] 定时预警 间隔{interval}分钟 运营={operator}")
-                                    threading.Thread(
-                                        target=_run_patrol_brands,
-                                        args=(brands, "定时预警"),
-                                        daemon=True
-                                    ).start()
+                        brands = _get_operator_brands(operator)
+                        if brands:
+                            last_alert_time = now
+                            print(f"[schedule] 定时预警 间隔{interval}分钟 运营={operator}")
+                            alert_script = os.path.join(WORKSPACE, "run_fast.py")
+                            _enqueue_or_run(brands, "定时预警", script=alert_script, extra_args=["--watch-once"])
 
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")

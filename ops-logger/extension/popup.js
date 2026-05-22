@@ -1087,12 +1087,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('chatInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') sendMsg();
   });
-  // Quick buttons
-  document.querySelectorAll('.quick-btn[data-quick]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      sendQuick(btn.dataset.quick);
-    });
-  });
+  // Quick buttons (removed from UI)
 
   // Refresh every 30s
   setInterval(function() {
@@ -1109,8 +1104,6 @@ var chatThinking = false;
 
 function addChatMsg(role, text, toolInfo) {
   var area = document.getElementById('chatArea');
-  var welcome = document.getElementById('chatWelcome');
-  if (welcome) welcome.style.display = 'none';
 
   var div = document.createElement('div');
   div.className = 'chat-msg ' + role;
