@@ -170,6 +170,25 @@ html { height: 560px; overflow: hidden; }
 .review-section-title { font-size: 13px; font-weight: 700; color: #333; margin: 12px 12px 6px; padding-bottom: 4px; border-bottom: 2px solid #1565c0; display: inline-block; }
 .review-history-item { font-size: 12px; color: #666; padding: 4px 12px; line-height: 1.5; }
 
+/* Timeline cards for 调整/复盘 */
+.timeline-date-header { font-size: 12px; font-weight: 700; color: #333; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
+.timeline-date-header .status-icon { font-size: 14px; }
+.timeline-date-header .status-text { font-size: 10px; color: #999; font-weight: 400; }
+.timeline-store-group { margin: 4px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; border: 1px solid #f0f0f0; }
+.timeline-store-name { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 4px; }
+.timeline-change { display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f8f8f8; }
+.timeline-change:last-child { border-bottom: none; }
+.timeline-change .change-time { font-size: 10px; color: #aaa; min-width: 34px; padding-top: 1px; }
+.timeline-change .change-body { flex: 1; }
+.timeline-change .change-summary { font-size: 11px; color: #333; line-height: 1.4; }
+.timeline-change .change-meta { font-size: 10px; color: #bbb; margin-top: 1px; }
+.timeline-result { margin-top: 4px; padding: 4px 8px; background: #f8fdf8; border-radius: 4px; font-size: 10px; color: #2e7d32; line-height: 1.4; }
+.timeline-result.waiting { background: #fafafa; color: #999; }
+.timeline-result.due { background: #fff8f8; color: #c62828; }
+.timeline-expand-btn { display: block; margin: 6px auto 2px; background: none; border: 1px solid #eee; border-radius: 12px; padding: 3px 14px; font-size: 10px; color: #999; cursor: pointer; }
+.timeline-expand-btn:hover { border-color: #e94560; color: #e94560; }
+.timeline-empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
+
 /* Toggle switch in logs */
 .toggle-wrap { flex-shrink: 0; align-self: center; }
 .toggle-switch { width: 52px; height: 22px; border-radius: 11px; background: #ddd; position: relative; cursor: pointer; transition: background 0.3s ease; border: none; padding: 0; -webkit-tap-highlight-color: transparent; overflow: hidden; }
@@ -218,18 +237,27 @@ html { height: 560px; overflow: hidden; }
 
   <div class="tabs">
     <button class="tab active" data-tab="daily">巡店/预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
-    <button class="tab" data-tab="logs">日志</button>
-    <button class="tab" data-tab="tracking">复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
-    <button class="tab" data-tab="chat">会话</button>
+    <button class="tab" data-tab="changes">调整/复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
+    <button class="tab" data-tab="chat">交流/反馈</button>
   </div>
 
   <div id="tab-daily" class="tab-content active" style="overflow-y:auto"></div>
-  <div id="tab-logs" class="tab-content" style="overflow-y:auto"></div>
-  <div id="tab-tracking" class="tab-content" style="overflow-y:auto"></div>
+  <div id="tab-changes" class="tab-content" style="overflow-y:auto"></div>
   <div id="tab-chat" class="tab-content" style="overflow:hidden">
-    <div id="chatArea" style="flex:1;overflow-y:auto;padding:10px"></div>
+    <div id="chatArea" style="flex:1;overflow-y:auto;padding:10px">
+      <div id="chatWelcome" style="text-align:center;padding:16px 10px;color:#999">
+        <div style="font-size:14px;font-weight:600;color:#666;margin-bottom:8px">跟小q聊</div>
+        <div style="font-size:11px;line-height:1.6;margin-bottom:12px">问运营策略、看诊断报告、反馈问题</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center" id="quickBtns">
+          <button class="quick-btn" data-quick="今天有什么预警?">今日预警</button>
+          <button class="quick-btn" data-quick="最近哪些店有差评?">差评情况</button>
+          <button class="quick-btn" data-quick="帮我看看这个店怎么改进">诊断建议</button>
+          <button class="quick-btn" data-quick="有个问题想反馈">反馈问题</button>
+        </div>
+      </div>
+    </div>
     <div style="padding:8px 10px;background:#fff;border-top:1px solid #eee;display:flex;gap:6px;flex-shrink:0">
-      <input id="chatInput" type="text" placeholder="跟小q说..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" />
+      <input id="chatInput" type="text" placeholder="问运营策略、反馈问题..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" />
       <button id="sendBtn" style="background:#e94560;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">发送</button>
     </div>
   </div>

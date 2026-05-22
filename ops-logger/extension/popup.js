@@ -1,4 +1,4 @@
-/* popup.js — 小q助手 五Tab面板 (settings removed, split into daily/alerts footers) */
+/* popup.js — 小q助手 三Tab面板: 巡店/预警 | 调整/复盘 | 交流/反馈 */
 
 var SERVER_URL = 'http://127.0.0.1:5500';
 var MY_SHOPS = []; // 当前运营名下的店铺名列表
@@ -359,106 +359,170 @@ async function loadDaily() {
   });
 }
 
-// ========== Tab 3: Logs ==========
+// ========== Tab 2: 调整/复盘 (Timeline) ==========
 
-var trackingStatusMap = {}; // log_id -> 'pending'|'disabled'|'done'|null
+async function loadChanges() {
+  var el = document.getElementById('tab-changes');
 
-async function loadTrackingStatus() {
-  var data = await api('/api/tracking?limit=500');
-  trackingStatusMap = {};
-  if (data && data.length > 0) {
-    for (var i = 0; i < data.length; i++) {
-      var t = data[i];
-      var prev = trackingStatusMap[t.log_id];
-      if (!prev || t.status === 'pending') {
-        trackingStatusMap[t.log_id] = t.status;
-      }
-    }
-  }
-}
+  var opData = await chrome.storage.local.get('ops_operator');
+  var opName = opData.ops_operator || '';
 
-async function loadLogs() {
-  var el = document.getElementById('tab-logs');
-  var data = await api('/api/logs?limit=50');
+  // Load logs + tracking in parallel
+  var logsPromise = api('/api/logs?limit=50');
+  var trackUrl = '/api/tracking?limit=200' + (opName ? '&operator=' + encodeURIComponent(opName) : '');
+  var trackPromise = api(trackUrl);
+  var logs = await logsPromise;
+  var trackData = await trackPromise;
 
-  if (!data || data.length === 0) {
-    try {
-      chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, function(state) {
-        if (state && state.recentLogs && state.recentLogs.length > 0) {
-          renderLogs(el, state.recentLogs);
-        } else {
-          el.innerHTML = '<div class="empty">还没有操作记录</div>';
-        }
-      });
-    } catch(e) {
-      el.innerHTML = '<div class="empty">还没有操作记录</div>';
-    }
-    return;
-  }
-  await loadTrackingStatus();
-  renderLogs(el, data);
-}
-
-function renderLogs(el, logs) {
-  if (MY_SHOPS.length > 0) {
+  // Filter logs to my shops
+  if (logs && MY_SHOPS.length > 0) {
     logs = logs.filter(function(l) {
       if (!l.shop_name) return false;
       return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
     });
   }
-  if (logs.length === 0) {
-    el.innerHTML = '<div class="empty">还没有操作记录</div>';
-    return;
-  }
-  var byDate = {};
-  for (var i = 0; i < logs.length; i++) {
-    var dk = dateKey(logs[i].timestamp);
-    if (!byDate[dk]) byDate[dk] = [];
-    byDate[dk].push(logs[i]);
-  }
 
-  var html = '';
-  var sortedDates = Object.keys(byDate).sort().reverse();
-  for (var di = 0; di < sortedDates.length; di++) {
-    var dk = sortedDates[di];
-    var dayLogs = byDate[dk];
-    html += '<div class="log-date">' + fmtDate(dayLogs[0].timestamp) + '</div>';
-    for (var li = 0; li < dayLogs.length; li++) {
-      var l = dayLogs[li];
-      var sm = l.change_summary || l.action_detail || l.action_type || '';
-      var pname = l.platform === 'eleme' ? '饿了么' : l.platform === 'meituan' ? '美团' : '';
-      var shopStr = (l.shop_name || '') + (pname ? ' · ' + pname : '');
-      var tagCls = actionTagClass(l.action_type);
-
-      var logId = l.id;
-      var tStatus = logId ? trackingStatusMap[logId] : null;
-      var toggleHtml = '';
-      if (logId && tStatus) {
-        var isOn = tStatus !== 'disabled';
-        toggleHtml = '<div class="toggle-wrap">' +
-          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '">' +
-            '<span class="toggle-text on-text">复盘</span>' +
-            '<span class="toggle-text off-text">关</span>' +
-            '<span class="toggle-knob"></span>' +
-          '</button>' +
-          '</div>';
-      }
-
-      html += '<div class="log-item">' +
-        '<div class="log-time">' + fmtHM(l.timestamp) + '</div>' +
-        '<div class="log-body">' +
-          '<div class="log-summary">' +
-            '<span class="tag ' + tagCls + '">' + esc(l.action_type || '操作') + '</span>' +
-            esc(sm) +
-          '</div>' +
-          (shopStr ? '<div class="log-meta">' + esc(shopStr) + '</div>' : '') +
-        '</div>' +
-        toggleHtml +
-      '</div>';
+  // Build tracking map: log_id -> { status, items[] }
+  var trackMap = {};
+  if (trackData) {
+    for (var i = 0; i < trackData.length; i++) {
+      var t = trackData[i];
+      if (t.status === 'disabled') continue;
+      if (!trackMap[t.log_id]) trackMap[t.log_id] = { items: [], bestStatus: 'pending' };
+      trackMap[t.log_id].items.push(t);
+      if (t.status === 'done') trackMap[t.log_id].bestStatus = 'done';
     }
   }
+
+  if (!logs || logs.length === 0) {
+    el.innerHTML = '<div class="timeline-empty">还没有操作记录<br><span style="font-size:10px;color:#ccc">在后台做调整后自动记录</span></div>';
+    updateBadge('trackBadge', 0);
+    return;
+  }
+
+  // Group by date -> store
+  var byDate = {};
+  var dateOrder = [];
+  for (var i = 0; i < logs.length; i++) {
+    var dk = dateKey(logs[i].timestamp);
+    if (!byDate[dk]) { byDate[dk] = {}; dateOrder.push(dk); }
+    var store = logs[i].shop_name || '未知店铺';
+    if (!byDate[dk][store]) byDate[dk][store] = [];
+    byDate[dk][store].push(logs[i]);
+  }
+  dateOrder.sort().reverse();
+
+  var today = new Date().toISOString().slice(0, 10);
+  var yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  var dueCount = 0;
+  var html = '';
+
+  for (var di = 0; di < dateOrder.length; di++) {
+    var dk = dateOrder[di];
+    var dayStores = byDate[dk];
+    var changeCount = 0;
+    Object.keys(dayStores).forEach(function(s) { changeCount += dayStores[s].length; });
+
+    // Date header with status
+    var daysDiff = Math.floor((new Date(today) - new Date(dk)) / 86400000);
+    var statusIcon, statusText;
+    if (daysDiff === 0) {
+      statusIcon = '\u270F\uFE0F'; statusText = changeCount + '条调整已记录';
+    } else if (daysDiff <= 2) {
+      statusIcon = '\u23F3'; statusText = '数据收集中 T+' + daysDiff;
+    } else {
+      // Check if any tracking results are ready
+      var hasResults = false;
+      Object.keys(dayStores).forEach(function(s) {
+        dayStores[s].forEach(function(l) {
+          var tr = trackMap[l.id];
+          if (tr && tr.bestStatus === 'done') hasResults = true;
+          if (tr) {
+            tr.items.forEach(function(item) {
+              if (item.status === 'pending' && item.check_date <= today) dueCount++;
+            });
+          }
+        });
+      });
+      if (hasResults) {
+        statusIcon = '\uD83D\uDCCA'; statusText = '结果已出';
+      } else {
+        statusIcon = '\uD83D\uDCCA'; statusText = 'T+' + daysDiff + ' 待复盘';
+      }
+    }
+
+    html += '<div class="timeline-date-header">' +
+      '<span class="status-icon">' + statusIcon + '</span> ' +
+      fmtDate(dk + 'T00:00:00') +
+      ' <span class="status-text">' + statusText + '</span>' +
+    '</div>';
+
+    // Store groups
+    var stores = Object.keys(dayStores);
+    for (var si = 0; si < stores.length; si++) {
+      var storeName = stores[si];
+      var storeLogs = dayStores[storeName];
+
+      html += '<div class="timeline-store-group">';
+      html += '<div class="timeline-store-name">' + esc(storeName) + '</div>';
+
+      for (var li = 0; li < storeLogs.length; li++) {
+        var l = storeLogs[li];
+        var sm = l.change_summary || l.action_detail || l.action_type || '';
+        var pname = l.platform === 'eleme' ? '饿了么' : l.platform === 'meituan' ? '美团' : '';
+        var tagCls = actionTagClass(l.action_type);
+
+        html += '<div class="timeline-change">';
+        html += '<div class="change-time">' + fmtHM(l.timestamp) + '</div>';
+        html += '<div class="change-body">';
+        html += '<div class="change-summary"><span class="tag ' + tagCls + '">' + esc(l.action_type || '操作') + '</span> ' + esc(sm) + '</div>';
+        if (pname) html += '<div class="change-meta">' + esc(pname) + '</div>';
+
+        // Show tracking result if available
+        var tr = trackMap[l.id];
+        if (tr) {
+          for (var ti = 0; ti < tr.items.length; ti++) {
+            var cp = tr.items[ti];
+            var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
+            if (cp.status === 'done' && cp.metrics_after) {
+              html += '<div class="timeline-result">' + cpLabel + ': ' + esc(cp.metrics_after) + '</div>';
+            } else if (cp.status === 'pending' && cp.check_date <= today) {
+              html += '<div class="timeline-result due">' + cpLabel + ' (' + esc(cp.check_date) + ') 待复盘</div>';
+            } else if (cp.status === 'pending') {
+              html += '<div class="timeline-result waiting">' + cpLabel + ' ' + esc(cp.check_date) + ' 收集中</div>';
+            }
+          }
+        }
+
+        html += '</div>'; // change-body
+
+        // Toggle for today's changes
+        if (daysDiff <= 1 && l.id && tr) {
+          var isOn = true;
+          html += '<div class="toggle-wrap">' +
+            '<button class="toggle-switch on" data-logid="' + l.id + '" data-enabled="1">' +
+              '<span class="toggle-text on-text">追踪</span>' +
+              '<span class="toggle-text off-text">关</span>' +
+              '<span class="toggle-knob"></span>' +
+            '</button></div>';
+        }
+
+        html += '</div>'; // timeline-change
+      }
+
+      // "展开聊聊" button for dates with results
+      if (daysDiff >= 3) {
+        html += '<button class="timeline-expand-btn" data-store="' + esc(storeName) + '" data-date="' + dk + '">展开聊聊</button>';
+      }
+
+      html += '</div>'; // timeline-store-group
+    }
+  }
+
+  updateBadge('trackBadge', dueCount);
   el.innerHTML = html;
 
+  // Bind toggle switches
   el.querySelectorAll('.toggle-switch').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var logId = parseInt(btn.dataset.logid);
@@ -466,6 +530,21 @@ function renderLogs(el, logs) {
       btn.classList.toggle('on');
       btn.dataset.enabled = isOn ? '0' : '1';
       toggleTracking(logId, !isOn);
+    });
+  });
+
+  // Bind "展开聊聊" buttons
+  el.querySelectorAll('.timeline-expand-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var store = btn.dataset.store;
+      var date = btn.dataset.date;
+      // Switch to chat tab and send a question
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      document.querySelector('[data-tab="chat"]').classList.add('active');
+      document.getElementById('tab-chat').classList.add('active');
+      document.getElementById('chatInput').value = store + ' ' + date + ' 的调整效果怎么样?';
+      document.getElementById('chatInput').focus();
     });
   });
 }
@@ -479,112 +558,17 @@ function actionTagClass(t) {
   return 'tag-gray';
 }
 
-// ========== Tab 4: Tracking ==========
-
-async function loadTracking() {
-  var el = document.getElementById('tab-tracking');
-
-  var opData = await chrome.storage.local.get('ops_operator');
-  var opName = opData.ops_operator || '';
-  var trackUrl = '/api/tracking?limit=200' + (opName ? '&operator=' + encodeURIComponent(opName) : '');
-  var allData = await api(trackUrl);
-  var allItems = (allData || []).filter(function(t) { return t.status !== 'disabled'; });
-
-  if (allItems.length === 0) {
-    el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
-    updateBadge('trackBadge', 0);
-    return;
-  }
-
-  var byLog = {};
-  var logOrder = [];
-  for (var i = 0; i < allItems.length; i++) {
-    var t = allItems[i];
-    var lid = t.log_id;
-    if (!byLog[lid]) { byLog[lid] = { items: [], summary: '', shop: '', action: '' }; logOrder.push(lid); }
-    byLog[lid].items.push(t);
-    if (!byLog[lid].summary) byLog[lid].summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
-    if (!byLog[lid].shop) byLog[lid].shop = t.shop_name || '';
-    if (!byLog[lid].action) byLog[lid].action = t.action_type || t.log_action_type || '';
-  }
-
-  var today = new Date().toISOString().slice(0, 10);
-  var dueCount = 0;
-  var html = '';
-
-  for (var oi = 0; oi < logOrder.length; oi++) {
-    var lid = logOrder[oi];
-    var group = byLog[lid];
-    var hasDue = group.items.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
-    if (hasDue) dueCount++;
-
-    var tagCls = actionTagClass(group.action);
-    var cardClass = hasDue ? 'review-card due' : 'review-card';
-
-    var card = '<div class="' + cardClass + '">' +
-      '<div class="review-title">' +
-        '<span class="tag ' + tagCls + '">' + esc(group.action) + '</span> ' +
-        esc(group.summary) +
-      '</div>' +
-      '<div class="review-shop">' + esc(group.shop) + '</div>' +
-      '<div class="review-timeline">';
-
-    group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
-
-    for (var ci = 0; ci < group.items.length; ci++) {
-      var cp = group.items[ci];
-      var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
-      var cpClass = 'review-checkpoint';
-
-      if (cp.status === 'done') {
-        cpClass += ' done';
-      } else if (cp.status === 'pending' && cp.check_date <= today) {
-        cpClass += ' due';
-      } else {
-        cpClass += ' active';
-      }
-
-      card += '<div class="' + cpClass + '">' +
-        '<div class="cp-label">' + cpLabel + '</div>' +
-        '<div class="cp-date">' + (cp.check_date || '') + '</div>';
-
-      if (cp.status === 'done' && cp.metrics_after) {
-        card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
-      } else if (cp.status === 'pending' && cp.check_date <= today) {
-        card += '<div class="cp-status">待生成</div>';
-      } else if (cp.status === 'pending') {
-        card += '<div class="cp-status waiting">等待中</div>';
-      }
-
-      card += '</div>';
-    }
-
-    card += '</div></div>';
-    html += card;
-  }
-
-  updateBadge('trackBadge', dueCount);
-  if (!html) html = '<div class="empty">暂无复盘任务</div>';
-  el.innerHTML = html;
-
-  el.querySelectorAll('.cp-close-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var tid = parseInt(btn.dataset.tid);
-      closeCheckpoint(tid);
-    });
-  });
-}
+// ========== Tracking helpers ==========
 
 async function closeCheckpoint(tid) {
   await apiPost('/api/tracking/' + tid + '/disable', {});
-  loadTracking();
+  loadChanges();
 }
 
 function toggleTracking(logId, enable) {
   var path = enable ? '/api/tracking/enable_log/' + logId : '/api/tracking/disable_log/' + logId;
   apiPost(path, {}).then(function() {
-    loadTrackingStatus();
-    loadTracking();
+    loadChanges();
   });
 }
 
@@ -918,8 +902,7 @@ async function init() {
     checkVersion();
     checkAgent();
     loadDaily();
-    loadLogs();
-    loadTracking();
+    loadChanges();
 
     // Load and render chat history (Change 2)
     var savedChat = await loadChatHistory();
@@ -1020,12 +1003,18 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('chatInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') sendMsg();
   });
-  // Quick buttons (removed from UI)
+  // Quick buttons
+  document.querySelectorAll('.quick-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var text = btn.dataset.quick;
+      if (text) sendQuick(text);
+    });
+  });
 
   // Refresh every 30s
   setInterval(function() {
     loadDaily();
-    loadTracking();
+    loadChanges();
     checkAgent();
   }, 30000);
 });
