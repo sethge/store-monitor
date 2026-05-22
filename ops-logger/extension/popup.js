@@ -70,11 +70,7 @@ function initTabs() {
   });
 }
 
-// ========== Settings footer HTML generators ==========
-
-function buildServerStatusHtml(containerId) {
-  return '<div class="server-status" id="' + containerId + '"></div>';
-}
+// ========== Helpers ==========
 
 async function refreshServerStatus(containerId) {
   var el = document.getElementById(containerId);
@@ -84,261 +80,135 @@ async function refreshServerStatus(containerId) {
     var res = await fetch(SERVER_URL + '/health', { signal: AbortSignal.timeout(2000) });
     serverOk = res.ok;
   } catch(e) {}
+  el.innerHTML = serverOk
+    ? '<span style="color:#2e7d32">\u25CF 服务运行中</span>'
+    : '<span style="color:#c62828">\u25CF 服务未启动</span>';
+}
 
-  if (serverOk) {
-    el.innerHTML = '<span style="color:#2e7d32">● 服务运行中</span>';
+function buildInfoModule(data, settings) {
+  // Line 1: patrol status
+  var line1 = '';
+  if (data && data.ts) {
+    line1 = esc(data.ts) + ' 巡检完成';
+    if (data.brands) line1 += ' \u00B7 ' + data.brands + '个品牌';
+    if (data.duration) line1 += ' \u00B7 ' + data.duration + '秒';
   } else {
-    el.innerHTML = '<span style="color:#c62828">● 服务未启动</span> <button class="restart-server-btn" style="margin-left:6px;background:#e94560;color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:10px;cursor:pointer">启动服务</button>';
-    var btn = el.querySelector('.restart-server-btn');
-    if (btn) {
-      btn.addEventListener('click', function() {
-        btn.textContent = '启动中...';
-        btn.disabled = true;
-        fetch(SERVER_URL + '/health').catch(function(){});
-        setTimeout(function() { refreshServerStatus(containerId); }, 5000);
-      });
-    }
+    line1 = '尚未巡检';
   }
-}
 
-function buildPatrolSettingsFooter() {
-  return '<div class="settings-footer" id="dailySettingsFooter">' +
-    '<div class="setting-row">' +
-      '<span class="setting-label">定时巡检</span>' +
-      '<input class="setting-input" id="patrolTime" type="time" value="10:00" />' +
-      '<button class="toggle-switch" id="patrolToggle" style="width:42px;height:20px">' +
-        '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
-        '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
-        '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
-      '</button>' +
+  // Line 2: schedule info
+  var parts = [];
+  if (settings.patrol_enabled) {
+    parts.push('每天' + (settings.patrol_time || '10:00') + '巡店');
+  }
+  if (settings.alert_enabled) {
+    parts.push('每' + (settings.alert_interval || 30) + '分钟预警');
+  }
+  var line2 = parts.length > 0 ? parts.join(' \u00B7 ') : '定时巡检和预警未开启';
+
+  return '<div class="info-module">' +
+    '<div class="info-summary">' +
+      '<div class="info-text">' +
+        '<div>' + line1 + '</div>' +
+        '<div class="schedule">' + line2 + '</div>' +
+      '</div>' +
+      '<button class="info-toggle" id="infoToggleBtn">\u2699</button>' +
     '</div>' +
-    buildServerStatusHtml('dailyServerStatus') +
+    '<div class="info-settings" id="infoSettings" style="display:none">' +
+      '<div class="setting-row">' +
+        '<span class="setting-label">定时巡检</span>' +
+        '<input class="setting-input" id="patrolTime" type="time" value="' + (settings.patrol_time || '10:00') + '" />' +
+        '<button class="toggle-switch' + (settings.patrol_enabled ? ' on' : '') + '" id="patrolToggle" style="width:42px;height:20px">' +
+          '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
+          '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
+          '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="setting-row">' +
+        '<span class="setting-label">实时预警</span>' +
+        '<input class="setting-input" id="alertInterval" type="number" value="' + (settings.alert_interval || 30) + '" min="5" max="120" />' +
+        '<span class="setting-unit">分钟</span>' +
+        '<button class="toggle-switch' + (settings.alert_enabled ? ' on' : '') + '" id="alertToggle" style="width:42px;height:20px">' +
+          '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
+          '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
+          '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="server-status" id="infoServerStatus"></div>' +
+    '</div>' +
   '</div>';
 }
 
-function buildAlertSettingsFooter() {
-  return '<div class="settings-footer" id="alertsSettingsFooter">' +
-    '<div class="setting-row">' +
-      '<span class="setting-label">实时预警</span>' +
-      '<input class="setting-input" id="alertInterval" type="number" value="30" min="5" max="120" />' +
-      '<span class="setting-unit">分钟</span>' +
-      '<button class="toggle-switch" id="alertToggle" style="width:42px;height:20px">' +
-        '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
-        '<span class="toggle-text off-text" style="font-size:8px;right:4px">关</span>' +
-        '<span class="toggle-knob" style="width:16px;height:16px"></span>' +
-      '</button>' +
-    '</div>' +
-    buildServerStatusHtml('alertsServerStatus') +
-  '</div>';
+function initInfoModule() {
+  var toggleBtn = document.getElementById('infoToggleBtn');
+  var settings = document.getElementById('infoSettings');
+  if (toggleBtn && settings) {
+    toggleBtn.addEventListener('click', function() {
+      var open = settings.style.display !== 'none';
+      settings.style.display = open ? 'none' : 'block';
+      toggleBtn.style.color = open ? '#bbb' : '#e94560';
+    });
+  }
+  // Bind setting controls
+  ['patrolToggle', 'alertToggle'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function() { this.classList.toggle('on'); saveSettings(); });
+  });
+  ['patrolTime', 'alertInterval'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', function() { saveSettings(); });
+  });
+  refreshServerStatus('infoServerStatus');
 }
 
-// ========== Tab 1: Daily Report (clean briefing style) ==========
+// ========== Tab 1: Merged Patrol + Alerts ==========
 
 async function loadDaily() {
   var el = document.getElementById('tab-daily');
-  var data = await api('/api/daily');
-  if (!data || !data.stores || data.stores.length === 0) {
-    el.innerHTML = '<div class="empty">暂无巡检日报<br><span style="font-size:10px;color:#ccc">agent跑巡检后这里会显示结果</span></div>' + buildPatrolSettingsFooter();
-    initDailySettingsFooter();
-    return;
-  }
 
-  var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) +
-    (data.brands ? ' · ' + data.brands + '个品牌' : '') +
-    (data.duration ? ' · ' + data.duration + '秒' : '') + '</div>';
+  // Load data in parallel
+  var dailyPromise = api('/api/daily');
+  var alertsPromise = api('/api/alerts');
+  var settingsPromise = loadSettingsFromServer();
+  var data = await dailyPromise;
+  var alertsData = await alertsPromise;
+  var settings = await settingsPromise;
 
-  // 用品牌分组渲染（品牌→门店→平台）
-  var groups = data.brands_grouped || [];
-  // 回退：没有brands_grouped时用旧的stores平铺
-  if (groups.length === 0 && data.stores.length > 0) {
-    groups = [{ brand: '', stores: data.stores }];
-  }
+  var html = '';
 
-  for (var gi = 0; gi < groups.length; gi++) {
-    var group = groups[gi];
-    if (group.brand) {
-      html += '<div class="brand-header">' + esc(group.brand) +
-        ' <span class="brand-count">' + group.stores.length + '家店</span></div>';
-    }
+  // === 1. Info module ===
+  html += buildInfoModule(data, settings);
 
-    for (var si = 0; si < group.stores.length; si++) {
-      var store = group.stores[si];
-      // 判断是否全部授权失败
-      var allAuth = store.platforms.every(function(p) { return p.has_auth_issue; });
-
-      html += '<div class="store-card' + (allAuth ? ' auth-fail' : '') + '">';
-      html += '<div class="store-name-line">' + esc(store.store) + '</div>';
-
-      if (allAuth) {
-        var authPlatforms = store.platforms.map(function(p){return p.platform}).join('、');
-        html += '<div class="daily-issue-item" style="color:#c62828">\uD83D\uDD34 未授权 · ' + esc(authPlatforms) + '</div>';
-      } else {
-        for (var j = 0; j < store.platforms.length; j++) {
-          var p = store.platforms[j];
-          html += '<div class="platform-section">';
-          // Clean: plain text platform name in parentheses
-          html += '<span style="font-size:11px;color:#999">(' + esc(p.platform) + ')</span>';
-
-          if (p.has_auth_issue) {
-            html += '<span class="daily-issue-item" style="color:#c62828"> \uD83D\uDD34 未授权</span>';
-            html += '</div>';
-            continue;
-          }
-
-          var issues = [];
-
-          if (p.bad_review_count > 0) {
-            var revHtml = '<div class="daily-issue-item">\uD83D\uDD34 差评' + p.bad_review_count + '条</div>';
-            for (var k = 0; k < p.bad_reviews.length && k < 2; k++) {
-              var r = p.bad_reviews[k];
-              revHtml += '<div class="review-detail">' + r.stars + '星 "' + esc((r.comment||'').substring(0,35)) + '"</div>';
-            }
-            issues.push(revHtml);
-          }
-
-          if (p.expiring_count > 0) {
-            for (var k = 0; k < p.activities.length; k++) {
-              var a = p.activities[k];
-              var prefix = (a.days_left || 99) <= 1 ? '\uD83D\uDD34' : '\uD83D\uDFE1';
-              issues.push('<div class="daily-issue-item">' + prefix + ' ' + esc(a.name) + ' ' + a.days_left + '天到期</div>');
-            }
-          }
-
-          if (p.promo_balance !== null && p.promo_balance !== undefined) {
-            if (p.promo_daily_spend && p.promo_daily_spend > 0) {
-              var daysLeft = p.promo_balance / p.promo_daily_spend;
-              if (daysLeft < 1) {
-                issues.push('<div class="daily-issue-item">\uD83D\uDD34 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' 今天可能用完</div>');
-              } else if (daysLeft < 3) {
-                issues.push('<div class="daily-issue-item">\uD83D\uDFE1 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' ' + daysLeft.toFixed(1) + '天</div>');
-              }
-            }
-          }
-
-          if (p.notice_count > 0) {
-            var noticeHtml = '<div class="daily-issue-item">\u00B7 ' + p.notice_count + '条通知</div>';
-            for (var k = 0; k < (p.notices || []).length && k < 2; k++) {
-              noticeHtml += '<div class="review-detail">' + esc(p.notices[k].title) + '</div>';
-            }
-            issues.push(noticeHtml);
-          }
-
-          if ((p.errors || []).length > 0) {
-            for (var k = 0; k < p.errors.length; k++) {
-              issues.push('<div class="daily-issue-item">\uD83D\uDFE1 ' + esc(p.errors[k]) + '</div>');
-            }
-          }
-
-          if (issues.length === 0) {
-            html += '<span class="daily-normal">\u2713 正常</span>';
-          } else {
-            html += '<div class="daily-issue-list">' + issues.join('') + '</div>';
-          }
-
-          html += '</div>';
-        }
-      }
-      html += '</div>';
-    }
-  }
-
-  // Append patrol settings footer
-  html += buildPatrolSettingsFooter();
-  el.innerHTML = html;
-  initDailySettingsFooter();
-}
-
-function initDailySettingsFooter() {
-  var toggle = document.getElementById('patrolToggle');
-  var timeInput = document.getElementById('patrolTime');
-  if (toggle) {
-    toggle.addEventListener('click', function() {
-      this.classList.toggle('on');
-      saveSettings();
-    });
-  }
-  if (timeInput) {
-    timeInput.addEventListener('change', function() {
-      saveSettings();
-    });
-  }
-  // Load saved settings into these elements
-  loadSettingsIntoElements();
-  refreshServerStatus('dailyServerStatus');
-}
-
-// ========== Tab 2: Alerts ==========
-
-async function loadAlerts() {
-  var el = document.getElementById('tab-alerts');
-  var data = await api('/api/alerts');
-  if (!data || data.length === 0) {
-    el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
-    updateBadge('alertBadge', 0);
-    initAlertSettingsFooter();
-    return;
-  }
-
-  // 过滤掉已dismiss的预警 (Change 4: stable key without detail)
+  // === 2. Alerts section (un-dismissed) ===
   var dismissed = _dismissedAlerts || {};
-  data = data.filter(function(a) {
+  var activeAlerts = (alertsData || []).filter(function(a) {
     var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
     return !dismissed[key];
   });
+  updateBadge('alertBadge', activeAlerts.length);
 
-  var redCount = data.filter(function(a) { return a.level === 'red'; }).length;
-  updateBadge('alertBadge', data.length);
+  if (activeAlerts.length > 0) {
+    html += '<div class="alert-section-title">\uD83D\uDD14 预警 ' + activeAlerts.length + '条</div>';
 
-  if (data.length === 0) {
-    el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
-    initAlertSettingsFooter();
-    return;
-  }
+    // 授权失败
+    var authAlerts = activeAlerts.filter(function(a) { return a.type === 'auth'; });
+    for (var ai = 0; ai < authAlerts.length; ai++) {
+      var aa = authAlerts[ai];
+      var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
+      var akey = (aa.store||'') + '|' + (aa.type||'') + '|' + (aa.msg||'');
+      html += '<div class="store-card alert-dismissable" data-alert-key="' + esc(akey) + '" style="border-left:3px solid #e65100;position:relative">' +
+        '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
+        '<div class="issue-line red">未授权 \u00B7 ' + esc(pname) + '</div>' +
+        '<button class="dismiss-btn">知道了</button>' +
+      '</div>';
+    }
 
-  // 分离授权失败和正常预警
-  var authAlerts = data.filter(function(a) { return a.type === 'auth'; });
-  var normalAlerts = data.filter(function(a) { return a.type !== 'auth'; });
-
-  // 巡检来源时间
-  var patrolTs = data[0] && data[0].patrol_ts ? data[0].patrol_ts : '';
-  var html = '';
-  if (patrolTs) {
-    html += '<div class="daily-meta">数据来源: ' + esc(patrolTs) + ' 巡检</div>';
-  }
-
-  // 授权失败的店
-  for (var ai = 0; ai < authAlerts.length; ai++) {
-    var aa = authAlerts[ai];
-    var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
-    // Change 4: stable key (store|type|msg)
-    var akey = (aa.store||'') + '|' + (aa.type||'') + '|' + (aa.msg||'');
-    html += '<div class="store-card alert-dismissable" data-alert-key="' + esc(akey) + '" style="border-left:3px solid #e65100;position:relative">' +
-      '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
-      '<div class="issue-line red">未授权 · ' + esc(pname) + '</div>' +
-      '<button class="dismiss-btn">知道了</button>' +
-    '</div>';
-  }
-
-  // 正常预警按时间线+店铺分组
-  var byDate = {};
-  var dateOrder = [];
-  for (var i = 0; i < normalAlerts.length; i++) {
-    var a = normalAlerts[i];
-    var eventDate = (a.event_time || '').slice(0, 10) || '未知';
-    if (!byDate[eventDate]) { byDate[eventDate] = []; dateOrder.push(eventDate); }
-    byDate[eventDate].push(a);
-  }
-  dateOrder.sort(function(a, b) { return b.localeCompare(a); });
-
-  for (var di = 0; di < dateOrder.length; di++) {
-    var date = dateOrder[di];
-    var dayAlerts = byDate[date];
-    html += '<div class="section-title">' + (date === '未知' ? '' : fmtDate(date + 'T00:00')) + '</div>';
-
+    // 其他预警按店铺分组
+    var normalAlerts = activeAlerts.filter(function(a) { return a.type !== 'auth'; });
     var byStore = {};
     var storeOrder = [];
-    for (var i = 0; i < dayAlerts.length; i++) {
-      var a = dayAlerts[i];
+    for (var i = 0; i < normalAlerts.length; i++) {
+      var a = normalAlerts[i];
       var key = a.store || '未知';
       if (!byStore[key]) { byStore[key] = []; storeOrder.push(key); }
       byStore[key].push(a);
@@ -351,7 +221,6 @@ async function loadAlerts() {
       for (var j = 0; j < alerts.length; j++) {
         var a = alerts[j];
         var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
-        // Change 4: stable key (store|type|msg) — no detail
         var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
         html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
           '<div class="alert-dot ' + a.level + '"></div>' +
@@ -366,51 +235,128 @@ async function loadAlerts() {
     }
   }
 
-  // Append alert settings footer
-  html += buildAlertSettingsFooter();
-  el.innerHTML = html;
-  initAlertSettingsFooter();
+  // === 3. Patrol results ===
+  if (data && data.stores && data.stores.length > 0) {
+    if (activeAlerts.length > 0) {
+      html += '<div class="section-title" style="margin-top:6px">巡检详情</div>';
+    }
 
-  // 绑定"知道了"按钮 (Change 4: store timestamp instead of true)
-  el.querySelectorAll('.alert-dismissable').forEach(function(item) {
-    item.querySelector('.dismiss-btn').addEventListener('click', function(e) {
-      e.stopPropagation();
-      var key = item.dataset.alertKey;
-      _dismissedAlerts[key] = Date.now(); // timestamp for 24h expiry
-      try { chrome.storage.local.set({ dismissed_alerts: _dismissedAlerts }); } catch(e) {}
-      item.style.transition = 'opacity 0.3s';
-      item.style.opacity = '0';
-      setTimeout(function() {
-        item.remove();
-        // 更新红点
-        var remaining = el.querySelectorAll('.alert-dismissable').length;
-        updateBadge('alertBadge', remaining);
-        if (remaining === 0) {
-          // Re-render to show empty + footer
-          el.innerHTML = '<div class="empty">暂无预警</div>' + buildAlertSettingsFooter();
-          initAlertSettingsFooter();
+    var groups = data.brands_grouped || [];
+    if (groups.length === 0 && data.stores.length > 0) {
+      groups = [{ brand: '', stores: data.stores }];
+    }
+
+    for (var gi = 0; gi < groups.length; gi++) {
+      var group = groups[gi];
+      if (group.brand) {
+        html += '<div class="brand-header">' + esc(group.brand) +
+          ' <span class="brand-count">' + group.stores.length + '家店</span></div>';
+      }
+
+      for (var si = 0; si < group.stores.length; si++) {
+        var store = group.stores[si];
+        var allAuth = store.platforms.every(function(p) { return p.has_auth_issue; });
+
+        html += '<div class="store-card' + (allAuth ? ' auth-fail' : '') + '">';
+        html += '<div class="store-name-line">' + esc(store.store) + '</div>';
+
+        if (allAuth) {
+          var authPlatforms = store.platforms.map(function(p){return p.platform}).join('\u3001');
+          html += '<div class="daily-issue-item" style="color:#c62828">\uD83D\uDD34 未授权 \u00B7 ' + esc(authPlatforms) + '</div>';
+        } else {
+          for (var j = 0; j < store.platforms.length; j++) {
+            var p = store.platforms[j];
+            html += '<div class="platform-section">';
+            html += '<span style="font-size:11px;color:#999">(' + esc(p.platform) + ')</span>';
+
+            if (p.has_auth_issue) {
+              html += '<span class="daily-issue-item" style="color:#c62828"> \uD83D\uDD34 未授权</span>';
+              html += '</div>';
+              continue;
+            }
+
+            var issues = [];
+
+            if (p.bad_review_count > 0) {
+              var revHtml = '<div class="daily-issue-item">\uD83D\uDD34 差评' + p.bad_review_count + '条</div>';
+              for (var k = 0; k < p.bad_reviews.length && k < 2; k++) {
+                var r = p.bad_reviews[k];
+                revHtml += '<div class="review-detail">' + r.stars + '星 "' + esc((r.comment||'').substring(0,35)) + '"</div>';
+              }
+              issues.push(revHtml);
+            }
+
+            if (p.expiring_count > 0) {
+              for (var k = 0; k < p.activities.length; k++) {
+                var a = p.activities[k];
+                var prefix = (a.days_left || 99) <= 1 ? '\uD83D\uDD34' : '\uD83D\uDFE1';
+                issues.push('<div class="daily-issue-item">' + prefix + ' ' + esc(a.name) + ' ' + a.days_left + '天到期</div>');
+              }
+            }
+
+            if (p.promo_balance !== null && p.promo_balance !== undefined) {
+              if (p.promo_daily_spend && p.promo_daily_spend > 0) {
+                var daysLeft = p.promo_balance / p.promo_daily_spend;
+                if (daysLeft < 1) {
+                  issues.push('<div class="daily-issue-item">\uD83D\uDD34 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' 今天可能用完</div>');
+                } else if (daysLeft < 3) {
+                  issues.push('<div class="daily-issue-item">\uD83D\uDFE1 推广余额\u00A5' + p.promo_balance.toFixed(0) + ' ' + daysLeft.toFixed(1) + '天</div>');
+                }
+              }
+            }
+
+            if (p.notice_count > 0) {
+              var noticeHtml = '<div class="daily-issue-item">\u00B7 ' + p.notice_count + '条通知</div>';
+              for (var k = 0; k < (p.notices || []).length && k < 2; k++) {
+                noticeHtml += '<div class="review-detail">' + esc(p.notices[k].title) + '</div>';
+              }
+              issues.push(noticeHtml);
+            }
+
+            if ((p.errors || []).length > 0) {
+              for (var k = 0; k < p.errors.length; k++) {
+                issues.push('<div class="daily-issue-item">\uD83D\uDFE1 ' + esc(p.errors[k]) + '</div>');
+              }
+            }
+
+            if (issues.length === 0) {
+              html += '<span class="daily-normal">\u2713 正常</span>';
+            } else {
+              html += '<div class="daily-issue-list">' + issues.join('') + '</div>';
+            }
+
+            html += '</div>';
+          }
         }
-      }, 300);
-    });
-  });
-}
+        html += '</div>';
+      }
+    }
+  } else if (activeAlerts.length === 0) {
+    html += '<div class="empty">暂无巡检日报<br><span style="font-size:10px;color:#ccc">点击上方「巡检」按钮开始</span></div>';
+  }
 
-function initAlertSettingsFooter() {
-  var toggle = document.getElementById('alertToggle');
-  var intervalInput = document.getElementById('alertInterval');
-  if (toggle) {
-    toggle.addEventListener('click', function() {
-      this.classList.toggle('on');
-      saveSettings();
-    });
-  }
-  if (intervalInput) {
-    intervalInput.addEventListener('change', function() {
-      saveSettings();
-    });
-  }
-  loadSettingsIntoElements();
-  refreshServerStatus('alertsServerStatus');
+  el.innerHTML = html;
+  initInfoModule();
+
+  // Bind dismiss buttons
+  el.querySelectorAll('.alert-dismissable').forEach(function(item) {
+    var dismissBtn = item.querySelector('.dismiss-btn');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var key = item.dataset.alertKey;
+        _dismissedAlerts[key] = Date.now();
+        try { chrome.storage.local.set({ dismissed_alerts: _dismissedAlerts }); } catch(e) {}
+        item.style.transition = 'opacity 0.3s';
+        item.style.opacity = '0';
+        setTimeout(function() {
+          item.remove();
+          var remaining = el.querySelectorAll('.alert-dismissable').length;
+          updateBadge('alertBadge', remaining);
+        }, 300);
+      });
+    }
+  });
 }
 
 // ========== Tab 3: Logs ==========
@@ -715,7 +661,6 @@ async function checkAgent() {
     btn.disabled = false;
     btn.textContent = '巡检';
     loadDaily();
-    loadAlerts();
   } else if (data.patrol && data.patrol.state === 'error') {
     dot.className = 'agent-dot off';
     var errMsg = data.patrol.message || '巡检异常';
@@ -835,16 +780,8 @@ async function loadSettingsFromServer() {
 }
 
 async function loadSettingsIntoElements() {
-  var data = await loadSettingsFromServer();
-  var patrolToggle = document.getElementById('patrolToggle');
-  var alertToggle = document.getElementById('alertToggle');
-  var patrolTime = document.getElementById('patrolTime');
-  var alertInterval = document.getElementById('alertInterval');
-
-  if (patrolToggle && data.patrol_enabled === true) patrolToggle.classList.add('on');
-  if (alertToggle && data.alert_enabled === true) alertToggle.classList.add('on');
-  if (patrolTime && data.patrol_time) patrolTime.value = data.patrol_time;
-  if (alertInterval && data.alert_interval) alertInterval.value = data.alert_interval;
+  // Settings are now rendered directly in buildInfoModule with correct values
+  // This function is kept for compatibility but no longer needed
 }
 
 async function saveSettings() {
@@ -865,10 +802,7 @@ async function saveSettings() {
 }
 
 function initSettings() {
-  // Settings elements are now created dynamically inside tab content.
-  // This function is called on DOMContentLoaded but the elements don't exist yet.
-  // The actual binding happens in initDailySettingsFooter() and initAlertSettingsFooter()
-  // after loadDaily() and loadAlerts() render them.
+  // Settings are now integrated in the info module, initialized in initInfoModule()
 }
 
 // ========== Chat history persistence ==========
@@ -984,7 +918,6 @@ async function init() {
     checkVersion();
     checkAgent();
     loadDaily();
-    loadAlerts();
     loadLogs();
     loadTracking();
 
@@ -1091,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Refresh every 30s
   setInterval(function() {
-    loadAlerts();
+    loadDaily();
     loadTracking();
     checkAgent();
   }, 30000);

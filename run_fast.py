@@ -425,6 +425,59 @@ def save_watch_snapshot(seen_keys):
     }, ensure_ascii=False))
 
 
+def _merge_notices_to_patrol_result(new_notices):
+    """把预警发现的新通知追加到patrol_result.json，和巡店结果合并"""
+    patrol_file = Path(__file__).parent / "ops-logger" / "patrol_result.json"
+    try:
+        if patrol_file.exists():
+            data = json.loads(patrol_file.read_text())
+        else:
+            data = {"ts": datetime.now().strftime("%Y-%m-%d %H:%M"), "brands": 0, "issues": {}}
+
+        issues = data.setdefault("issues", {})
+        added = 0
+        for store, items in new_notices.items():
+            existing = issues.setdefault(store, [])
+            # 找已有的notice条目，按platform分
+            existing_notice_keys = set()
+            for e in existing:
+                if e.get("type") == "notice":
+                    for d in e.get("details", []):
+                        if isinstance(d, dict):
+                            existing_notice_keys.add(f"{e['platform']}|{d.get('title','')}")
+
+            for item in items:
+                p = "美团" if "美团" in item["platform"] else item["platform"]
+                new_details = []
+                for n in item["notices"]:
+                    if f"{p}|{n['title']}" not in existing_notice_keys:
+                        new_details.append(n)
+                        added += 1
+                if new_details:
+                    # 找已有的同platform notice条目追加
+                    merged = False
+                    for e in existing:
+                        if e.get("type") == "notice" and e.get("platform") == p:
+                            e["details"] = e.get("details", []) + new_details
+                            e["msg"] = f"{len(e['details'])}条通知"
+                            merged = True
+                            break
+                    if not merged:
+                        existing.append({
+                            "platform": p,
+                            "type": "notice",
+                            "msg": f"{len(new_details)}条通知",
+                            "details": new_details
+                        })
+
+        if added:
+            data["_watch_update"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            patrol_file.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+            print(f"  已追加{added}条通知到巡检结果")
+    except Exception as e:
+        print(f"  追加巡检结果失败: {e}")
+
+
 async def run_once(brands, ctx, user_page=None):
     """跑一轮巡检。先把品牌下所有店所有平台页面全部打开，再并行跑检查"""
     all_issues = OrderedDict()
@@ -784,6 +837,8 @@ async def main():
             print_watch_notices(new_notices)
             seen_keys |= current_keys
             save_watch_snapshot(seen_keys)
+            # 追加到patrol_result.json，和巡店结果合并显示
+            _merge_notices_to_patrol_result(new_notices)
         elif not blocked_stores:
             print("✅ 无新增通知")
 

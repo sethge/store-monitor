@@ -96,7 +96,25 @@ html { height: 560px; overflow: hidden; }
 .patrol-btn:hover { background: #c23152; }
 .patrol-btn:disabled { background: #ddd; color: #999; cursor: default; }
 
-/* Settings footer (inside tabs) */
+/* Info module (top of merged tab) */
+.info-module { margin: 6px 10px 2px; background: #fff; border-radius: 8px; padding: 8px 12px; border: 1px solid #f0f0f0; }
+.info-summary { display: flex; align-items: center; gap: 6px; }
+.info-text { font-size: 11px; color: #666; flex: 1; line-height: 1.5; }
+.info-text .schedule { color: #999; }
+.info-toggle { background: none; border: none; font-size: 14px; color: #bbb; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
+.info-toggle:hover { color: #666; }
+.info-settings { padding-top: 8px; margin-top: 6px; border-top: 1px solid #f0f0f0; }
+.info-settings .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.info-settings .setting-row:last-child { margin-bottom: 0; }
+.info-settings .setting-label { font-size: 11px; color: #666; flex: 1; }
+.info-settings .setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
+.info-settings .setting-unit { font-size: 10px; color: #999; }
+.info-settings .server-status { margin-top: 4px; font-size: 10px; }
+
+/* Alert section in merged tab */
+.alert-section-title { font-size: 11px; font-weight: 600; color: #e94560; margin: 8px 12px 2px; }
+
+/* Settings footer (inside tabs) — kept for legacy */
 .settings-footer { border-top: 1px solid #eee; padding: 10px 12px; margin-top: 8px; background: #fafafa; border-radius: 0 0 8px 8px; font-size: 11px; color: #999; }
 .settings-footer .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .settings-footer .setting-row:last-child { margin-bottom: 0; }
@@ -195,19 +213,17 @@ html { height: 560px; overflow: hidden; }
     <button class="patrol-btn" id="patrolBtn" disabled>巡检</button>
   </div>
   <div id="startHint" style="display:none;background:#fff8e1;padding:8px 12px;font-size:11px;color:#e65100;border-bottom:1px solid #eee">
-    双击桌面「启动小q」启动服务后刷新
+    服务未启动，请联系管理员
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="daily">巡店</button>
-    <button class="tab" data-tab="alerts">预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
+    <button class="tab active" data-tab="daily">巡店/预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
     <button class="tab" data-tab="logs">日志</button>
     <button class="tab" data-tab="tracking">复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
     <button class="tab" data-tab="chat">会话</button>
   </div>
 
   <div id="tab-daily" class="tab-content active" style="overflow-y:auto"></div>
-  <div id="tab-alerts" class="tab-content" style="overflow-y:auto"></div>
   <div id="tab-logs" class="tab-content" style="overflow-y:auto"></div>
   <div id="tab-tracking" class="tab-content" style="overflow-y:auto"></div>
   <div id="tab-chat" class="tab-content" style="overflow:hidden">

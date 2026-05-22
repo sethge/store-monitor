@@ -218,15 +218,30 @@ async def launch_headless(pw, port=HEADLESS_PORT):
     if not debug_ws:
         raise Exception(
             "【需要操作】debug Chrome没有在运行。\n"
-            "请双击桌面的「盯店巡检」启动Chrome，确认悟空插件可用后再跑无头巡检。"
+            "请在小q插件中点击「重启服务」按钮。"
         )
 
-    # 1. 已有headless在跑 → 直连
+    # 1. 已有headless在跑 → 直连，但要验证goku还活着
     ws = _cdp_ws(port)
     if ws:
         L.step("headless", f"复用已有headless (port {port})")
-        browser = await pw.chromium.connect_over_cdp(ws)
-        return browser, browser.contexts[0]
+        try:
+            browser = await pw.chromium.connect_over_cdp(ws)
+            ctx = browser.contexts[0]
+            # 快速检查goku插件是否还正常（品牌列表没丢）
+            from plugin_helper import get_ext
+            ext = await get_ext(ctx)
+            ready = await ext.evaluate("() => document.querySelectorAll('.ant-select-selector').length > 0")
+            if ready:
+                L.step("headless", "复用成功，悟空插件正常")
+                return browser, ctx
+            else:
+                L.step("headless", "复用失败：悟空插件品牌列表丢失，重建headless")
+        except Exception as e:
+            L.step("headless", f"复用失败：{e}，重建headless")
+        # 复用失败，杀掉重建
+        kill_headless(port)
+        await asyncio.sleep(2)
 
     # 2. 同步profile登录态
     _sync_headless_profile()
@@ -298,7 +313,7 @@ async def launch_headless(pw, port=HEADLESS_PORT):
                     L.error("headless", "debug Chrome(9222)已断开，无法同步cookies")
                     raise Exception(
                         "【需要操作】debug Chrome已断开。\n"
-                        "请双击桌面的「盯店巡检」重新启动Chrome，确认悟空插件可用后再跑。"
+                        "请在小q插件中点击「重启服务」按钮。"
                     )
                 debug_browser = await pw.chromium.connect_over_cdp(debug_ws)
                 debug_cdp = await debug_browser.new_browser_cdp_session()
