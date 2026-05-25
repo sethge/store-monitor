@@ -7,6 +7,23 @@ var _currentOperator = ''; // cached operator name
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function platformUrl(platform, alertType) {
+  if (platform === 'meituan' || platform === '美团') {
+    if (alertType === 'bad_review') return 'https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw';
+    if (alertType === 'notice') return 'https://e.waimai.meituan.com/new_fe/business_gw#/msgbox';
+    if (alertType === 'promo') return 'https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/ad/v1/pc';
+    return 'https://e.waimai.meituan.com/';
+  }
+  if (platform === 'eleme' || platform === '饿了么') {
+    return 'https://melody.shop.ele.me/';
+  }
+  return '';
+}
+
+function openUrl(url) {
+  if (url) chrome.tabs.create({ url: url });
+}
+
 function fmtHM(ts) {
   try { var d = new Date(ts); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
   catch(e) { return ''; }
@@ -251,7 +268,9 @@ async function loadDaily() {
         var a = alerts[j];
         var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
         var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
-        html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '">' +
+        var aUrl = platformUrl(a.platform, a.type);
+        html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '"' +
+          (aUrl ? ' data-url="' + esc(aUrl) + '" style="cursor:pointer"' : '') + '>' +
           '<div class="alert-dot ' + a.level + '"></div>' +
           '<div class="alert-body">' +
             '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
@@ -293,7 +312,10 @@ async function loadDaily() {
 
     // Helper: build compact platform status for one platform
     function platformStatus(p) {
-      var pTag = p.platform === '美团' ? '<span class="p-mt">美</span>' : '<span class="p-ele">饿</span>';
+      var pPlat = p.platform === '美团' ? 'meituan' : 'eleme';
+      var pCls = p.platform === '美团' ? 'p-mt' : 'p-ele';
+      var pUrl = platformUrl(pPlat);
+      var pTag = '<span class="' + pCls + ' p-link" data-url="' + esc(pUrl) + '" style="cursor:pointer">' + (p.platform === '美团' ? '美' : '饿') + '</span>';
       if (p.has_auth_issue) return pTag + '<span class="ps-bad">未授权</span>';
       var parts = [];
       if (p.bad_review_count > 0) parts.push('<span class="ps-bad">' + p.bad_review_count + '差评</span>');
@@ -402,6 +424,20 @@ async function loadDaily() {
         }, 300);
       });
     }
+    // Click to open platform page
+    if (item.dataset.url) {
+      item.addEventListener('click', function(e) {
+        if (e.target.classList.contains('dismiss-btn')) return;
+        openUrl(item.dataset.url);
+      });
+    }
+  });
+
+  // Bind platform tag clicks in patrol results
+  el.querySelectorAll('.p-link').forEach(function(link) {
+    link.addEventListener('click', function() {
+      openUrl(link.dataset.url);
+    });
   });
 }
 
@@ -414,19 +450,13 @@ async function loadChanges() {
   var opName = opData.ops_operator || '';
 
   // Load logs + tracking in parallel
-  var logsPromise = api('/api/logs?limit=50');
+  var logsPromise = api('/api/logs?limit=50' + (opName ? '&operator=' + encodeURIComponent(opName) : ''));
   var trackUrl = '/api/tracking?limit=200' + (opName ? '&operator=' + encodeURIComponent(opName) : '');
   var trackPromise = api(trackUrl);
   var logs = await logsPromise;
   var trackData = await trackPromise;
 
-  // Filter logs to my shops (keep logs without shop_name — they belong to current operator)
-  if (logs && MY_SHOPS.length > 0) {
-    logs = logs.filter(function(l) {
-      if (!l.shop_name) return true;  // no name = keep (likely current operator's action)
-      return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
-    });
-  }
+  // Logs are already filtered by operator on the server side
 
   // Build tracking map: log_id -> { status, items[] }
   var trackMap = {};

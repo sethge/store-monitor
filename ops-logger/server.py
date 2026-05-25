@@ -830,14 +830,23 @@ def receive_logs():
         item_name = log.get("itemName", "")
         before_snapshot = log.get("beforeSnapshot", "")
 
-        # Lookup shop name from cache if not provided
-        if shop_id and not shop_name:
-            cached_shop = conn.execute("SELECT shop_name FROM shop_cache WHERE shop_id=?", (shop_id,)).fetchone()
-            if cached_shop:
-                shop_name = cached_shop["shop_name"]
+        # Filter bad shop names (tab title artifacts)
+        _BAD_SHOP_NAMES = {'淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', 'melody'}
+        if shop_name in _BAD_SHOP_NAMES:
+            shop_name = ""
 
-        # Save shop name to cache
-        if shop_id and shop_name:
+        # Lookup shop name: prefer operator_stores (authoritative), fallback to shop_cache
+        if shop_id and not shop_name:
+            os_row = conn.execute("SELECT shop_name FROM operator_stores WHERE shop_id=?", (str(shop_id),)).fetchone()
+            if os_row:
+                shop_name = os_row["shop_name"]
+            else:
+                cached_shop = conn.execute("SELECT shop_name FROM shop_cache WHERE shop_id=?", (shop_id,)).fetchone()
+                if cached_shop and cached_shop["shop_name"] not in _BAD_SHOP_NAMES:
+                    shop_name = cached_shop["shop_name"]
+
+        # Save shop name to cache (only good names)
+        if shop_id and shop_name and shop_name not in _BAD_SHOP_NAMES:
             conn.execute(
                 "INSERT OR REPLACE INTO shop_cache (shop_id, shop_name, platform, updated_at) VALUES (?,?,?,?)",
                 (shop_id, shop_name, platform, datetime.now().isoformat())
@@ -2538,7 +2547,8 @@ def api_agent_status():
     if not patrol_ts:
         pr = _load_patrol_result()
         if pr and pr.get("ts"):
-            patrol_ts = pr["ts"]
+            _raw = pr["ts"]
+            patrol_ts = _raw.split(" ")[-1] if _raw and " " in _raw else _raw
     return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile,
                      "scheduled": scheduled, "queue": queue_size,
                      "last_patrol": patrol_ts, "last_alert": _last_alert_ts})

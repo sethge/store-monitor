@@ -231,7 +231,9 @@ chrome.webRequest.onBeforeRequest.addListener(
             if (tab.title && !tab.title.startsWith('http')) {
               tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
             }
-            if (tName && tName.length > 1 && tName.length < 40) {
+            // 过滤掉明显不是店名的tab title
+            const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
+            if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
               entry.shopName = tName;
               if (shopId) shopCache[shopId] = tName;
             }
@@ -655,14 +657,11 @@ async function pollAlerts() {
     const res = await fetch(SERVER_URL + "/api/alerts?t=" + Date.now());
     if (!res.ok) return;
     const alerts = await res.json();
-    const redCount = alerts.filter(a => a.level === "red").length;
+    const hasRed = alerts.some(a => a.level === "red");
     const totalCount = alerts.length;
 
-    if (redCount > 0) {
-      chrome.action.setBadgeBackgroundColor({ color: "#c62828" });
-      chrome.action.setBadgeText({ text: String(redCount) });
-    } else if (totalCount > 0) {
-      chrome.action.setBadgeBackgroundColor({ color: "#e65100" });
+    if (totalCount > 0) {
+      chrome.action.setBadgeBackgroundColor({ color: hasRed ? "#c62828" : "#e65100" });
       chrome.action.setBadgeText({ text: String(totalCount) });
     } else {
       // Check for unpushed logs
