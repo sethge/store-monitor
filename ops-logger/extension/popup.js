@@ -1093,6 +1093,13 @@ async function init() {
   loadDaily();
   loadChanges();
 
+  // 监听background推送日志成功，实时刷新操作记录
+  chrome.runtime.onMessage.addListener(function(msg) {
+    if (msg.type === 'OPS_LOGS_PUSHED') {
+      loadChanges();
+    }
+  });
+
   // Load and render chat history
   var savedChat = await loadChatHistory();
   if (savedChat.length > 0) {

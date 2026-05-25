@@ -145,6 +145,46 @@ function extractShopId(body) {
   return '';
 }
 
+// 异步补全shopId和shopName：body提取 → cookie wmPoiId → tab title
+async function resolveShopName(entry, tabId, shopId) {
+  // 1. body里有shopId且cache有名字，直接用
+  if (shopId && shopCache[shopId]) {
+    entry.shopName = shopCache[shopId];
+    return;
+  }
+  // 2. body没shopId，从美团cookie读wmPoiId
+  if (!shopId) {
+    try {
+      const c = await chrome.cookies.get({ url: 'https://e.waimai.meituan.com', name: 'wmPoiId' });
+      if (c && c.value) {
+        shopId = c.value;
+        entry.shopId = shopId;
+        if (shopCache[shopId]) {
+          entry.shopName = shopCache[shopId];
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+  // 3. 从tab title兜底
+  if (tabId > 0) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab && tab.title && !tab.title.startsWith('http')) {
+        let tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
+        const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
+        if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
+          entry.shopName = tName;
+          if (shopId) {
+            shopCache[shopId] = tName;
+            chrome.storage.local.set({ ops_shop_cache: shopCache });
+          }
+        }
+      }
+    } catch(e) {}
+  }
+}
+
 function extractItemInfo(body) {
   if (!body || typeof body !== 'object') return { itemId: '', itemName: '', beforeSnapshot: null };
   const params = body.params || {};
@@ -209,8 +249,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     if (isIgnoredApi(apiMethod)) return;
     if (!isMutationApi(apiMethod)) return;
 
-    const shopId = extractShopId(body);
-    const shopName = shopCache[shopId] || '';
+    let shopId = extractShopId(body);
     const { itemId, itemName, beforeSnapshot } = extractItemInfo(body);
 
     const entry = {
@@ -220,7 +259,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       apiMethod: apiMethod,
       body: body ? JSON.stringify(body) : null,
       shopId: shopId,
-      shopName: shopName,
+      shopName: '',
       itemId: itemId,
       itemName: itemName,
       beforeSnapshot: beforeSnapshot ? JSON.stringify(beforeSnapshot) : '',
@@ -228,45 +267,13 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    // 补全shopName: 从tab的title/url获取（饿了么title常含店名）
-    if (!shopName && details.tabId > 0) {
-      try {
-        chrome.tabs.get(details.tabId, (tab) => {
-          if (chrome.runtime.lastError) { /* ignore */ }
-          else if (tab) {
-            // 饿了么tab title格式: "店铺名 - 饿了么商家后台" 或 tab.url含shop路径
-            let tName = '';
-            if (tab.title && !tab.title.startsWith('http')) {
-              tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
-            }
-            // 过滤掉明显不是店名的tab title
-            const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
-            if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
-              entry.shopName = tName;
-              if (shopId) {
-                shopCache[shopId] = tName;
-                chrome.storage.local.set({ ops_shop_cache: shopCache });
-              }
-            }
-          }
-          chrome.storage.local.get("ops_operator", (data) => {
-            entry.operator = data.ops_operator || "";
-            saveLog(entry);
-          });
-        });
-      } catch(e) {
-        chrome.storage.local.get("ops_operator", (data) => {
-          entry.operator = data.ops_operator || "";
-          saveLog(entry);
-        });
-      }
-    } else {
-      // 记录时就打上当前operator，换人不影响已有log
+    // 异步补全shopId+shopName，然后保存
+    resolveShopName(entry, details.tabId, shopId).then(() => {
       chrome.storage.local.get("ops_operator", (data) => {
         entry.operator = data.ops_operator || "";
         saveLog(entry);
       });
-    }
+    });
     debouncedPush();
     console.log("[OpsLogger]", apiMethod, shopName || shopId, itemName || itemId);
   },
@@ -336,6 +343,8 @@ async function pushLogs() {
       await chrome.storage.local.set({ ops_logs });
       const remaining = ops_logs.filter(l => !l.pushed).length;
       chrome.action.setBadgeText({ text: remaining > 0 ? String(remaining) : "" });
+      // 通知popup实时刷新操作日志
+      chrome.runtime.sendMessage({ type: "OPS_LOGS_PUSHED", saved: result.saved }).catch(() => {});
     }
   } catch (e) {
     console.error("[OpsLogger] push error:", e.message);
