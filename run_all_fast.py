@@ -296,21 +296,20 @@ async def main():
                     continue
                 if acct['action'] != '一键登录': continue
 
-                try:
+                async def _do_login_and_get_page():
+                    """登录并返回平台页面，支持context销毁后重试"""
                     await close_store_pages(ctx)
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
 
                     # 登录重试机制：点击后验证平台页面是否打开，最多3次
-                    login_ok = False
                     for login_attempt in range(3):
                         result = await click_store_platform(ext, acct['account'])
                         if result != 'ok':
                             L.step("store", f"跳过 {acct['account']} (result={result})")
-                            break
-                        await asyncio.sleep(3 + login_attempt)  # 每次多等1秒
+                            return result, None
+                        await asyncio.sleep(3 + login_attempt)
 
-                        # 验证平台页面是否真的打开了
                         found_page = False
                         if p == 'meituan':
                             found_page = any('waimai.meituan.com' in x.url and 'chrome-extension' not in x.url for x in ctx.pages)
@@ -318,14 +317,16 @@ async def main():
                             found_page = any('ele.me' in x.url and 'melody' in x.url for x in ctx.pages)
 
                         if found_page:
-                            login_ok = True
-                            break
+                            return 'ok', True
                         else:
                             L.step("store", f"登录后未检测到{p_name}页面，第{login_attempt+1}次重试")
-                            # 关掉可能残留的空白页再重试
                             await close_store_pages(ctx)
                             ext = await get_ext(ctx)
                             await pick_brand(ext, brand)
+                    return 'ok', False  # 3次都没打开
+
+                try:
+                    result, login_ok = await _do_login_and_get_page()
 
                     if result != 'ok':
                         continue
@@ -375,7 +376,6 @@ async def main():
                                         all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                             except Exception as e:
                                 err_msg = str(e)
-                                # ERR_ABORTED = 页面加载慢，刷新重试一次
                                 if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg:
                                     L.step("scrape", f"美团页面加载失败，刷新重试")
                                     try:
@@ -393,9 +393,37 @@ async def main():
                                                 all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                                     except Exception as e2:
                                         all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                elif 'Target page' in err_msg or 'context' in err_msg.lower():
+                                    # context销毁，重新通过goku登录
+                                    L.step("scrape", f"美团页面context失效，重新登录重试")
+                                    try:
+                                        result2, login_ok2 = await _do_login_and_get_page()
+                                        if result2 == 'ok' and login_ok2:
+                                            pg2 = None
+                                            for x in ctx.pages:
+                                                if 'waimai.meituan.com' in x.url and 'chrome-extension' not in x.url: pg2=x; break
+                                            if pg2:
+                                                issues = await fast_mt(pg2)
+                                                name = issues.pop('name','')
+                                                if name and '*' not in name: real_name = name
+                                                for k, v in issues.items():
+                                                    if k=='bad':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                                    elif k=='notices':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"notice","msg":f"{len(v)}条通知","details":v})
+                                                    elif k=='promo':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                                                try: await pg2.close()
+                                                except: pass
+                                            pg = None  # 避免下面再close
+                                        else:
+                                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重新登录失败","details":[]})
+                                    except Exception as e2:
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
                                 else:
                                     all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
-                            try: await pg.close()
+                            try:
+                                if pg: await pg.close()
                             except: pass
 
                 elif p == 'eleme':
@@ -441,9 +469,36 @@ async def main():
                                                 all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                                     except Exception as e2:
                                         all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                elif 'Target page' in err_msg or 'context' in err_msg.lower():
+                                    L.step("scrape", f"饿了么页面context失效，重新登录重试")
+                                    try:
+                                        result2, login_ok2 = await _do_login_and_get_page()
+                                        if result2 == 'ok' and login_ok2:
+                                            pg2 = None
+                                            for x in ctx.pages:
+                                                if 'ele.me' in x.url and 'melody' in x.url: pg2=x; break
+                                            if pg2:
+                                                issues = await fast_ele(pg2)
+                                                name = issues.pop('name','')
+                                                if name: real_name = name
+                                                for k, v in issues.items():
+                                                    if k=='bad':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"bad_review","msg":f"近3日中差评{len(v)}条","details":v})
+                                                    elif k=='exp':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"expiring","msg":f"{len(v)}个活动即将到期","details":v})
+                                                    elif k=='promo':
+                                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
+                                                try: await pg2.close()
+                                                except: pass
+                                            pg = None
+                                        else:
+                                            all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重新登录失败","details":[]})
+                                    except Exception as e2:
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
                                 else:
                                     all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
-                            try: await pg.close()
+                            try:
+                                if pg: await pg.close()
                             except: pass
 
         print(f"{time.time()-t_brand:.0f}s")

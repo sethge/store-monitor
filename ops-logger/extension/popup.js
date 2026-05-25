@@ -179,28 +179,38 @@ async function loadDaily() {
   // === 1. Info module ===
   html += buildInfoModule(data, settings);
 
-  // === 2. Auth notice (persistent, not dismissable) ===
+  // === 2. Persistent notice bar (auth + error, not dismissable) ===
   var allAlerts = alertsData || [];
   var authAlerts = allAlerts.filter(function(a) { return a.type === 'auth'; });
-  if (authAlerts.length > 0) {
+  var errorAlerts = allAlerts.filter(function(a) { return a.type === 'error'; });
+  if (authAlerts.length > 0 || errorAlerts.length > 0) {
     html += '<div class="auth-notice">';
-    html += '<div class="auth-notice-title">\u26A0\uFE0F ' + authAlerts.length + '家店未授权</div>';
-    for (var ai = 0; ai < authAlerts.length; ai++) {
-      var aa = authAlerts[ai];
-      var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
-      html += '<div class="auth-notice-item">' + esc(aa.store) + ' \u00B7 ' + esc(pname) + '</div>';
+    if (authAlerts.length > 0) {
+      html += '<div class="auth-notice-title">\u26A0\uFE0F ' + authAlerts.length + '家店未授权</div>';
+      for (var ai = 0; ai < authAlerts.length; ai++) {
+        var aa = authAlerts[ai];
+        var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
+        html += '<div class="auth-notice-item">' + esc(aa.store) + ' \u00B7 ' + esc(pname) + '</div>';
+      }
+    }
+    if (errorAlerts.length > 0) {
+      html += '<div class="auth-notice-title" style="color:#c62828">\u274C ' + errorAlerts.length + '家店检查出错</div>';
+      for (var ei = 0; ei < errorAlerts.length; ei++) {
+        var ea = errorAlerts[ei];
+        html += '<div class="auth-notice-item" style="color:#b71c1c">' + esc(ea.store) + (ea.msg ? ' \u00B7 ' + esc(ea.msg) : '') + '</div>';
+      }
     }
     html += '</div>';
   }
 
-  // === 3. Alerts section (un-dismissed, excluding auth) ===
+  // === 3. Alerts section (un-dismissed, excluding auth & error) ===
   var dismissed = _dismissedAlerts || {};
   var activeAlerts = allAlerts.filter(function(a) {
-    if (a.type === 'auth') return false;
+    if (a.type === 'auth' || a.type === 'error') return false;
     var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
     return !dismissed[key];
   });
-  updateBadge('alertBadge', activeAlerts.length + authAlerts.length);
+  updateBadge('alertBadge', activeAlerts.length + authAlerts.length + errorAlerts.length);
 
   if (activeAlerts.length > 0) {
     html += '<div class="alert-section-title">\uD83D\uDD14 预警 ' + activeAlerts.length + '条</div>';
