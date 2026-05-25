@@ -2267,10 +2267,195 @@ def api_operator_list():
 # ========== Agent Status + Patrol (v4.0 直执行) ==========
 
 WORKSPACE = os.path.dirname(os.path.dirname(__file__))  # ops-logger/../ = store-monitor/
-_patrol_state = {"state": "idle", "message": "", "pid": None}
+_patrol_state = {"state": "idle", "message": "", "pid": None, "started_at": None}
 _patrol_lock = threading.Lock()
-_task_queue = []  # 排队等待的任务: [{"brands": [...], "label": "...", "script": "..."}]
+_task_queue = []  # 最多1个排队任务: [{"brands": [...], "label": "...", "operator": "...", ...}]
 _patrol_progress = {"issues": {}, "all_stores": {}, "brand_stores": {}, "done": 0, "total": 0, "ts": ""}  # 增量巡检进度
+_PATROL_MAX_SEC = 600  # 单次巡检最长10分钟，超时判定死亡
+_last_patrol_ts = None   # 最近一次巡检完成时间
+_last_alert_ts = None    # 最近一次预警完成时间
+
+
+def _check_patrol_alive():
+    """检查当前巡检是否还活着，卡死的自动清理。返回True=确实在跑"""
+    import time as _t
+    with _patrol_lock:
+        if _patrol_state["state"] != "running":
+            return False
+        pid = _patrol_state.get("pid")
+        started = _patrol_state.get("started_at")
+    # 检查进程是否存在
+    if pid:
+        try:
+            os.kill(pid, 0)
+        except (OSError, ProcessLookupError):
+            # 进程已死但状态没更新
+            with _patrol_lock:
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = "巡检进程异常退出"
+                _patrol_state["pid"] = None
+                _patrol_state["started_at"] = None
+            _cleanup_headless()
+            print("[patrol] 进程已死，自动清理")
+            return False
+    # 检查是否超时
+    if started and (_t.time() - started) > _PATROL_MAX_SEC:
+        if pid:
+            try:
+                os.kill(pid, 9)
+            except Exception:
+                pass
+        _cleanup_headless()
+        with _patrol_lock:
+            _patrol_state["state"] = "error"
+            _patrol_state["message"] = f"巡检超时({_PATROL_MAX_SEC}秒)，已自动终止"
+            _patrol_state["pid"] = None
+            _patrol_state["started_at"] = None
+        print(f"[patrol] 超时{_PATROL_MAX_SEC}s，强制终止")
+        return False
+    return True
+
+
+def _drain_patrol_queue():
+    """从队列取任务跑，由_run_patrol_task完成后调用"""
+    with _patrol_lock:
+        if not _task_queue:
+            return
+        if _patrol_state["state"] == "running":
+            return  # 还在跑，不取
+        task = _task_queue.pop(0)
+    print(f"[patrol] 队列取出: {task['label']}（剩余{len(_task_queue)}个）")
+    _start_patrol_task(task["brands"], task["operator"], task["label"], script=task.get("script"), extra_args=task.get("extra_args"))
+
+
+def _start_patrol_task(brands, operator, label="巡检", script=None, extra_args=None):
+    """启动一个巡检任务（内部统一入口）"""
+    def _run():
+        _run_patrol_task(brands, operator, label, script=script, extra_args=extra_args)
+        _drain_patrol_queue()
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _run_patrol_task(brands, operator, label="巡检", script=None, extra_args=None):
+    """实际执行巡检的函数"""
+    import time as _t
+    with _patrol_lock:
+        _patrol_state["state"] = "running"
+        _patrol_state["message"] = f"{label} {', '.join(brands[:3])}..."
+        _patrol_state["log"] = ""
+        _patrol_state["pid"] = None
+        _patrol_state["started_at"] = _t.time()
+        # 清空增量进度
+        _patrol_progress["issues"] = {}
+        _patrol_progress["all_stores"] = {}
+        _patrol_progress["brand_stores"] = {}
+        _patrol_progress["done"] = 0
+        _patrol_progress["total"] = len(brands)
+        _patrol_progress["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    if script is None:
+        script = os.path.join(WORKSPACE, "run_all_fast.py")
+    cmd = [PYTHON, script, "--headless"]
+    # --operator 只有 run_all_fast.py 支持
+    if "run_all_fast" in script:
+        cmd += ["--operator", operator]
+    cmd += (extra_args or []) + brands
+    timeout_sec = len(brands) * 60 + 120
+    print(f"[patrol] 启动: {label}, operator={operator}, brands={brands}, timeout={timeout_sec}s")
+    try:
+        proc = subprocess.Popen(cmd, cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        with _patrol_lock:
+            _patrol_state["pid"] = proc.pid
+        output_lines = []
+        for line in proc.stdout:
+            text = line.decode("utf-8", errors="replace").rstrip()
+            output_lines.append(text)
+            print(f"[patrol] {text}")
+            with _patrol_lock:
+                _patrol_state["message"] = text[:100] or _patrol_state["message"]
+                _patrol_state["log"] = "\n".join(output_lines[-50:])
+        proc.wait(timeout=timeout_sec)
+        with _patrol_lock:
+            if proc.returncode == 0:
+                _patrol_state["state"] = "done"
+                _patrol_state["message"] = f"{label}完成"
+                # 记录最近完成时间
+                global _last_patrol_ts, _last_alert_ts
+                _now_str = datetime.now().strftime("%H:%M")
+                if "预警" in label:
+                    _last_alert_ts = _now_str
+                else:
+                    _last_patrol_ts = _now_str
+                # 首次手动巡检成功后，自动开启定时巡检+预警
+                try:
+                    _cfg = load_config()
+                    if not _cfg.get("patrol_enabled"):
+                        _cfg["patrol_enabled"] = True
+                        _cfg["alert_enabled"] = True
+                        if not _cfg.get("patrol_time"):
+                            _cfg["patrol_time"] = "10:00"
+                        if not _cfg.get("alert_interval"):
+                            _cfg["alert_interval"] = 30
+                        if operator and not _cfg.get("operator"):
+                            _cfg["operator"] = operator
+                        save_config(_cfg)
+                        print(f"[patrol] 首次巡检成功，已自动开启定时巡检+预警")
+                except Exception as _e:
+                    print(f"[patrol] 自动开启失败: {_e}")
+            else:
+                _cleanup_headless()
+                last_step = _get_last_debug_step()
+                _patrol_state["state"] = "error"
+                _patrol_state["message"] = f"{label}异常: {last_step}" if last_step else f"{label}异常(code={proc.returncode})"
+            _patrol_state["pid"] = None
+            _patrol_state["started_at"] = None
+        print(f"[patrol] {label}结束: code={proc.returncode}")
+        _report_logs("patrol")
+        if proc.returncode != 0:
+            _report_logs("error")
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        _cleanup_headless()
+        last_step = _get_last_debug_step()
+        with _patrol_lock:
+            _patrol_state["state"] = "error"
+            _patrol_state["message"] = f"{label}超时({timeout_sec}秒)，卡在: {last_step}"
+            _patrol_state["pid"] = None
+            _patrol_state["started_at"] = None
+        print(f"[patrol] {label}超时({timeout_sec}s)")
+        _report_logs("error")
+    except Exception as e:
+        _cleanup_headless()
+        with _patrol_lock:
+            _patrol_state["state"] = "error"
+            _patrol_state["message"] = str(e)[:100]
+            _patrol_state["pid"] = None
+            _patrol_state["started_at"] = None
+        print(f"[patrol] {label}异常: {e}")
+        _report_logs("error")
+
+
+def _enqueue_patrol(brands, operator, label="巡检", script=None, extra_args=None):
+    """统一入口：空闲直接跑，在跑就排队（最多排1个，多了替换）"""
+    # 先检查当前巡检是否还活着
+    if _patrol_state["state"] == "running":
+        _check_patrol_alive()
+
+    with _patrol_lock:
+        if _patrol_state["state"] == "running":
+            # 已有排队任务就替换（只保留最新的）
+            task = {"brands": brands, "operator": operator, "label": label, "script": script, "extra_args": extra_args}
+            if _task_queue:
+                old = _task_queue[0]
+                print(f"[patrol] 替换排队任务: {old['label']} -> {label}")
+                _task_queue[0] = task
+            else:
+                _task_queue.append(task)
+                print(f"[patrol] {label}排队等待（当前在跑）")
+            return "queued"
+    # 空闲，直接跑
+    _start_patrol_task(brands, operator, label, script=script, extra_args=extra_args)
+    return "started"
 
 
 def _cleanup_headless():
@@ -2345,7 +2530,16 @@ def api_agent_status():
     # 定时巡检状态
     cfg = load_config()
     scheduled = cfg.get("patrol_time") if cfg.get("patrol_enabled") else None
-    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile, "scheduled": scheduled})
+    queue_size = len(_task_queue)
+    # 初始化巡检时间：从patrol_result.json读
+    patrol_ts = _last_patrol_ts
+    if not patrol_ts:
+        pr = _load_patrol_result()
+        if pr and pr.get("ts"):
+            patrol_ts = pr["ts"]
+    return jsonify({"has_run_fast": has_run_fast, "patrol": patrol_clean, "headless_ready": has_profile,
+                     "scheduled": scheduled, "queue": queue_size,
+                     "last_patrol": patrol_ts, "last_alert": _last_alert_ts})
 
 
 @app.route("/api/setup/status")
@@ -2500,10 +2694,6 @@ def api_patrol_start():
     if not brands:
         return jsonify({"error": "no_brands", "message": f"没找到{operator}的品牌"}), 400
 
-    with _patrol_lock:
-        if _patrol_state["state"] == "running":
-            return jsonify({"ok": False, "message": "巡检已在运行中"})
-
     script = os.path.join(WORKSPACE, "run_all_fast.py")
     if not os.path.exists(script):
         return jsonify({"ok": False, "message": "巡检脚本不存在"}), 500
@@ -2518,95 +2708,9 @@ def api_patrol_start():
     if not goku_check["ok"]:
         return jsonify({"ok": False, "message": goku_check["message"]}), 400
 
-    def _run_patrol():
-        with _patrol_lock:
-            _patrol_state["state"] = "running"
-            _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
-            _patrol_state["log"] = ""
-            # 清空增量进度
-            _patrol_progress["issues"] = {}
-            _patrol_progress["all_stores"] = {}
-            _patrol_progress["brand_stores"] = {}
-            _patrol_progress["done"] = 0
-            _patrol_progress["total"] = len(brands)
-            _patrol_progress["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        # 强制无头模式，不允许走9222的可见Chrome巡检
-        cmd = [PYTHON, script, "--headless", "--operator", operator] + brands
-        # 每品牌最多1分钟 + 2分钟buffer（preflight+收尾）
-        timeout_sec = len(brands) * 60 + 120
-        print(f"[patrol] 启动: headless=True, brands={brands}, timeout={timeout_sec}s")
-        try:
-            proc = subprocess.Popen(
-                cmd,
-                cwd=WORKSPACE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
-            with _patrol_lock:
-                _patrol_state["pid"] = proc.pid
-            # 实时读输出
-            output_lines = []
-            for line in proc.stdout:
-                text = line.decode("utf-8", errors="replace").rstrip()
-                output_lines.append(text)
-                print(f"[patrol] {text}")
-                with _patrol_lock:
-                    _patrol_state["message"] = text[:100] or _patrol_state["message"]
-                    # 保留最后50行
-                    _patrol_state["log"] = "\n".join(output_lines[-50:])
-            proc.wait(timeout=timeout_sec)
-            with _patrol_lock:
-                if proc.returncode == 0:
-                    _patrol_state["state"] = "done"
-                    _patrol_state["message"] = "巡检完成"
-                    # 首次手动巡检成功后，自动开启定时巡检+预警
-                    try:
-                        _cfg = load_config()
-                        if not _cfg.get("patrol_enabled"):
-                            _cfg["patrol_enabled"] = True
-                            _cfg["alert_enabled"] = True
-                            if not _cfg.get("patrol_time"):
-                                _cfg["patrol_time"] = "10:00"
-                            if not _cfg.get("alert_interval"):
-                                _cfg["alert_interval"] = 30
-                            if operator and not _cfg.get("operator"):
-                                _cfg["operator"] = operator
-                            save_config(_cfg)
-                            print(f"[patrol] 首次巡检成功，已自动开启定时巡检+预警")
-                    except Exception as _e:
-                        print(f"[patrol] 自动开启失败: {_e}")
-                else:
-                    _cleanup_headless()
-                    last_step = _get_last_debug_step()
-                    _patrol_state["state"] = "error"
-                    _patrol_state["message"] = f"巡检异常: {last_step}" if last_step else f"巡检异常(code={proc.returncode})"
-                _patrol_state["pid"] = None
-            print(f"[patrol] 结束: code={proc.returncode}")
-            # 上报日志
-            _report_logs("patrol")
-            if proc.returncode != 0:
-                _report_logs("error")
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            _cleanup_headless()
-            last_step = _get_last_debug_step()
-            with _patrol_lock:
-                _patrol_state["state"] = "error"
-                _patrol_state["message"] = f"巡检超时({timeout_sec}秒)，卡在: {last_step}"
-                _patrol_state["pid"] = None
-            print(f"[patrol] 超时({timeout_sec}s)，卡在: {last_step}")
-            _report_logs("error")
-        except Exception as e:
-            _cleanup_headless()
-            with _patrol_lock:
-                _patrol_state["state"] = "error"
-                _patrol_state["message"] = str(e)[:100]
-                _patrol_state["pid"] = None
-            print(f"[patrol] 异常: {e}")
-            _report_logs("error")
-
-    t = threading.Thread(target=_run_patrol, daemon=True)
-    t.start()
+    result = _enqueue_patrol(brands, operator, "手动巡检")
+    if result == "queued":
+        return jsonify({"ok": True, "message": f"巡检排队中，当前任务完成后自动开始"})
     return jsonify({"ok": True, "message": f"巡检已启动: {', '.join(brands)}"})
 
 
@@ -2645,7 +2749,9 @@ def api_patrol_stop():
             _patrol_state["state"] = "error"
             _patrol_state["message"] = "巡检已手动终止"
             _patrol_state["pid"] = None
-        return jsonify({"ok": True, "message": "巡检已终止"})
+            _patrol_state["started_at"] = None
+            _task_queue.clear()  # 停止时清空队列
+        return jsonify({"ok": True, "message": "巡检已终止，队列已清空"})
     except Exception as e:
         return jsonify({"ok": False, "message": str(e)}), 500
 
@@ -3711,84 +3817,6 @@ def _schedule_patrol():
     """定时巡检+预警调度器，读config决定是否执行"""
     import time as _time
 
-    def _run_task(brands, label="定时巡检", script=None, extra_args=None):
-        """在后台线程中跑任务（巡检或预警），跑完自动拉队列下一个"""
-        if script is None:
-            script = os.path.join(WORKSPACE, "run_all_fast.py")
-        with _patrol_lock:
-            _patrol_state["state"] = "running"
-            _patrol_state["message"] = f"{label} {', '.join(brands[:3])}..."
-            _patrol_state["log"] = ""
-        try:
-            cmd = [sys.executable, script, "--headless"] + (extra_args or []) + brands
-            proc = subprocess.Popen(
-                cmd, cwd=WORKSPACE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            with _patrol_lock:
-                _patrol_state["pid"] = proc.pid
-            output_lines = []
-            for line in proc.stdout:
-                text = line.decode("utf-8", errors="replace").rstrip()
-                output_lines.append(text)
-                with _patrol_lock:
-                    _patrol_state["message"] = text[:100]
-                    _patrol_state["log"] = "\n".join(output_lines[-50:])
-            timeout_sec = len(brands) * 60 + 120
-            proc.wait(timeout=timeout_sec)
-            with _patrol_lock:
-                if proc.returncode == 0:
-                    _patrol_state["state"] = "done"
-                    _patrol_state["message"] = f"{label}完成"
-                else:
-                    _cleanup_headless()
-                    last_step = _get_last_debug_step()
-                    _patrol_state["state"] = "error"
-                    _patrol_state["message"] = f"{label}异常: {last_step}" if last_step else f"异常({proc.returncode})"
-                _patrol_state["pid"] = None
-            print(f"[schedule] {label}结束: code={proc.returncode}")
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            _cleanup_headless()
-            last_step = _get_last_debug_step()
-            with _patrol_lock:
-                _patrol_state["state"] = "error"
-                _patrol_state["message"] = f"{label}超时，卡在: {last_step}"
-                _patrol_state["pid"] = None
-            print(f"[schedule] {label}超时，卡在: {last_step}")
-        except Exception as e:
-            _cleanup_headless()
-            with _patrol_lock:
-                _patrol_state["state"] = "error"
-                _patrol_state["message"] = str(e)[:100]
-                _patrol_state["pid"] = None
-            print(f"[schedule] {label}异常: {e}")
-
-        # 跑完后检查队列，有排队任务就接着跑
-        _drain_queue()
-
-    def _enqueue_or_run(brands, label, script=None, extra_args=None):
-        """如果空闲直接跑，在跑就排队"""
-        with _patrol_lock:
-            if _patrol_state["state"] == "running":
-                # 同类型任务不重复排队（比如预警已排了一个就不再排）
-                for t in _task_queue:
-                    if t["label"] == label:
-                        print(f"[schedule] {label}已在队列中，跳过")
-                        return
-                _task_queue.append({"brands": brands, "label": label, "script": script, "extra_args": extra_args})
-                print(f"[schedule] {label}排队等待（队列{len(_task_queue)}个）")
-                return
-        # 空闲，直接跑
-        threading.Thread(target=_run_task, args=(brands, label, script, extra_args), daemon=True).start()
-
-    def _drain_queue():
-        """从队列取一个任务跑"""
-        with _patrol_lock:
-            if not _task_queue:
-                return
-            task = _task_queue.pop(0)
-        print(f"[schedule] 队列取出: {task['label']}（剩余{len(_task_queue)}个）")
-        _run_task(task["brands"], task["label"], task.get("script"), task.get("extra_args"))
-
     def _scheduler():
         last_patrol_date = None
         last_alert_time = None  # 上次预警巡检的时间戳
@@ -3813,7 +3841,7 @@ def _schedule_patrol():
                         if brands:
                             last_patrol_date = today
                             print(f"[schedule] 定时巡检 {patrol_time} 运营={operator} 品牌={len(brands)}")
-                            _enqueue_or_run(brands, "定时巡检")
+                            _enqueue_patrol(brands, operator, "定时巡检")
 
                 # === 定时预警：每N分钟跑一次快速巡检（watch-once） ===
                 if cfg.get("alert_enabled") and operator:
@@ -3831,9 +3859,15 @@ def _schedule_patrol():
                         brands = _get_operator_brands(operator)
                         if brands:
                             last_alert_time = now
-                            print(f"[schedule] 定时预警 间隔{interval}分钟 运营={operator}")
-                            alert_script = os.path.join(WORKSPACE, "run_fast.py")
-                            _enqueue_or_run(brands, "定时预警", script=alert_script, extra_args=["--watch-once"])
+                            print(f"[schedule] 定时预警(cookie) 间隔{interval}分钟 运营={operator}")
+                            # 优先用cookie切店预警（快），无快照时降级为watch-once
+                            snap_file = os.path.join(WORKSPACE, "ops-logger", "_cookie_snapshots.json")
+                            if os.path.exists(snap_file):
+                                alert_script = os.path.join(WORKSPACE, "run_alert_cookie.py")
+                                _enqueue_patrol(brands, operator, "定时预警", script=alert_script, extra_args=[])
+                            else:
+                                alert_script = os.path.join(WORKSPACE, "run_fast.py")
+                                _enqueue_patrol(brands, operator, "定时预警", script=alert_script, extra_args=["--watch-once"])
 
                 # === 拉取远程指令（管理员下发的stop/restart） ===
                 if operator:

@@ -85,17 +85,18 @@ async function refreshServerStatus(containerId) {
     : '<span style="color:#c62828">\u25CF 服务未启动</span>';
 }
 
-function buildInfoModule(data, settings) {
-  // Line 1: patrol status
+function buildInfoModule(data, settings, agentStatus) {
+  // Line 1: 最近巡检 + 最近预警
   var line1 = '';
   if (data && data._running) {
     line1 = '\u23F3 巡检中 ' + (data._done || 0) + '/' + (data._total || '?') + ' 品牌';
-  } else if (data && data.ts) {
-    line1 = esc(data.ts) + ' 巡检完成';
-    if (data.brands) line1 += ' \u00B7 ' + data.brands + '个品牌';
-    if (data.duration) line1 += ' \u00B7 ' + data.duration + '秒';
   } else {
-    line1 = '尚未巡检';
+    var parts1 = [];
+    var patrolTs = (agentStatus && agentStatus.last_patrol) || (data && data.ts) || '';
+    var alertTs = (agentStatus && agentStatus.last_alert) || '';
+    if (patrolTs) parts1.push('\u5DE1\u5E97 ' + esc(patrolTs));
+    if (alertTs) parts1.push('\u9884\u8B66 ' + esc(alertTs));
+    line1 = parts1.length > 0 ? parts1.join(' \u00B7 ') : '尚未巡检';
   }
 
   // Line 2: schedule info
@@ -174,14 +175,16 @@ async function loadDaily() {
   var dailyPromise = api('/api/daily');
   var alertsPromise = api('/api/alerts');
   var settingsPromise = loadSettingsFromServer();
+  var statusPromise = api('/api/agent/status');
   var data = await dailyPromise;
   var alertsData = await alertsPromise;
   var settings = await settingsPromise;
+  var agentStatus = await statusPromise;
 
   var html = '';
 
   // === 1. Info module ===
-  html += buildInfoModule(data, settings);
+  html += buildInfoModule(data, settings, agentStatus);
 
   // === 2. Persistent notice bar (auth + error, not dismissable) ===
   var allAlerts = alertsData || [];

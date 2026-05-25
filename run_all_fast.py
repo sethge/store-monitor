@@ -249,6 +249,7 @@ async def main():
 
     t0 = time.time()
     all_issues = OrderedDict()
+    _cookie_snapshots = []  # cookie快照，预警时复用
     all_stores = OrderedDict()  # 记录所有巡过的店: {display_name: [platform_name, ...]}
     brand_stores = OrderedDict()  # 品牌→店铺映射: {brand: [display_name, ...]}
 
@@ -382,6 +383,24 @@ async def main():
                             try: await pg.close()
                             except: pass
                         else:
+                            # 存cookie快照（供cookie预警使用）
+                            try:
+                                _all_ck = await ctx.cookies()
+                                _mt_ck = [c for c in _all_ck if 'meituan' in c.get('domain', '')]
+                                _key_vals = {}
+                                for _c in _mt_ck:
+                                    if _c['name'] in ('wmPoiId', 'acctId', 'token', 'JSESSIONID'):
+                                        _key_vals[_c['name']] = _c['value']
+                                _cookie_snapshots.append({
+                                    "store": display_name(),
+                                    "brand": brand,
+                                    "account": acct['account'],
+                                    "platform": "meituan",
+                                    "key_vals": _key_vals,
+                                    "cookies": _mt_ck,
+                                })
+                            except Exception:
+                                pass
                             L.step("scrape", f"美团数据采集: {pg.url[:60]}")
                             try:
                                 issues = await fast_mt(pg)
@@ -577,6 +596,16 @@ async def main():
         print(f"结果已保存: {result_file}")
     except Exception as e:
         print(f"保存结果失败: {e}")
+
+    # 保存cookie快照供预警使用
+    if _cookie_snapshots:
+        snap_file = os.path.join(os.path.dirname(__file__), "ops-logger", "_cookie_snapshots.json")
+        try:
+            with open(snap_file, "w", encoding="utf-8") as f:
+                json.dump(_cookie_snapshots, f, ensure_ascii=False, indent=2)
+            print(f"Cookie快照已保存: {len(_cookie_snapshots)}个店铺")
+        except Exception as e:
+            print(f"Cookie快照保存失败: {e}")
 
     # 自动记录
     from learn import log_interaction
