@@ -2471,21 +2471,18 @@ def api_patrol_start():
     if not os.path.exists(script):
         return jsonify({"ok": False, "message": "巡检脚本不存在"}), 500
 
-    # 确保Chrome debug端口可用（没有就自动启动）
+    # 确保Chrome debug端口可用（无头模式需要它来同步登录态）
     if not _ensure_debug_chrome():
+        _report_logs("error")
         return jsonify({"ok": False, "message": "Chrome debug端口启动失败，请确认Chrome已安装"}), 500
-
-    headless = data.get("headless", True)  # 默认无头
 
     def _run_patrol():
         with _patrol_lock:
             _patrol_state["state"] = "running"
             _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
             _patrol_state["log"] = ""
-        cmd = [PYTHON, script]
-        if headless:
-            cmd.append("--headless")
-        cmd += brands
+        # 强制无头模式，不允许走9222的可见Chrome巡检
+        cmd = [PYTHON, script, "--headless"] + brands
         # 每品牌最多1分钟 + 2分钟buffer（preflight+收尾）
         timeout_sec = len(brands) * 60 + 120
         print(f"[patrol] 启动: headless={headless}, brands={brands}, timeout={timeout_sec}s")
@@ -2976,10 +2973,21 @@ def _report_logs(log_type="error"):
 
             entries = []
             if log_type == "error":
+                # 带上当前patrol状态（包含失败原因）
+                with _patrol_lock:
+                    patrol_msg = _patrol_state.get("message", "")
+                    patrol_state = _patrol_state.get("state", "")
+                entries.append({
+                    "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "state": patrol_state,
+                    "message": patrol_msg,
+                    "last_step": _get_last_debug_step() or "",
+                })
+                # 也带上patrol_errors.json（如果有）
                 err_file = os.path.join(os.path.dirname(__file__), "patrol_errors.json")
                 if os.path.exists(err_file):
                     with open(err_file) as f:
-                        entries = json.load(f)
+                        entries.extend(json.load(f))
             elif log_type == "patrol":
                 result_file = os.path.join(os.path.dirname(__file__), "patrol_result.json")
                 if os.path.exists(result_file):
@@ -3088,6 +3096,41 @@ def api_logs_report():
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     print(f"[remote-log] 收到 {operator}@{hostname} 的 {len(entries)} 条 {log_type} 日志")
     return jsonify({"ok": True, "received": len(entries)})
+
+
+# ========== 远程指令（管理员→运营机器） ==========
+_remote_commands = {}  # {operator: [{"cmd": "stop/restart", "ts": "...", "consumed": False}]}
+
+@app.route("/api/commands/push", methods=["POST"])
+def api_commands_push():
+    """管理员下发指令给运营机器"""
+    data = request.json or {}
+    operator = data.get("operator", "")
+    cmd = data.get("cmd", "")  # stop / restart
+    if not operator or cmd not in ("stop", "restart"):
+        return jsonify({"ok": False, "message": "需要operator和cmd(stop/restart)"}), 400
+    if operator not in _remote_commands:
+        _remote_commands[operator] = []
+    _remote_commands[operator].append({
+        "cmd": cmd,
+        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "consumed": False
+    })
+    print(f"[cmd] 下发指令: {operator} → {cmd}")
+    return jsonify({"ok": True, "message": f"已下发 {cmd} 给 {operator}"})
+
+@app.route("/api/commands/pull")
+def api_commands_pull():
+    """运营机器拉取待执行指令"""
+    operator = request.args.get("operator", "")
+    if not operator or operator not in _remote_commands:
+        return jsonify({"commands": []})
+    pending = [c for c in _remote_commands[operator] if not c["consumed"]]
+    for c in pending:
+        c["consumed"] = True
+    # 清理已消费的旧指令
+    _remote_commands[operator] = [c for c in _remote_commands[operator] if not c["consumed"]]
+    return jsonify({"commands": [{"cmd": c["cmd"], "ts": c["ts"]} for c in pending]})
 
 
 @app.route("/api/logs/query")
@@ -3633,6 +3676,41 @@ def _schedule_patrol():
                             print(f"[schedule] 定时预警 间隔{interval}分钟 运营={operator}")
                             alert_script = os.path.join(WORKSPACE, "run_fast.py")
                             _enqueue_or_run(brands, "定时预警", script=alert_script, extra_args=["--watch-once"])
+
+                # === 拉取远程指令（管理员下发的stop/restart） ===
+                if operator:
+                    try:
+                        remote_url = _discover_crm_remote()
+                        if remote_url:
+                            _s = http_requests.Session()
+                            _s.trust_env = False
+                            resp = _s.get(f"{remote_url}/api/commands/pull?operator={operator}", timeout=5)
+                            if resp.ok:
+                                cmds = resp.json().get("commands", [])
+                                for c in cmds:
+                                    print(f"[cmd] 收到指令: {c['cmd']} (来自管理员 {c['ts']})")
+                                    if c["cmd"] == "stop":
+                                        # 停止当前巡检
+                                        with _patrol_lock:
+                                            pid = _patrol_state.get("pid")
+                                            if _patrol_state["state"] == "running" and pid:
+                                                try:
+                                                    import signal
+                                                    os.kill(pid, signal.SIGTERM)
+                                                    print(f"[cmd] 已停止巡检进程 {pid}")
+                                                except Exception:
+                                                    pass
+                                                _patrol_state["state"] = "idle"
+                                                _patrol_state["message"] = "管理员远程停止"
+                                                _patrol_state["pid"] = None
+                                        _cleanup_headless()
+                                    elif c["cmd"] == "restart":
+                                        # 重启server自身
+                                        print("[cmd] 收到restart指令，正在重启...")
+                                        _cleanup_headless()
+                                        os.execv(sys.executable, [sys.executable] + sys.argv)
+                    except Exception as _ce:
+                        pass  # 拉指令失败不影响正常调度
 
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")
