@@ -3044,8 +3044,9 @@ CRM_REMOTE_URL = os.environ.get("CRM_REMOTE_URL", "")
 
 def _discover_crm_remote():
     """从OSS读取管理员tunnel URL，缓存10分钟"""
+    import time as _time
     global CRM_REMOTE_URL, _crm_url_ts
-    now = time.time()
+    now = _time.time()
     if CRM_REMOTE_URL and hasattr(_discover_crm_remote, '_ts') and now - _discover_crm_remote._ts < 600:
         return CRM_REMOTE_URL
     try:
