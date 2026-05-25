@@ -183,8 +183,18 @@ async function loadDaily() {
 
   var html = '';
 
-  // === 1. Info module ===
-  html += buildInfoModule(data, settings, agentStatus);
+  // === 1. Info module (skip rebuild when settings panel is open) ===
+  var _settingsOpen = false;
+  var _existingSettings = document.getElementById('infoSettings');
+  if (_existingSettings && _existingSettings.style.display !== 'none') {
+    _settingsOpen = true;
+    // Keep existing info module HTML intact
+    var _infoEl = _existingSettings.closest('.info-module');
+    if (_infoEl) html += _infoEl.outerHTML;
+    else html += buildInfoModule(data, settings, agentStatus);
+  } else {
+    html += buildInfoModule(data, settings, agentStatus);
+  }
 
   // === 2. Persistent notice bar (auth + error, not dismissable) ===
   var allAlerts = alertsData || [];
@@ -393,10 +403,10 @@ async function loadChanges() {
   var logs = await logsPromise;
   var trackData = await trackPromise;
 
-  // Filter logs to my shops
+  // Filter logs to my shops (keep logs without shop_name — they belong to current operator)
   if (logs && MY_SHOPS.length > 0) {
     logs = logs.filter(function(l) {
-      if (!l.shop_name) return false;
+      if (!l.shop_name) return true;  // no name = keep (likely current operator's action)
       return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
     });
   }

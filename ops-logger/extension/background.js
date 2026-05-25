@@ -220,11 +220,40 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    // 记录时就打上当前operator，换人不影响已有log
-    chrome.storage.local.get("ops_operator", (data) => {
-      entry.operator = data.ops_operator || "";
-      saveLog(entry);
-    });
+    // 补全shopName: 从tab的title/url获取（饿了么title常含店名）
+    if (!shopName && details.tabId > 0) {
+      try {
+        chrome.tabs.get(details.tabId, (tab) => {
+          if (chrome.runtime.lastError) { /* ignore */ }
+          else if (tab) {
+            // 饿了么tab title格式: "店铺名 - 饿了么商家后台" 或 tab.url含shop路径
+            let tName = '';
+            if (tab.title && !tab.title.startsWith('http')) {
+              tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
+            }
+            if (tName && tName.length > 1 && tName.length < 40) {
+              entry.shopName = tName;
+              if (shopId) shopCache[shopId] = tName;
+            }
+          }
+          chrome.storage.local.get("ops_operator", (data) => {
+            entry.operator = data.ops_operator || "";
+            saveLog(entry);
+          });
+        });
+      } catch(e) {
+        chrome.storage.local.get("ops_operator", (data) => {
+          entry.operator = data.ops_operator || "";
+          saveLog(entry);
+        });
+      }
+    } else {
+      // 记录时就打上当前operator，换人不影响已有log
+      chrome.storage.local.get("ops_operator", (data) => {
+        entry.operator = data.ops_operator || "";
+        saveLog(entry);
+      });
+    }
     debouncedPush();
     console.log("[OpsLogger]", apiMethod, shopName || shopId, itemName || itemId);
   },
