@@ -52,17 +52,17 @@ echo "$(date) [keep-alive] tunnel URL: $TUNNEL_URL" >> "$LOG"
 /opt/homebrew/bin/python3 -c "
 import oss2, json, datetime
 import os
-ak = os.environ.get('OSS_ACCESS_KEY_ID', '')
-sk = os.environ.get('OSS_ACCESS_KEY_SECRET', '')
-if not ak or not sk:
-    print('ERROR: OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET not set')
-else:
-    auth = oss2.Auth(ak, sk)
-    bucket = oss2.Bucket(auth, 'https://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', connect_timeout=30)
-    bucket.session.trust_env = False
-    data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')})
-    bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
-    print('Published to OSS')
+import pathlib
+_env = dict(l.strip().split('=',1) for l in pathlib.Path(os.path.expanduser('~/Downloads/wp-automation/.env')).read_text().splitlines() if '=' in l and not l.startswith('#'))
+ak = os.environ.get('OSS_ACCESS_KEY_ID', _env.get('OSS_ACCESS_KEY', ''))
+sk = os.environ.get('OSS_ACCESS_KEY_SECRET', _env.get('OSS_ACCESS_SECRET', ''))
+auth = oss2.Auth(ak, sk)
+session = oss2.Session()
+session.session.trust_env = False
+bucket = oss2.Bucket(auth, 'http://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', session=session)
+data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')})
+bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
+print('Published to OSS')
 " >> "$LOG" 2>&1
 
 echo "$(date) [keep-alive] all good, watching tunnel..." >> "$LOG"
@@ -91,14 +91,16 @@ while true; do
       /opt/homebrew/bin/python3 -c "
 import oss2, json, datetime
 import os
-ak = os.environ.get('OSS_ACCESS_KEY_ID', '')
-sk = os.environ.get('OSS_ACCESS_KEY_SECRET', '')
-if ak and sk:
-    auth = oss2.Auth(ak, sk)
-    bucket = oss2.Bucket(auth, 'https://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', connect_timeout=30)
-    bucket.session.trust_env = False
-    data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')})
-    bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
+import pathlib
+_env = dict(l.strip().split('=',1) for l in pathlib.Path(os.path.expanduser('~/Downloads/wp-automation/.env')).read_text().splitlines() if '=' in l and not l.startswith('#'))
+ak = os.environ.get('OSS_ACCESS_KEY_ID', _env.get('OSS_ACCESS_KEY', ''))
+sk = os.environ.get('OSS_ACCESS_KEY_SECRET', _env.get('OSS_ACCESS_SECRET', ''))
+auth = oss2.Auth(ak, sk)
+session = oss2.Session()
+session.session.trust_env = False
+bucket = oss2.Bucket(auth, 'http://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', session=session)
+data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')})
+bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
 " >> "$LOG" 2>&1
     fi
   fi

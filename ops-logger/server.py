@@ -1743,9 +1743,9 @@ def dashboard():
 
 @app.route("/api/extension/version")
 def extension_version():
-    # Try extension/ first, fallback to root manifest
+    # 根目录manifest是最新版本，优先返回
     base = os.path.dirname(__file__)
-    for subdir in ["extension", "."]:
+    for subdir in [".", "extension"]:
         manifest_path = os.path.join(base, subdir, "manifest.json")
         try:
             with open(manifest_path) as f:
@@ -2470,6 +2470,10 @@ def api_patrol_start():
     script = os.path.join(WORKSPACE, "run_all_fast.py")
     if not os.path.exists(script):
         return jsonify({"ok": False, "message": "巡检脚本不存在"}), 500
+
+    # 确保Chrome debug端口可用（没有就自动启动）
+    if not _ensure_debug_chrome():
+        return jsonify({"ok": False, "message": "Chrome debug端口启动失败，请确认Chrome已安装"}), 500
 
     headless = data.get("headless", True)  # 默认无头
 
@@ -3419,7 +3423,7 @@ def api_chat_save():
 
 
 def _ensure_debug_chrome():
-    """确保Chrome带debug端口在跑。用运营自己的Chrome，不开独立实例"""
+    """确保Chrome带debug端口在跑。没有就自动重启Chrome"""
     try:
         r = subprocess.run(
             ["curl", "--noproxy", "localhost", "-s", "http://localhost:9222/json/version"],
@@ -3427,12 +3431,79 @@ def _ensure_debug_chrome():
         )
         if r.returncode == 0 and r.stdout.strip():
             print("[chrome] Chrome debug端口已就绪")
-            return
+            return True
     except Exception:
         pass
 
-    # 没有debug端口 → start.sh负责启动，server不自己开Chrome
-    print("[chrome] Chrome未启动debug端口，请先运行 start.sh 或重启Chrome")
+    # 没有debug端口 → 自动启动
+    print("[chrome] Chrome未启动debug端口，正在自动启动...")
+    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if not os.path.exists(chrome_path):
+        print("[chrome] 找不到Chrome")
+        return False
+
+    # kill现有Chrome
+    try:
+        subprocess.run(["pkill", "-f", "Google Chrome"], capture_output=True, timeout=5)
+        import time as _t; _t.sleep(2)
+    except Exception:
+        pass
+
+    # 构建扩展加载路径
+    my_dir = os.path.dirname(os.path.abspath(__file__))
+    ext_dir = os.path.join(my_dir, "extension")
+    goku_dir = os.path.join(os.path.dirname(my_dir), "goku")
+    load_ext_parts = []
+    if os.path.isdir(ext_dir):
+        load_ext_parts.append(ext_dir)
+    if os.path.isdir(goku_dir):
+        load_ext_parts.append(goku_dir)
+    load_ext = ",".join(load_ext_parts)
+
+    # 记住当前前台app，启动后切回去
+    front_app = ""
+    try:
+        r = subprocess.run(["osascript", "-e",
+            'tell application "System Events" to get name of first process whose frontmost is true'],
+            capture_output=True, text=True, timeout=3)
+        front_app = r.stdout.strip()
+    except Exception:
+        pass
+
+    cmd = [chrome_path,
+           "--remote-debugging-port=9222",
+           "--no-first-run",
+           "--no-default-browser-check",
+           "--proxy-server=direct://"]
+    if load_ext:
+        cmd.append(f"--load-extension={load_ext}")
+
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(f"[chrome] Chrome已启动 (debug:9222, 扩展: {load_ext})")
+
+    import time as _t; _t.sleep(3)
+
+    # 切回原来的前台app
+    if front_app:
+        try:
+            subprocess.run(["osascript", "-e", f'tell application "{front_app}" to activate'],
+                          capture_output=True, timeout=3)
+        except Exception:
+            pass
+
+    # 验证是否成功
+    try:
+        r = subprocess.run(
+            ["curl", "--noproxy", "localhost", "-s", "http://localhost:9222/json/version"],
+            capture_output=True, text=True, timeout=3
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            print("[chrome] Chrome debug端口验证通过")
+            return True
+    except Exception:
+        pass
+    print("[chrome] Chrome启动后debug端口仍不可用")
+    return False
 
 
 def _schedule_patrol():

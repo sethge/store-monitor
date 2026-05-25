@@ -1,4 +1,4 @@
-/* popup.js — 小q助手 四Tab面板 */
+/* popup.js — 小q助手 三Tab面板 */
 
 var SERVER_URL = 'http://127.0.0.1:5500';
 var MY_SHOPS = []; // 当前运营名下的店铺名列表
@@ -67,17 +67,18 @@ function initTabs() {
   });
 }
 
-// ========== Tab 1: Daily Report ==========
+// ========== Tab 1: 巡店/预警 ==========
 
 async function loadDaily() {
-  var el = document.getElementById('tab-daily');
+  var el = document.getElementById('dailySection');
   var data = await api('/api/daily');
   if (!data || !data.stores || data.stores.length === 0) {
-    el.innerHTML = '<div class="empty">暂无巡检日报<br><span style="font-size:10px;color:#ccc">agent跑巡检后这里会显示结果</span></div>';
+    el.innerHTML = '';
     return;
   }
 
-  var html = '<div class="daily-meta">巡检时间: ' + esc(data.ts) + '</div>';
+  var html = '<div class="section-title">巡检结果</div>';
+  html += '<div class="daily-meta">巡检时间: ' + esc(data.ts) + '</div>';
 
   for (var i = 0; i < data.stores.length; i++) {
     var store = data.stores[i];
@@ -155,21 +156,24 @@ async function loadDaily() {
   el.innerHTML = html;
 }
 
-// ========== Tab 2: Alerts ==========
-
 async function loadAlerts() {
-  var el = document.getElementById('tab-alerts');
+  var el = document.getElementById('alertsSection');
   var data = await api('/api/alerts');
   if (!data || data.length === 0) {
-    el.innerHTML = '<div class="empty">暂无预警</div>';
+    el.innerHTML = '';
     updateBadge('alertBadge', 0);
+    // 如果巡检也没数据，显示空状态
+    var dailyEl = document.getElementById('dailySection');
+    if (!dailyEl.innerHTML) {
+      dailyEl.innerHTML = '<div class="empty">暂无巡检和预警<br><span style="font-size:10px;color:#ccc">agent跑巡检后这里会显示结果</span></div>';
+    }
     return;
   }
 
   var redCount = data.filter(function(a) { return a.level === 'red'; }).length;
   updateBadge('alertBadge', redCount);
 
-  var html = '';
+  var html = '<div class="section-title">预警</div>';
   for (var i = 0; i < data.length; i++) {
     var a = data[i];
     var pname = a.platform === 'eleme' ? '饿了么' : a.platform === 'meituan' ? '美团' : a.platform || '';
@@ -185,122 +189,10 @@ async function loadAlerts() {
   el.innerHTML = html;
 }
 
-// ========== Tab 3: Logs ==========
+// ========== Tab 2: 调整/复盘 ==========
 
-var trackingStatusMap = {}; // log_id -> 'pending'|'disabled'|'done'|null
-
-async function loadTrackingStatus() {
-  var data = await api('/api/tracking?limit=500');
-  trackingStatusMap = {};
-  if (data && data.length > 0) {
-    for (var i = 0; i < data.length; i++) {
-      var t = data[i];
-      var prev = trackingStatusMap[t.log_id];
-      // If any tracking for this log is pending, mark as pending
-      if (!prev || t.status === 'pending') {
-        trackingStatusMap[t.log_id] = t.status;
-      }
-    }
-  }
-}
-
-async function loadLogs() {
-  var el = document.getElementById('tab-logs');
-  var data = await api('/api/logs?limit=50');
-
-  if (!data || data.length === 0) {
-    // Fallback to local storage
-    try {
-      chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, function(state) {
-        if (state && state.recentLogs && state.recentLogs.length > 0) {
-          renderLogs(el, state.recentLogs);
-        } else {
-          el.innerHTML = '<div class="empty">还没有操作记录</div>';
-        }
-      });
-    } catch(e) {
-      el.innerHTML = '<div class="empty">还没有操作记录</div>';
-    }
-    return;
-  }
-  await loadTrackingStatus();
-  renderLogs(el, data);
-}
-
-function renderLogs(el, logs) {
-  // 只显示属于该运营名下店铺的日志
-  if (MY_SHOPS.length > 0) {
-    logs = logs.filter(function(l) {
-      if (!l.shop_name) return false;
-      return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
-    });
-  }
-  if (logs.length === 0) {
-    el.innerHTML = '<div class="empty">还没有操作记录</div>';
-    return;
-  }
-  var byDate = {};
-  for (var i = 0; i < logs.length; i++) {
-    var dk = dateKey(logs[i].timestamp);
-    if (!byDate[dk]) byDate[dk] = [];
-    byDate[dk].push(logs[i]);
-  }
-
-  var html = '';
-  var sortedDates = Object.keys(byDate).sort().reverse();
-  for (var di = 0; di < sortedDates.length; di++) {
-    var dk = sortedDates[di];
-    var dayLogs = byDate[dk];
-    html += '<div class="log-date">' + fmtDate(dayLogs[0].timestamp) + '</div>';
-    for (var li = 0; li < dayLogs.length; li++) {
-      var l = dayLogs[li];
-      var sm = l.change_summary || l.action_detail || l.action_type || '';
-      var pname = l.platform === 'eleme' ? '饿了么' : l.platform === 'meituan' ? '美团' : '';
-      var shopStr = (l.shop_name || '') + (pname ? ' · ' + pname : '');
-      var tagCls = actionTagClass(l.action_type);
-
-      var logId = l.id;
-      var tStatus = logId ? trackingStatusMap[logId] : null;
-      var toggleHtml = '';
-      if (logId && tStatus) {
-        var isOn = tStatus !== 'disabled';
-        toggleHtml = '<div class="toggle-wrap">' +
-          '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '">' +
-            '<span class="toggle-text on-text">复盘</span>' +
-            '<span class="toggle-text off-text">关</span>' +
-            '<span class="toggle-knob"></span>' +
-          '</button>' +
-          '</div>';
-      }
-
-      html += '<div class="log-item">' +
-        '<div class="log-time">' + fmtHM(l.timestamp) + '</div>' +
-        '<div class="log-body">' +
-          '<div class="log-summary">' +
-            '<span class="tag ' + tagCls + '">' + esc(l.action_type || '操作') + '</span>' +
-            esc(sm) +
-          '</div>' +
-          (shopStr ? '<div class="log-meta">' + esc(shopStr) + '</div>' : '') +
-        '</div>' +
-        toggleHtml +
-      '</div>';
-    }
-  }
-  el.innerHTML = html;
-
-  // Bind toggle switches — optimistic UI
-  el.querySelectorAll('.toggle-switch').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var logId = parseInt(btn.dataset.logid);
-      var isOn = btn.dataset.enabled === '1';
-      // Instant toggle
-      btn.classList.toggle('on');
-      btn.dataset.enabled = isOn ? '0' : '1';
-      // Fire and forget
-      toggleTracking(logId, !isOn);
-    });
-  });
-}
+var trackingStatusMap = {};
+var trackingByLogId = {};
 
 function actionTagClass(t) {
   if (!t) return 'tag-gray';
@@ -311,115 +203,156 @@ function actionTagClass(t) {
   return 'tag-gray';
 }
 
-// ========== Tab 4: Tracking ==========
+async function loadChanges() {
+  var el = document.getElementById('changesSection');
 
-async function loadTracking() {
-  var el = document.getElementById('tab-tracking');
+  // 并行拉日志和追踪数据
+  var logsData = await api('/api/logs?limit=50');
+  var trackData = await api('/api/tracking?limit=200');
+  var logs = logsData || [];
+  var trackItems = (trackData || []).filter(function(t) { return t.status !== 'disabled'; });
 
-  // Only show items that are not disabled (i.e. 复盘 is on)
-  var allData = await api('/api/tracking?limit=200');
-  var allItems = (allData || []).filter(function(t) { return t.status !== 'disabled'; });
+  // 按运营店铺过滤日志
+  if (MY_SHOPS.length > 0) {
+    logs = logs.filter(function(l) {
+      if (!l.shop_name) return false;
+      return MY_SHOPS.some(function(s) { return l.shop_name.indexOf(s) >= 0 || s.indexOf(l.shop_name) >= 0; });
+    });
+  }
 
-  if (allItems.length === 0) {
-    el.innerHTML = '<div class="empty">暂无复盘任务<br><span style="font-size:10px;color:#ccc">操作后台后自动创建T+3/T+7复盘</span></div>';
+  // 构建tracking map: log_id -> { status, items[] }
+  trackingStatusMap = {};
+  trackingByLogId = {};
+  for (var i = 0; i < trackItems.length; i++) {
+    var t = trackItems[i];
+    var prev = trackingStatusMap[t.log_id];
+    if (!prev || t.status === 'pending') trackingStatusMap[t.log_id] = t.status;
+    if (!trackingByLogId[t.log_id]) trackingByLogId[t.log_id] = [];
+    trackingByLogId[t.log_id].push(t);
+  }
+
+  if (logs.length === 0) {
+    el.innerHTML = '<div class="empty">还没有操作记录<br><span style="font-size:10px;color:#ccc">在后台操作后这里会自动记录</span></div>';
     updateBadge('trackBadge', 0);
     return;
   }
 
-  // Group by log_id
-  var byLog = {};
-  var logOrder = [];
-  for (var i = 0; i < allItems.length; i++) {
-    var t = allItems[i];
-    var lid = t.log_id;
-    if (!byLog[lid]) { byLog[lid] = { items: [], summary: '', shop: '', action: '' }; logOrder.push(lid); }
-    byLog[lid].items.push(t);
-    if (!byLog[lid].summary) byLog[lid].summary = t.change_summary || ((t.item_name || '') + ' ' + (t.action_type || t.log_action_type || ''));
-    if (!byLog[lid].shop) byLog[lid].shop = t.shop_name || '';
-    if (!byLog[lid].action) byLog[lid].action = t.action_type || t.log_action_type || '';
+  // 按日期+门店分组
+  var byDate = {};
+  for (var i = 0; i < logs.length; i++) {
+    var dk = dateKey(logs[i].timestamp);
+    if (!byDate[dk]) byDate[dk] = [];
+    byDate[dk].push(logs[i]);
   }
 
   var today = new Date().toISOString().slice(0, 10);
+  var yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   var dueCount = 0;
   var html = '';
 
-  for (var oi = 0; oi < logOrder.length; oi++) {
-    var lid = logOrder[oi];
-    var group = byLog[lid];
-    var hasDue = group.items.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
-    if (hasDue) dueCount++;
+  var sortedDates = Object.keys(byDate).sort().reverse();
+  for (var di = 0; di < sortedDates.length; di++) {
+    var dk = sortedDates[di];
+    var dayLogs = byDate[dk];
 
-    var tagCls = actionTagClass(group.action);
-    var cardClass = hasDue ? 'review-card due' : 'review-card';
+    // 日期标题 + 状态图标
+    var dateIcon = '';
+    if (dk === today) dateIcon = '&#9998; '; // 编辑
+    else if (dk === yesterday) dateIcon = '&#9203; '; // 沙漏
+    else dateIcon = '&#128202; '; // 图表
 
-    var card = '<div class="' + cardClass + '">' +
-      '<div class="review-title">' +
-        '<span class="tag ' + tagCls + '">' + esc(group.action) + '</span> ' +
-        esc(group.summary) +
-      '</div>' +
-      '<div class="review-shop">' + esc(group.shop) + '</div>' +
-      '<div class="review-timeline">';
+    html += '<div class="log-date">' + dateIcon + fmtDate(dayLogs[0].timestamp) + '</div>';
 
-    // Sort by check_date
-    group.items.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
-
-    for (var ci = 0; ci < group.items.length; ci++) {
-      var cp = group.items[ci];
-      var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
-      var cpClass = 'review-checkpoint';
-
-      if (cp.status === 'done') {
-        cpClass += ' done';
-      } else if (cp.status === 'pending' && cp.check_date <= today) {
-        cpClass += ' due';
-      } else {
-        cpClass += ' active';
-      }
-
-      card += '<div class="' + cpClass + '">' +
-        '<div class="cp-label">' + cpLabel + '</div>' +
-        '<div class="cp-date">' + (cp.check_date || '') + '</div>';
-
-      if (cp.status === 'done' && cp.metrics_after) {
-        // 已生成摘要
-        card += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
-      } else if (cp.status === 'pending' && cp.check_date <= today) {
-        card += '<div class="cp-status">待生成</div>';
-      } else if (cp.status === 'pending') {
-        card += '<div class="cp-status waiting">等待中</div>';
-      }
-
-      card += '</div>';
+    // 按门店分组
+    var byShop = {};
+    var shopOrder = [];
+    for (var li = 0; li < dayLogs.length; li++) {
+      var shopKey = dayLogs[li].shop_name || '未知门店';
+      if (!byShop[shopKey]) { byShop[shopKey] = []; shopOrder.push(shopKey); }
+      byShop[shopKey].push(dayLogs[li]);
     }
 
-    card += '</div></div>';
-    html += card;
+    for (var si = 0; si < shopOrder.length; si++) {
+      var shopName = shopOrder[si];
+      var shopLogs = byShop[shopName];
+
+      html += '<div class="store-card">';
+      html += '<div class="store-name" style="font-size:13px">' + esc(shopName) + '</div>';
+
+      for (var li = 0; li < shopLogs.length; li++) {
+        var l = shopLogs[li];
+        var sm = l.change_summary || l.action_detail || l.action_type || '';
+        var tagCls = actionTagClass(l.action_type);
+        var logId = l.id;
+        var tStatus = logId ? trackingStatusMap[logId] : null;
+
+        // 追踪开关（今天的才显示）
+        var toggleHtml = '';
+        if (dk === today && logId && tStatus) {
+          var isOn = tStatus !== 'disabled';
+          toggleHtml = '<div class="toggle-wrap">' +
+            '<button class="toggle-switch ' + (isOn ? 'on' : '') + '" data-logid="' + logId + '" data-enabled="' + (isOn ? '1' : '0') + '">' +
+              '<span class="toggle-text on-text">追踪</span>' +
+              '<span class="toggle-text off-text">关</span>' +
+              '<span class="toggle-knob"></span>' +
+            '</button></div>';
+        }
+
+        html += '<div class="log-item">' +
+          '<div class="log-time">' + fmtHM(l.timestamp) + '</div>' +
+          '<div class="log-body">' +
+            '<div class="log-summary"><span class="tag ' + tagCls + '">' + esc(l.action_type || '操作') + '</span>' + esc(sm) + '</div>' +
+          '</div>' + toggleHtml + '</div>';
+
+        // 3天+的条目显示T+3/T+7追踪状态
+        if (dk < yesterday && logId && trackingByLogId[logId]) {
+          var tItems = trackingByLogId[logId];
+          tItems.sort(function(a, b) { return (a.check_date || '').localeCompare(b.check_date || ''); });
+          var hasDue = tItems.some(function(x) { return x.status === 'pending' && x.check_date <= today; });
+          if (hasDue) dueCount++;
+
+          html += '<div class="review-timeline" style="margin:4px 0 6px 42px">';
+          for (var ci = 0; ci < tItems.length; ci++) {
+            var cp = tItems[ci];
+            var cpLabel = cp.check_type === '3day' ? 'T+3' : cp.check_type === '7day' ? 'T+7' : cp.check_type;
+            var cpClass = 'review-checkpoint';
+            if (cp.status === 'done') cpClass += ' done';
+            else if (cp.status === 'pending' && cp.check_date <= today) cpClass += ' due';
+            else cpClass += ' active';
+
+            html += '<div class="' + cpClass + '">' +
+              '<div class="cp-label">' + cpLabel + '</div>' +
+              '<div class="cp-date">' + (cp.check_date || '') + '</div>';
+            if (cp.status === 'done' && cp.metrics_after) html += '<div class="cp-summary">' + esc(cp.metrics_after) + '</div>';
+            else if (cp.status === 'pending' && cp.check_date <= today) html += '<div class="cp-status">待复盘</div>';
+            else if (cp.status === 'pending') html += '<div class="cp-status waiting">等待中</div>';
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+    }
   }
 
   updateBadge('trackBadge', dueCount);
-  if (!html) html = '<div class="empty">暂无复盘任务</div>';
   el.innerHTML = html;
 
-  // Bind close buttons
-  el.querySelectorAll('.cp-close-btn').forEach(function(btn) {
+  // 绑定追踪开关
+  el.querySelectorAll('.toggle-switch').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var tid = parseInt(btn.dataset.tid);
-      closeCheckpoint(tid);
+      var logId = parseInt(btn.dataset.logid);
+      var isOn = btn.dataset.enabled === '1';
+      btn.classList.toggle('on');
+      btn.dataset.enabled = isOn ? '0' : '1';
+      toggleTracking(logId, !isOn);
     });
   });
 }
 
-async function closeCheckpoint(tid) {
-  await apiPost('/api/tracking/' + tid + '/disable', {});
-  loadTracking();
-}
-
 function toggleTracking(logId, enable) {
   var path = enable ? '/api/tracking/enable_log/' + logId : '/api/tracking/disable_log/' + logId;
-  apiPost(path, {}).then(function() {
-    loadTrackingStatus();
-    loadTracking();
-  });
+  apiPost(path, {}).then(function() { loadChanges(); });
 }
 
 
@@ -675,46 +608,48 @@ function initSettings() {
 // ========== Init ==========
 
 async function init() {
-  chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, async function(state) {
-    if (chrome.runtime.lastError || !state) {
-      setTimeout(init, 300);
-      return;
-    }
-    if (!state.operator) {
-      document.getElementById('setup').style.display = 'block';
-      document.getElementById('main').style.display = 'none';
-      return;
-    }
+  // 直接从storage读，不依赖background service worker（可能休眠）
+  var data = await chrome.storage.local.get(['ops_operator']);
+  var operator = data.ops_operator || '';
 
-    document.getElementById('setup').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
+  if (!operator) {
+    document.getElementById('setup').style.display = 'block';
+    document.getElementById('main').style.display = 'none';
+    return;
+  }
 
-    // 加载运营的店铺列表
-    await discoverServer();
-    try {
-      var resp = await fetch(chrome.runtime.getURL('operators.json'));
-      var opsData = await resp.json();
-      var brands = opsData[state.operator] || {};
-      var brandNames = Object.keys(brands);
-      var shopCount = 0;
-      MY_SHOPS = [];
-      brandNames.forEach(function(b) {
-        brands[b].forEach(function(s) {
-          shopCount++;
-          if (s.shop) MY_SHOPS.push(s.shop);
-        });
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+
+  // 立即检查agent状态（不等其他加载完）
+  checkAgent();
+
+  // 加载运营的店铺列表
+  await discoverServer();
+  try {
+    var resp = await fetch(chrome.runtime.getURL('operators.json'));
+    var opsData = await resp.json();
+    var brands = opsData[operator] || {};
+    var brandNames = Object.keys(brands);
+    MY_SHOPS = [];
+    brandNames.forEach(function(b) {
+      (brands[b] || []).forEach(function(s) {
+        if (s.shop) MY_SHOPS.push(s.shop);
       });
-      document.getElementById('infoLine').textContent = state.operator + ' — ' + brandNames.length + '个品牌';
-    } catch(e) {
-      document.getElementById('infoLine').textContent = state.operator;
-    }
+    });
+    document.getElementById('infoLine').textContent = operator + ' — ' + brandNames.length + '个品牌';
+  } catch(e) {
+    document.getElementById('infoLine').textContent = operator;
+  }
 
-    checkVersion();
-    checkAgent();
-    loadDaily();
-    loadAlerts();
-    loadLogs();
-    loadTracking();
+  checkVersion();
+  loadDaily();
+  loadAlerts();
+  loadChanges();
+
+  // 顺便唤醒background service worker
+  chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, function() {
+    if (chrome.runtime.lastError) {} // 忽略错误
   });
 }
 
@@ -801,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Refresh every 30s
   setInterval(function() {
     loadAlerts();
-    loadTracking();
+    loadChanges();
     checkAgent();
   }, 30000);
 });

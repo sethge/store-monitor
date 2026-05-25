@@ -183,27 +183,23 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
   <input type="hidden" id="alertInterval" value="30" />
 
   <div class="tabs">
-    <button class="tab active" data-tab="daily">巡店</button>
-    <button class="tab" data-tab="alerts">预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
-    <button class="tab" data-tab="logs">日志</button>
-    <button class="tab" data-tab="tracking">复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
-    <button class="tab" data-tab="chat">会话</button>
+    <button class="tab active" data-tab="daily">巡店/预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
+    <button class="tab" data-tab="changes">调整/复盘 <span class="badge" id="trackBadge" style="display:none"></span></button>
+    <button class="tab" data-tab="chat">交流/反馈</button>
   </div>
 
-  <div id="tab-daily" class="tab-content active"></div>
-  <div id="tab-alerts" class="tab-content"></div>
-  <div id="tab-logs" class="tab-content"></div>
-  <div id="tab-tracking" class="tab-content"></div>
+  <div id="tab-daily" class="tab-content active">
+    <div id="dailySection"></div>
+    <div id="alertsSection"></div>
+  </div>
+  <div id="tab-changes" class="tab-content">
+    <div id="changesSection"></div>
+  </div>
   <div id="tab-chat" class="tab-content">
     <div id="chatArea" style="max-height:400px;overflow-y:auto;padding:10px">
       <div style="text-align:center;padding:20px;color:#999">
         <div style="font-size:15px;font-weight:600;color:#666;margin-bottom:6px">跟小q聊</div>
-        <div style="font-size:11px;line-height:1.6">问我店铺数据、预警、菜单分析</div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px" id="quickBtns">
-          <button class="quick-btn" onclick="sendQuick('今天有什么预警？')">今日预警</button>
-          <button class="quick-btn" onclick="sendQuick('最近操作日志')">操作日志</button>
-          <button class="quick-btn" onclick="sendQuick('哪些店有差评？')">差评情况</button>
-        </div>
+        <div style="font-size:11px;line-height:1.6">问运营策略、反馈问题</div>
       </div>
     </div>
     <div style="padding:8px 10px;background:#fff;border-top:1px solid #eee;display:flex;gap:6px">

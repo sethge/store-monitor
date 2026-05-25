@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <style>
 * { box-sizing: border-box; margin: 0; }
-body { width: 420px; height: 560px; font-family: -apple-system, sans-serif; font-size: 13px; background: #f5f5f5; color: #333; overflow: hidden; }
-html { height: 560px; overflow: hidden; }
+body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; background: #f5f5f5; color: #333; }
 
 /* Setup */
 .setup { text-align: center; padding: 30px 10px; }
@@ -26,39 +25,25 @@ html { height: 560px; overflow: hidden; }
 .tab .badge { display: inline-block; background: #e94560; color: #fff; font-size: 9px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; text-align: center; margin-left: 2px; padding: 0 3px; }
 
 /* Tab content */
-.tab-content { display: none; flex: 1; overflow-y: auto; }
-.tab-content.active { display: flex; flex-direction: column; }
+.tab-content { display: none; max-height: 480px; overflow-y: auto; }
+.tab-content.active { display: block; }
 
 /* Shared */
 .empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
 .section-title { font-size: 11px; font-weight: 600; color: #999; margin: 10px 12px 4px; text-transform: uppercase; }
 
-/* Daily report — clean briefing style */
-.brand-header { font-size: 14px; font-weight: 700; color: #333; padding: 10px 12px 2px; display: flex; align-items: baseline; gap: 6px; }
-.brand-count { font-size: 11px; font-weight: 400; color: #999; }
-.store-card { margin: 4px 10px 4px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; border: 1px solid #f0f0f0; }
-.store-card.auth-fail { opacity: 0.7; border-left: 3px solid #e65100; }
+/* Daily report */
+.store-card { margin: 6px 10px; background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .store-name { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 6px; }
-.store-name-line { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px; }
-.platform-section { margin-bottom: 3px; line-height: 1.6; }
+.platform-section { margin-bottom: 6px; }
 .platform-label { font-size: 11px; font-weight: 600; color: #666; margin-bottom: 3px; }
-.issue-inline { font-size: 11px; margin-left: 4px; }
-.issue-inline.red { color: #c62828; }
-.issue-inline.yellow { color: #e65100; }
-.issue-inline.green { color: #2e7d32; }
-.issue-inline.blue { color: #1565c0; }
 .issue-line { font-size: 12px; line-height: 1.6; padding-left: 4px; }
 .issue-line.red { color: #c62828; }
 .issue-line.yellow { color: #e65100; }
 .issue-line.green { color: #2e7d32; }
-.issue-line.blue { color: #1565c0; }
+    .issue-line.blue { color: #1565c0; }
 .review-detail { font-size: 11px; color: #888; padding-left: 16px; line-height: 1.4; }
 .daily-meta { font-size: 10px; color: #aaa; padding: 6px 12px; }
-
-/* Daily issue list — clean style */
-.daily-issue-list { padding-left: 4px; }
-.daily-issue-item { font-size: 11px; color: #555; line-height: 1.7; }
-.daily-normal { font-size: 11px; color: #bbb; padding-left: 4px; }
 
 /* Alerts */
 .alert-item { margin: 6px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; gap: 8px; align-items: flex-start; }
@@ -66,10 +51,6 @@ html { height: 560px; overflow: hidden; }
 .alert-dot.red { background: #c62828; }
 .alert-dot.yellow { background: #e65100; }
 .alert-dot.blue { background: #1565c0; }
-.alert-row { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; position: relative; }
-.dismiss-btn { display: none; position: absolute; right: 0; top: 50%; transform: translateY(-50%); background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 10px; color: #999; padding: 2px 8px; cursor: pointer; }
-.dismiss-btn:hover { background: #eee; color: #666; }
-.alert-dismissable:hover .dismiss-btn { display: block; }
 .alert-body { flex: 1; }
 .alert-msg { font-size: 13px; font-weight: 600; color: #111; }
 .alert-detail { font-size: 11px; color: #888; margin-top: 2px; }
@@ -84,8 +65,8 @@ html { height: 560px; overflow: hidden; }
 .log-meta { font-size: 10px; color: #aaa; margin-top: 1px; }
 .log-todo { font-size: 10px; color: #1565c0; margin-top: 1px; }
 
-/* Agent bar */
-.agent-bar { background: #fff; border-bottom: 1px solid #eee; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
+/* Agent bar — sticky */
+.agent-bar { background: #fff; border-bottom: 1px solid #eee; padding: 6px 12px; display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 100; }
 .agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .agent-dot.ok { background: #34c759; }
 .agent-dot.off { background: #ccc; }
@@ -95,40 +76,13 @@ html { height: 560px; overflow: hidden; }
 .patrol-btn { background: #e94560; color: #fff; border: none; padding: 4px 12px; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
 .patrol-btn:hover { background: #c23152; }
 .patrol-btn:disabled { background: #ddd; color: #999; cursor: default; }
-
-/* Info module (top of merged tab) */
-.info-module { margin: 6px 10px 2px; background: #fff; border-radius: 8px; padding: 8px 12px; border: 1px solid #f0f0f0; }
-.info-summary { display: flex; align-items: center; gap: 6px; }
-.info-text { font-size: 11px; color: #666; flex: 1; line-height: 1.5; }
-.info-text .schedule { color: #999; }
-.info-toggle { background: none; border: none; font-size: 14px; color: #bbb; cursor: pointer; padding: 0 2px; flex-shrink: 0; }
-.info-toggle:hover { color: #666; }
-.info-settings { padding-top: 8px; margin-top: 6px; border-top: 1px solid #f0f0f0; }
-.info-settings .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.info-settings .setting-row:last-child { margin-bottom: 0; }
-.info-settings .setting-label { font-size: 11px; color: #666; flex: 1; }
-.info-settings .setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
-.info-settings .setting-unit { font-size: 10px; color: #999; }
-.info-settings .server-status { margin-top: 4px; font-size: 10px; }
-
-/* Alert section in merged tab */
-.alert-section-title { font-size: 11px; font-weight: 600; color: #e94560; margin: 8px 12px 2px; }
-
-/* Settings footer (inside tabs) — kept for legacy */
-.settings-footer { border-top: 1px solid #eee; padding: 10px 12px; margin-top: 8px; background: #fafafa; border-radius: 0 0 8px 8px; font-size: 11px; color: #999; }
-.settings-footer .setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.settings-footer .setting-row:last-child { margin-bottom: 0; }
-.settings-footer .setting-label { font-size: 11px; color: #666; flex: 1; }
-.settings-footer .setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
-.settings-footer .setting-unit { font-size: 10px; color: #999; }
-.settings-footer .server-status { margin-top: 6px; font-size: 10px; }
-
-/* Settings (legacy classes kept for JS) */
-.setting-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.setting-row:last-child { margin-bottom: 0; }
-.setting-label { font-size: 12px; color: #333; flex: 1; }
-.setting-input { width: 60px; padding: 3px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; text-align: center; }
-.setting-unit { font-size: 10px; color: #999; }
+.bar-sep { width: 1px; height: 16px; background: #e0e0e0; flex-shrink: 0; }
+.bar-toggle { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.bar-toggle-label { font-size: 9px; color: #999; white-space: nowrap; }
+.mini-switch { width: 28px; height: 16px; border-radius: 8px; background: #ddd; position: relative; cursor: pointer; border: none; padding: 0; transition: background 0.2s; flex-shrink: 0; }
+.mini-switch.on { background: #34c759; }
+.mini-switch .mini-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: transform 0.2s; }
+.mini-switch.on .mini-knob { transform: translateX(12px); }
 
 /* Tags */
 .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-right: 3px; }
@@ -170,25 +124,6 @@ html { height: 560px; overflow: hidden; }
 .review-section-title { font-size: 13px; font-weight: 700; color: #333; margin: 12px 12px 6px; padding-bottom: 4px; border-bottom: 2px solid #1565c0; display: inline-block; }
 .review-history-item { font-size: 12px; color: #666; padding: 4px 12px; line-height: 1.5; }
 
-/* Timeline cards for 调整/复盘 */
-.timeline-date-header { font-size: 12px; font-weight: 700; color: #333; padding: 10px 12px 4px; display: flex; align-items: center; gap: 6px; }
-.timeline-date-header .status-icon { font-size: 14px; }
-.timeline-date-header .status-text { font-size: 10px; color: #999; font-weight: 400; }
-.timeline-store-group { margin: 4px 10px; background: #fff; border-radius: 8px; padding: 8px 12px; border: 1px solid #f0f0f0; }
-.timeline-store-name { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 4px; }
-.timeline-change { display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f8f8f8; }
-.timeline-change:last-child { border-bottom: none; }
-.timeline-change .change-time { font-size: 10px; color: #aaa; min-width: 34px; padding-top: 1px; }
-.timeline-change .change-body { flex: 1; }
-.timeline-change .change-summary { font-size: 11px; color: #333; line-height: 1.4; }
-.timeline-change .change-meta { font-size: 10px; color: #bbb; margin-top: 1px; }
-.timeline-result { margin-top: 4px; padding: 4px 8px; background: #f8fdf8; border-radius: 4px; font-size: 10px; color: #2e7d32; line-height: 1.4; }
-.timeline-result.waiting { background: #fafafa; color: #999; }
-.timeline-result.due { background: #fff8f8; color: #c62828; }
-.timeline-expand-btn { display: block; margin: 6px auto 2px; background: none; border: 1px solid #eee; border-radius: 12px; padding: 3px 14px; font-size: 10px; color: #999; cursor: pointer; }
-.timeline-expand-btn:hover { border-color: #e94560; color: #e94560; }
-.timeline-empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
-
 /* Toggle switch in logs */
 .toggle-wrap { flex-shrink: 0; align-self: center; }
 .toggle-switch { width: 52px; height: 22px; border-radius: 11px; background: #ddd; position: relative; cursor: pointer; transition: background 0.3s ease; border: none; padding: 0; -webkit-tap-highlight-color: transparent; overflow: hidden; }
@@ -214,7 +149,7 @@ html { height: 560px; overflow: hidden; }
   </div>
 </div>
 
-<div id="main" style="display:none;height:560px;flex-direction:column;overflow:hidden">
+<div id="main" style="display:none">
   <div class="top-bar">
     <div>
       <h2>小q助手</h2>
@@ -230,10 +165,22 @@ html { height: 560px; overflow: hidden; }
     <div class="agent-dot off" id="agentDot"></div>
     <div class="agent-msg" id="agentMsg">检测中...</div>
     <button class="patrol-btn" id="patrolBtn" disabled>巡检</button>
+    <div class="bar-sep"></div>
+    <div class="bar-toggle">
+      <span class="bar-toggle-label">巡检</span>
+      <button class="mini-switch" id="patrolToggle"><span class="mini-knob"></span></button>
+    </div>
+    <div class="bar-toggle">
+      <span class="bar-toggle-label">预警</span>
+      <button class="mini-switch" id="alertToggle"><span class="mini-knob"></span></button>
+    </div>
   </div>
+  <div id="patrolDebug" style="display:none;background:#f5f5f5;padding:6px 10px;font-size:10px;color:#555;border-bottom:1px solid #eee;max-height:120px;overflow-y:auto;font-family:monospace;line-height:1.5"></div>
   <div id="startHint" style="display:none;background:#fff8e1;padding:8px 12px;font-size:11px;color:#e65100;border-bottom:1px solid #eee">
-    服务未启动，请联系管理员
+    双击桌面「启动小q」启动服务后刷新
   </div>
+  <input type="hidden" id="patrolTime" value="10:00" />
+  <input type="hidden" id="alertInterval" value="30" />
 
   <div class="tabs">
     <button class="tab active" data-tab="daily">巡店/预警 <span class="badge" id="alertBadge" style="display:none"></span></button>
@@ -241,24 +188,23 @@ html { height: 560px; overflow: hidden; }
     <button class="tab" data-tab="chat">交流/反馈</button>
   </div>
 
-  <div id="tab-daily" class="tab-content active" style="overflow-y:auto"></div>
-  <div id="tab-changes" class="tab-content" style="overflow-y:auto"></div>
-  <div id="tab-chat" class="tab-content" style="overflow:hidden">
-    <div id="chatArea" style="flex:1;overflow-y:auto;padding:10px">
-      <div id="chatWelcome" style="text-align:center;padding:16px 10px;color:#999">
-        <div style="font-size:14px;font-weight:600;color:#666;margin-bottom:8px">跟小q聊</div>
-        <div style="font-size:11px;line-height:1.6;margin-bottom:12px">问运营策略、看诊断报告、反馈问题</div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center" id="quickBtns">
-          <button class="quick-btn" data-quick="今天有什么预警?">今日预警</button>
-          <button class="quick-btn" data-quick="最近哪些店有差评?">差评情况</button>
-          <button class="quick-btn" data-quick="帮我看看这个店怎么改进">诊断建议</button>
-          <button class="quick-btn" data-quick="有个问题想反馈">反馈问题</button>
-        </div>
+  <div id="tab-daily" class="tab-content active">
+    <div id="dailySection"></div>
+    <div id="alertsSection"></div>
+  </div>
+  <div id="tab-changes" class="tab-content">
+    <div id="changesSection"></div>
+  </div>
+  <div id="tab-chat" class="tab-content">
+    <div id="chatArea" style="max-height:400px;overflow-y:auto;padding:10px">
+      <div style="text-align:center;padding:20px;color:#999">
+        <div style="font-size:15px;font-weight:600;color:#666;margin-bottom:6px">跟小q聊</div>
+        <div style="font-size:11px;line-height:1.6">问运营策略、反馈问题</div>
       </div>
     </div>
-    <div style="padding:8px 10px;background:#fff;border-top:1px solid #eee;display:flex;gap:6px;flex-shrink:0">
-      <input id="chatInput" type="text" placeholder="问运营策略、反馈问题..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" />
-      <button id="sendBtn" style="background:#e94560;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">发送</button>
+    <div style="padding:8px 10px;background:#fff;border-top:1px solid #eee;display:flex;gap:6px">
+      <input id="chatInput" type="text" placeholder="跟小q说..." style="flex:1;border:1px solid #ddd;border-radius:6px;padding:7px 10px;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')sendMsg()" />
+      <button id="sendBtn" onclick="sendMsg()" style="background:#e94560;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">发送</button>
     </div>
   </div>
 </div>
