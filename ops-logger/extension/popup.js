@@ -105,7 +105,7 @@ function buildInfoModule(data, settings, agentStatus) {
     parts.push('每天' + (settings.patrol_time || '10:00') + '巡店');
   }
   if (settings.alert_enabled) {
-    parts.push('每' + (settings.alert_interval || 30) + '分钟预警');
+    parts.push('每' + (settings.alert_interval || 10) + '分钟预警');
   }
   var line2 = parts.length > 0 ? parts.join(' \u00B7 ') : '定时巡检和预警未开启';
 
@@ -129,7 +129,7 @@ function buildInfoModule(data, settings, agentStatus) {
       '</div>' +
       '<div class="setting-row">' +
         '<span class="setting-label">实时预警</span>' +
-        '<input class="setting-input" id="alertInterval" type="number" value="' + (settings.alert_interval || 30) + '" min="5" max="120" />' +
+        '<input class="setting-input" id="alertInterval" type="number" value="' + (settings.alert_interval || 10) + '" min="5" max="120" />' +
         '<span class="setting-unit">分钟</span>' +
         '<button class="toggle-switch' + (settings.alert_enabled ? ' on' : '') + '" id="alertToggle" style="width:42px;height:20px">' +
           '<span class="toggle-text on-text" style="font-size:8px;left:4px">开</span>' +
@@ -801,7 +801,7 @@ async function saveSettings() {
     patrol_enabled: patrolToggle ? patrolToggle.classList.contains('on') : (_cachedSettings.patrol_enabled || false),
     alert_enabled: alertToggle ? alertToggle.classList.contains('on') : (_cachedSettings.alert_enabled || false),
     patrol_time: patrolTime ? patrolTime.value : (_cachedSettings.patrol_time || '10:00'),
-    alert_interval: alertInterval ? parseInt(alertInterval.value) || 30 : (_cachedSettings.alert_interval || 30),
+    alert_interval: alertInterval ? parseInt(alertInterval.value) || 30 : (_cachedSettings.alert_interval || 10),
   };
   _cachedSettings = settings;
   try { chrome.storage.local.set({ ops_settings: settings }); } catch(e) {}

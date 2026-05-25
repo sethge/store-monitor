@@ -2395,7 +2395,7 @@ def _run_patrol_task(brands, operator, label="巡检", script=None, extra_args=N
                         if not _cfg.get("patrol_time"):
                             _cfg["patrol_time"] = "10:00"
                         if not _cfg.get("alert_interval"):
-                            _cfg["alert_interval"] = 30
+                            _cfg["alert_interval"] = 10
                         if operator and not _cfg.get("operator"):
                             _cfg["operator"] = operator
                         save_config(_cfg)
@@ -2765,7 +2765,7 @@ def api_settings_get():
         "patrol_enabled": cfg.get("patrol_enabled", False),
         "alert_enabled": cfg.get("alert_enabled", False),
         "patrol_time": cfg.get("patrol_time", "10:00"),
-        "alert_interval": cfg.get("alert_interval", 30),
+        "alert_interval": cfg.get("alert_interval", 10),
         "operator": cfg.get("operator", ""),
     })
 
@@ -3845,7 +3845,7 @@ def _schedule_patrol():
 
                 # === 定时预警：每N分钟跑一次快速巡检（watch-once） ===
                 if cfg.get("alert_enabled") and operator:
-                    interval = int(cfg.get("alert_interval", 30))
+                    interval = int(cfg.get("alert_interval", 10))
                     if interval < 5:
                         interval = 5  # 最短5分钟
                     should_run = False
