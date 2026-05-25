@@ -2745,7 +2745,7 @@ AGENT_TOOLS = [
         "type": "function",
         "function": {
             "name": "query_shop_list",
-            "description": "查询已缓存的店铺列表",
+            "description": "查询所有运营的完整店铺列表（含品牌、平台）。运营问'我有哪些店'、'服务几家店'时调用",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -2937,6 +2937,22 @@ def _exec_tool(name, args):
             return json.dumps([dict(r) for r in rows], ensure_ascii=False)
 
         elif name == "query_shop_list":
+            # 优先从operators.json读完整列表（品牌→门店→平台）
+            ops_json_path = os.path.join(os.path.dirname(__file__), "operators.json")
+            try:
+                with open(ops_json_path, "r", encoding="utf-8") as f:
+                    ops_data = json.load(f)
+                result = []
+                for op_name, brands in ops_data.items():
+                    for bname, stores in brands.items():
+                        for st in stores:
+                            platforms = [p["p"] for p in st.get("platforms", [])]
+                            result.append({"operator": op_name, "brand": bname, "store": st["store"], "ish_id": st.get("ish_id"), "platforms": platforms})
+                if result:
+                    return json.dumps(result, ensure_ascii=False)
+            except Exception:
+                pass
+            # fallback到shop_cache
             rows = conn.execute("SELECT shop_id, shop_name, platform FROM shop_cache ORDER BY shop_name").fetchall()
             if not rows:
                 return "还没有缓存任何店铺"
@@ -3382,7 +3398,28 @@ def api_chat():
 
     # Build messages
     brain = _load_brain_knowledge()
-    system = AGENT_SYSTEM_PROMPT.replace("{operator}", operator or "未知").replace("{brain}", brain)
+    # 注入运营的完整店铺列表
+    operator_stores_info = ""
+    if operator:
+        ops_json_path = os.path.join(os.path.dirname(__file__), "operators.json")
+        try:
+            with open(ops_json_path, "r", encoding="utf-8") as f:
+                ops_data = json.load(f)
+            if operator in ops_data:
+                brands = ops_data[operator]
+                total_stores = sum(len(stores) for stores in brands.values())
+                lines = [f"\n## {operator}的店铺列表（共{total_stores}家店、{len(brands)}个品牌/合同）"]
+                lines.append("数据口径：品牌=合同，一个品牌下有多家门店，一家门店有1-2个平台（美团/饿了么）")
+                for bname, stores in brands.items():
+                    store_descs = []
+                    for st in stores:
+                        plats = '/'.join('美团' if p['p']=='meituan' else '饿了么' for p in st.get('platforms', []))
+                        store_descs.append(f"{st['store']}({plats})")
+                    lines.append(f"- {bname}（{len(stores)}家店）：{', '.join(store_descs)}")
+                operator_stores_info = "\n".join(lines)
+        except Exception:
+            pass
+    system = AGENT_SYSTEM_PROMPT.replace("{operator}", (operator or "未知") + operator_stores_info).replace("{brain}", brain)
 
     messages = [{"role": "system", "content": system}]
     # Add recent history (skip the last user msg, we'll add it fresh)

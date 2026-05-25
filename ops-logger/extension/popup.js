@@ -179,32 +179,34 @@ async function loadDaily() {
   // === 1. Info module ===
   html += buildInfoModule(data, settings);
 
-  // === 2. Alerts section (un-dismissed) ===
+  // === 2. Auth notice (persistent, not dismissable) ===
+  var allAlerts = alertsData || [];
+  var authAlerts = allAlerts.filter(function(a) { return a.type === 'auth'; });
+  if (authAlerts.length > 0) {
+    html += '<div class="auth-notice">';
+    html += '<div class="auth-notice-title">\u26A0\uFE0F ' + authAlerts.length + '家店未授权</div>';
+    for (var ai = 0; ai < authAlerts.length; ai++) {
+      var aa = authAlerts[ai];
+      var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
+      html += '<div class="auth-notice-item">' + esc(aa.store) + ' \u00B7 ' + esc(pname) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  // === 3. Alerts section (un-dismissed, excluding auth) ===
   var dismissed = _dismissedAlerts || {};
-  var activeAlerts = (alertsData || []).filter(function(a) {
+  var activeAlerts = allAlerts.filter(function(a) {
+    if (a.type === 'auth') return false;
     var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
     return !dismissed[key];
   });
-  updateBadge('alertBadge', activeAlerts.length);
+  updateBadge('alertBadge', activeAlerts.length + authAlerts.length);
 
   if (activeAlerts.length > 0) {
     html += '<div class="alert-section-title">\uD83D\uDD14 预警 ' + activeAlerts.length + '条</div>';
 
-    // 授权失败
-    var authAlerts = activeAlerts.filter(function(a) { return a.type === 'auth'; });
-    for (var ai = 0; ai < authAlerts.length; ai++) {
-      var aa = authAlerts[ai];
-      var pname = aa.platform === 'eleme' ? '饿了么' : aa.platform === 'meituan' ? '美团' : aa.platform || '';
-      var akey = (aa.store||'') + '|' + (aa.type||'') + '|' + (aa.msg||'');
-      html += '<div class="store-card alert-dismissable" data-alert-key="' + esc(akey) + '" style="border-left:3px solid #e65100;position:relative">' +
-        '<div class="store-name" style="color:#e65100">' + esc(aa.store) + '</div>' +
-        '<div class="issue-line red">未授权 \u00B7 ' + esc(pname) + '</div>' +
-        '<button class="dismiss-btn">知道了</button>' +
-      '</div>';
-    }
-
-    // 其他预警按店铺分组
-    var normalAlerts = activeAlerts.filter(function(a) { return a.type !== 'auth'; });
+    // 预警按店铺分组
+    var normalAlerts = activeAlerts;
     var byStore = {};
     var storeOrder = [];
     for (var i = 0; i < normalAlerts.length; i++) {
@@ -842,6 +844,75 @@ function renderChatHistory(messages) {
   area.scrollTop = area.scrollHeight;
 }
 
+// ========== Cold Start ==========
+
+async function runColdStart(operatorName) {
+  var setupDiv = document.getElementById('setup');
+  var resultEl = document.getElementById('setupResult');
+  var confirmBtn = document.getElementById('confirmBtn');
+  confirmBtn.style.display = 'none';
+
+  function step(num, text, status) {
+    var colors = { ok: '#2e7d32', fail: '#c62828', wait: '#e65100', info: '#1565c0' };
+    var icons = { ok: '\u2705', fail: '\u274C', wait: '\u23F3', info: '\u2139\uFE0F' };
+    return '<div style="padding:4px 0;color:' + (colors[status]||'#333') + '">' + (icons[status]||'') + ' 第' + num + '步: ' + text + '</div>';
+  }
+
+  var html = '<div style="font-weight:600;margin-bottom:8px">' + esc(operatorName) + ' \u2014 \u521D\u59CB\u5316\u4E2D...</div>';
+
+  // Step 1: 检查服务
+  html += step(1, '\u68C0\u67E5\u670D\u52A1\u8FDE\u63A5...', 'wait');
+  resultEl.innerHTML = html;
+
+  await discoverServer();
+  var serverOk = false;
+  try {
+    var res = await fetch(SERVER_URL + '/api/logs?limit=1');
+    serverOk = res.ok;
+  } catch(e) {}
+
+  if (!serverOk) {
+    html = html.replace('\u23F3 \u7B2C1\u6B65: \u68C0\u67E5\u670D\u52A1\u8FDE\u63A5...', '\u274C \u7B2C1\u6B65: \u670D\u52A1\u672A\u542F\u52A8\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458');
+    html += '<div style="color:#999;font-size:11px;margin-top:8px">\u670D\u52A1\u542F\u52A8\u540E\u91CD\u65B0\u6253\u5F00\u63D2\u4EF6\u5373\u53EF</div>';
+    resultEl.innerHTML = html;
+    return;
+  }
+  html = html.replace('\u23F3 \u7B2C1\u6B65: \u68C0\u67E5\u670D\u52A1\u8FDE\u63A5...', '\u2705 \u7B2C1\u6B65: \u670D\u52A1\u5DF2\u8FDE\u63A5');
+
+  // Step 2: 检查debug Chrome + Goku插件
+  html += step(2, '\u68C0\u67E5\u60A7\u7A7A\u63D2\u4EF6\u767B\u5F55...', 'wait');
+  resultEl.innerHTML = html;
+
+  var statusData = null;
+  try {
+    var sres = await fetch(SERVER_URL + '/api/agent/status');
+    if (sres.ok) statusData = await sres.json();
+  } catch(e) {}
+
+  if (!statusData || !statusData.has_run_fast) {
+    // 尝试自动启动debug Chrome
+    try { await fetch(SERVER_URL + '/api/headless/refresh', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' }); } catch(e) {}
+    html = html.replace('\u23F3 \u7B2C2\u6B65: \u68C0\u67E5\u60A7\u7A7A\u63D2\u4EF6\u767B\u5F55...', '\u2139\uFE0F \u7B2C2\u6B65: \u8BF7\u5728Chrome\u4E2D\u767B\u5F55\u60A7\u7A7A\u63D2\u4EF6\uFF0C\u767B\u5F55\u540E\u70B9\u201C\u5DF2\u767B\u5F55\u201D');
+    html += '<button id="gokuDoneBtn" class="btn" style="margin-top:8px;background:#1565c0">\u5DF2\u767B\u5F55\u60A7\u7A7A</button>';
+    resultEl.innerHTML = html;
+
+    document.getElementById('gokuDoneBtn').addEventListener('click', async function() {
+      this.disabled = true;
+      this.textContent = '\u68C0\u67E5\u4E2D...';
+      // 直接进入主界面，checkAgent会持续检测
+      init();
+    });
+    return;
+  }
+
+  html = html.replace('\u23F3 \u7B2C2\u6B65: \u68C0\u67E5\u60A7\u7A7A\u63D2\u4EF6\u767B\u5F55...', '\u2705 \u7B2C2\u6B65: \u60A7\u7A7A\u63D2\u4EF6\u5DF2\u5C31\u7EEA');
+
+  // Step 3: 一切就绪
+  html += step(3, '\u4E00\u5207\u5C31\u7EEA\uFF0C\u70B9\u201C\u5DE1\u5E97\u201D\u5F00\u59CB\u5DE5\u4F5C', 'ok');
+  resultEl.innerHTML = html;
+  setTimeout(function() { init(); }, 1500);
+}
+
 // ========== Init ==========
 
 async function init() {
@@ -889,12 +960,17 @@ async function init() {
     var brands = opsData[operator] || {};
     var brandNames = Object.keys(brands);
     MY_SHOPS = [];
+    var storeCount = 0;
     brandNames.forEach(function(b) {
-      (brands[b] || []).forEach(function(s) {
-        if (s.shop) MY_SHOPS.push(s.shop);
+      var stores = brands[b] || [];
+      storeCount += stores.length;
+      stores.forEach(function(st) {
+        (st.platforms || []).forEach(function(p) {
+          if (p.shop) MY_SHOPS.push(p.shop);
+        });
       });
     });
-    document.getElementById('infoLine').textContent = operator + ' \u2014 ' + brandNames.length + '个品牌';
+    document.getElementById('infoLine').textContent = operator + ' \u2014 ' + brandNames.length + '个品牌 ' + storeCount + '家店';
   } catch(e) {
     document.getElementById('infoLine').textContent = operator;
   }
@@ -959,18 +1035,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     _pendingName = name;
     var brandNames = Object.keys(brands);
-    var totalShops = 0;
-    brandNames.forEach(function(b) { totalShops += brands[b].length; });
+    var totalStores = 0;
+    brandNames.forEach(function(b) { totalStores += (brands[b] || []).length; });
 
-    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' \u2014 ' + brandNames.length + '个品牌 ' + totalShops + '家店</div>';
+    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' \u2014 ' + brandNames.length + '个品牌 ' + totalStores + '家店</div>';
     for (var i = 0; i < brandNames.length; i++) {
       var bname = brandNames[i];
-      var shops = brands[bname];
-      html += '<div style="font-weight:600;margin-top:6px">' + esc(bname) + ' <span style="color:#999;font-weight:400">(' + shops.length + '家)</span></div>';
-      for (var j = 0; j < shops.length; j++) {
-        var s = shops[j];
-        var ptag = s.p === 'meituan' ? '<span style="color:#cc6600">美团</span>' : '<span style="color:#0066cc">饿了么</span>';
-        html += '<div style="padding-left:8px;color:#666">' + esc(s.shop) + ' ' + ptag + '</div>';
+      var stores = brands[bname] || [];
+      html += '<div style="font-weight:600;margin-top:6px">' + esc(bname) + ' <span style="color:#999;font-weight:400">(' + stores.length + '家店)</span></div>';
+      for (var j = 0; j < stores.length; j++) {
+        var st = stores[j];
+        var platforms = (st.platforms || []).map(function(p) {
+          return p.p === 'meituan' ? '<span style="color:#cc6600">美团</span>' : '<span style="color:#0066cc">饿了么</span>';
+        }).join(' ');
+        html += '<div style="padding-left:8px;color:#666">' + esc(st.store) + ' ' + platforms + '</div>';
       }
     }
     resultEl.innerHTML = html;
@@ -981,8 +1059,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!_pendingName) return;
     chrome.runtime.sendMessage({ type: 'OPS_SET_OPERATOR', name: _pendingName }, function() {
       if (!chrome.runtime.lastError) {
+        chrome.storage.local.set({ ops_operator: _pendingName });
         apiPost('/api/settings', { operator: _pendingName });
-        init();
+        runColdStart(_pendingName);
       }
     });
   });

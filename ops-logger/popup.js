@@ -632,12 +632,17 @@ async function init() {
     var brands = opsData[operator] || {};
     var brandNames = Object.keys(brands);
     MY_SHOPS = [];
+    var storeCount = 0;
     brandNames.forEach(function(b) {
-      (brands[b] || []).forEach(function(s) {
-        if (s.shop) MY_SHOPS.push(s.shop);
+      var stores = brands[b] || [];
+      storeCount += stores.length;
+      stores.forEach(function(st) {
+        (st.platforms || []).forEach(function(p) {
+          if (p.shop) MY_SHOPS.push(p.shop);
+        });
       });
     });
-    document.getElementById('infoLine').textContent = operator + ' — ' + brandNames.length + '个品牌';
+    document.getElementById('infoLine').textContent = operator + ' — ' + brandNames.length + '个品牌 ' + storeCount + '家店';
   } catch(e) {
     document.getElementById('infoLine').textContent = operator;
   }
@@ -696,18 +701,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     _pendingName = name;
     var brandNames = Object.keys(brands);
-    var totalShops = 0;
-    brandNames.forEach(function(b) { totalShops += brands[b].length; });
+    var totalStores = 0;
+    brandNames.forEach(function(b) { totalStores += (brands[b] || []).length; });
 
-    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' — ' + brandNames.length + '个品牌 ' + totalShops + '家店</div>';
+    var html = '<div style="color:#2e7d32;font-weight:600;margin-bottom:6px">' + esc(name) + ' — ' + brandNames.length + '个品牌 ' + totalStores + '家店</div>';
     for (var i = 0; i < brandNames.length; i++) {
       var bname = brandNames[i];
-      var shops = brands[bname];
-      html += '<div style="font-weight:600;margin-top:6px">' + esc(bname) + ' <span style="color:#999;font-weight:400">(' + shops.length + '家)</span></div>';
-      for (var j = 0; j < shops.length; j++) {
-        var s = shops[j];
-        var ptag = s.p === 'meituan' ? '<span style="color:#cc6600">美团</span>' : '<span style="color:#0066cc">饿了么</span>';
-        html += '<div style="padding-left:8px;color:#666">' + esc(s.shop) + ' ' + ptag + '</div>';
+      var stores = brands[bname] || [];
+      html += '<div style="font-weight:600;margin-top:6px">' + esc(bname) + ' <span style="color:#999;font-weight:400">(' + stores.length + '家店)</span></div>';
+      for (var j = 0; j < stores.length; j++) {
+        var st = stores[j];
+        var platforms = (st.platforms || []).map(function(p) {
+          return p.p === 'meituan' ? '<span style="color:#cc6600">美团</span>' : '<span style="color:#0066cc">饿了么</span>';
+        }).join(' ');
+        html += '<div style="padding-left:8px;color:#666">' + esc(st.store) + ' ' + platforms + '</div>';
       }
     }
     resultEl.innerHTML = html;

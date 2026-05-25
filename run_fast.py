@@ -155,6 +155,8 @@ async def fast_mt(page):
         t, c = m.get('title',''), m.get('categoryName','')
         if '活动到期提醒' in t: continue
         if '发票' in t: continue
+        if '预订单' in t: continue
+        if '粉丝群' in t: continue
         content = re.sub(r'<[^>]+>', '', m.get('content', m.get('preView', ''))).strip()
         if content.startswith('http'): content = m.get('preView', '')
         from datetime import datetime as _dt
@@ -329,6 +331,8 @@ async def watch_mt(page):
         t, c = m.get('title', ''), m.get('categoryName', '')
         if '活动到期提醒' in t: continue
         if '发票' in t: continue
+        if '预订单' in t: continue
+        if '粉丝群' in t: continue
         content = re.sub(r'<[^>]+>', '', m.get('content', m.get('preView', ''))).strip()
         if content.startswith('http'): content = m.get('preView', '')
         mtime = datetime.fromtimestamp(m.get('ctime', 0)).strftime('%Y-%m-%d %H:%M') if m.get('ctime') else ''

@@ -22,7 +22,9 @@ SELECT
     s.id AS subscriber_id,
     ts.name AS shop_name,
     ts.id AS shop_id,
-    ts.platform
+    ts.platform,
+    ts.ish_shop_id,
+    ts.ish_shop_name
 FROM subscribers s
 JOIN contracts c ON c.subscriber_id = s.id
     AND c.start_at <= NOW() AND c.end_at >= NOW()
@@ -85,17 +87,17 @@ def sync(operator_name=None):
     for r in rows:
         local.execute(
             "INSERT INTO operator_stores (operator, brand_name, subscriber_id, shop_name, shop_id, platform) VALUES (?,?,?,?,?,?)",
-            r
+            r[:6]  # 只取前6列，跳过ish_shop_id和ish_shop_name
         )
     local.commit()
 
-    # 汇总打印
+    # 汇总: 品牌→门店(ish_shop_id)→平台
     brands = {}
-    for op, brand, sid, shop, shop_id, plat in rows:
+    for op, brand, sid, shop, shop_id, plat, ish_id, ish_name in rows:
         key = (op, brand)
         if key not in brands:
             brands[key] = []
-        brands[key].append((shop, plat, shop_id))
+        brands[key].append((shop, plat, shop_id, ish_id or shop_id, ish_name or shop))
 
     operators = {}
     for (op, brand), shops in brands.items():
@@ -104,13 +106,18 @@ def sync(operator_name=None):
         operators[op][brand] = shops
 
     for op, brand_dict in sorted(operators.items()):
-        total_shops = sum(len(v) for v in brand_dict.values())
+        # 按门店去重计数
+        all_ish = set()
+        for shops in brand_dict.values():
+            for _, _, _, ish_id, _ in shops:
+                all_ish.add(ish_id)
         print(f"\n{'='*50}")
-        print(f"  {op}  |  {len(brand_dict)}个品牌  |  {total_shops}家店")
+        print(f"  {op}  |  {len(brand_dict)}个品牌  |  {len(all_ish)}家店")
         print(f"{'='*50}")
         for brand, shops in sorted(brand_dict.items()):
-            print(f"\n  {brand} ({len(shops)}家)")
-            for shop, plat, _ in shops:
+            ish_ids = set(s[3] for s in shops)
+            print(f"\n  {brand} ({len(ish_ids)}家店)")
+            for shop, plat, _, _, _ in shops:
                 print(f"    - {shop}  [{plat}]")
 
     local.close()
@@ -124,16 +131,20 @@ def sync(operator_name=None):
 
 
 def _generate_json(operators_dict):
-    """把operators字典写成popup用的operators.json格式"""
-    # 格式: { "运营名": { "品牌名": [{"shop": "店名", "id": shop_id, "p": "meituan/eleme"}, ...] } }
+    """把operators字典写成popup用的operators.json格式
+    结构: { "运营名": { "品牌名": [ { "store": "门店名", "ish_id": 123, "platforms": [{"shop":"平台店名","id":456,"p":"meituan"}, ...] }, ... ] } }
+    """
     result = {}
     for op, brand_dict in sorted(operators_dict.items()):
         result[op] = {}
         for brand, shops in sorted(brand_dict.items()):
-            result[op][brand] = [
-                {"shop": shop, "id": shop_id, "p": plat}
-                for shop, plat, shop_id in shops
-            ]
+            # 按ish_shop_id分组
+            by_ish = {}
+            for shop, plat, shop_id, ish_id, ish_name in shops:
+                if ish_id not in by_ish:
+                    by_ish[ish_id] = {"store": ish_name, "ish_id": ish_id, "platforms": []}
+                by_ish[ish_id]["platforms"].append({"shop": shop, "id": shop_id, "p": plat})
+            result[op][brand] = list(by_ish.values())
 
     base_dir = os.path.dirname(__file__)
     for subdir in [".", "extension"]:
