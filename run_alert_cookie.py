@@ -6,7 +6,8 @@ Cookie切店预警 — 复用巡检存的cookie快照，不开新页面
 import asyncio, json, sys, os, re, time
 sys.path.insert(0, os.path.dirname(__file__))
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+_CN_TZ = timezone(timedelta(hours=8))
 from collections import OrderedDict
 from playwright.async_api import async_playwright
 from plugin_helper import get_ext, pick_brand, get_stores, click_store_platform, close_store_pages
@@ -15,7 +16,7 @@ import patrol_log as L
 
 OPS_DIR = os.path.join(os.path.dirname(__file__), "ops-logger")
 SNAP_FILE = os.path.join(OPS_DIR, "_cookie_snapshots.json")
-CUTOFF = int((datetime.now() - timedelta(days=3)).timestamp())
+CUTOFF = int((datetime.now(_CN_TZ) - timedelta(days=3)).timestamp())
 
 
 def _post_progress(brand, issues, done, total):
@@ -282,7 +283,7 @@ async def main():
             existing_issues[store] = store_items
 
         existing["issues"] = existing_issues
-        existing["alert_ts"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        existing["alert_ts"] = datetime.now(_CN_TZ).strftime("%Y-%m-%d %H:%M")
         with open(result_file, "w") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
     except Exception as e:

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """全量巡检 - 自动遍历插件下所有品牌"""
 import asyncio, json, subprocess, re, sys, time, os
+from datetime import timezone, timedelta as _td
+_CN_TZ = timezone(_td(hours=8))
 sys.path.insert(0, __import__('pathlib').Path(__file__).parent.__str__())
 
 # 复用run_fast的所有逻辑
@@ -115,7 +117,7 @@ def _log_error(error_type, message, context=None):
     """记录错误到 patrol_errors.json（追加）"""
     err_file = os.path.join(os.path.dirname(__file__), "ops-logger", "patrol_errors.json")
     entry = {
-        "ts": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "ts": datetime.now(_CN_TZ).strftime("%Y-%m-%d %H:%M:%S"),
         "type": error_type,
         "msg": message,
         "ctx": context or {}
@@ -241,7 +243,7 @@ async def main():
     L.step("preflight", f"{len(brands)}个品牌，检查通过")
     print("--- 检查通过，开始巡检 ---\n")
 
-    print(f"盯店全量巡检 - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"盯店全量巡检 - {datetime.now(_CN_TZ).strftime('%Y-%m-%d %H:%M')}")
     print(f"共 {len(brands)} 个品牌\n")
     for i, b in enumerate(brands):
         print(f"  {i+1}. {b}")
@@ -583,7 +585,7 @@ async def main():
     result_file = os.path.join(os.path.dirname(__file__), "ops-logger", "patrol_result.json")
     try:
         result_data = {
-            "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "ts": datetime.now(_CN_TZ).strftime("%Y-%m-%d %H:%M"),
             "operator": args.operator,
             "brands": len(brands),
             "duration": int(total),
