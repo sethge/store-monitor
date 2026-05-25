@@ -323,13 +323,13 @@ async def main():
                     ext = await get_ext(ctx)
                     await pick_brand(ext, brand)
 
-                    # 登录重试机制：点击后验证平台页面是否打开，最多3次
-                    for login_attempt in range(3):
+                    # 登录重试机制：点击后验证平台页面是否打开，最多5次，间隔递增
+                    for login_attempt in range(5):
                         result = await click_store_platform(ext, acct['account'])
                         if result != 'ok':
                             L.step("store", f"跳过 {acct['account']} (result={result})")
                             return result, None
-                        await asyncio.sleep(3 + login_attempt)
+                        await asyncio.sleep(4 + login_attempt * 2)
 
                         found_page = False
                         if p == 'meituan':
@@ -344,7 +344,7 @@ async def main():
                             await close_store_pages(ctx)
                             ext = await get_ext(ctx)
                             await pick_brand(ext, brand)
-                    return 'ok', False  # 3次都没打开
+                    return 'ok', False  # 5次都没打开
 
                 try:
                     result, login_ok = await _do_login_and_get_page()
@@ -352,9 +352,9 @@ async def main():
                     if result != 'ok':
                         continue
                     if not login_ok:
-                        L.error("store", f"3次登录均未打开{p_name}页面: {acct['account']}")
-                        _log_error("store_login", f"3次重试仍未打开平台页面", {"brand": brand, "account": acct.get('account',''), "platform": p_name})
-                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录3次未成功","details":[]})
+                        L.error("store", f"5次登录均未打开{p_name}页面: {acct['account']}")
+                        _log_error("store_login", f"5次重试仍未打开平台页面", {"brand": brand, "account": acct.get('account',''), "platform": p_name})
+                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录5次未成功","details":[]})
                         continue
 
                     await restore_user_focus(user_page)  # 还焦点

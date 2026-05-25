@@ -87,9 +87,9 @@
     ".woff",
     ".ttf"
   ],
-  "operator": "石婷婷",
+  "operator": "王丽丽",
   "patrol_enabled": true,
   "alert_enabled": true,
   "patrol_time": "10:00",
-  "alert_interval": 15
+  "alert_interval": 16
 }

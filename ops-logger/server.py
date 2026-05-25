@@ -1898,7 +1898,9 @@ def daily_report():
     if not data:
         return jsonify({"ts": None, "stores": []})
 
-    ts = data.get("ts", "")
+    # 只取HH:MM部分（去掉日期前缀）
+    ts_raw = data.get("ts", "")
+    ts = ts_raw.split(" ")[-1] if ts_raw and " " in ts_raw else ts_raw
     issues = data.get("issues", {})
 
     stores = []
