@@ -86,5 +86,10 @@
     ".css",
     ".woff",
     ".ttf"
-  ]
+  ],
+  "operator": "宋彬",
+  "patrol_enabled": true,
+  "alert_enabled": true,
+  "patrol_time": "10:00",
+  "alert_interval": 30
 }

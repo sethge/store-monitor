@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <style>
 * { box-sizing: border-box; margin: 0; }
-body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; background: #f5f5f5; color: #333; }
+body { width: 420px; height: 560px; font-family: -apple-system, sans-serif; font-size: 13px; background: #f5f5f5; color: #333; overflow: hidden; }
+html { height: 560px; overflow: hidden; }
 
 /* Setup */
 .setup { text-align: center; padding: 30px 10px; }
@@ -25,8 +26,8 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
 .tab .badge { display: inline-block; background: #e94560; color: #fff; font-size: 9px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; text-align: center; margin-left: 2px; padding: 0 3px; }
 
 /* Tab content */
-.tab-content { display: none; max-height: 480px; overflow-y: auto; }
-.tab-content.active { display: block; }
+.tab-content { display: none; flex: 1; overflow-y: auto; }
+.tab-content.active { display: flex; flex-direction: column; }
 
 /* Shared */
 .empty { text-align: center; color: #bbb; padding: 30px 0; font-size: 12px; }
@@ -149,7 +150,7 @@ body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; ba
   </div>
 </div>
 
-<div id="main" style="display:none">
+<div id="main" style="display:none;height:560px;flex-direction:column;overflow:hidden">
   <div class="top-bar">
     <div>
       <h2>小q助手</h2>
