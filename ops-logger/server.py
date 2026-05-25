@@ -2448,6 +2448,13 @@ def _get_operator_brands(operator):
         return []
 
 
+@app.route("/api/goku/check")
+def api_goku_check():
+    """检查悟空插件登录状态"""
+    result = _check_goku_login()
+    return jsonify(result)
+
+
 @app.route("/api/patrol/start", methods=["POST"])
 def api_patrol_start():
     """启动巡检（根据运营名自动查品牌，直接subprocess调run_all_fast.py）"""
@@ -2476,6 +2483,11 @@ def api_patrol_start():
         _report_logs("error")
         return jsonify({"ok": False, "message": "Chrome debug端口启动失败，请确认Chrome已安装"}), 500
 
+    # 预检goku登录状态（通过debug Chrome快速验证）
+    goku_check = _check_goku_login()
+    if not goku_check["ok"]:
+        return jsonify({"ok": False, "message": goku_check["message"]}), 400
+
     def _run_patrol():
         with _patrol_lock:
             _patrol_state["state"] = "running"
@@ -2485,7 +2497,7 @@ def api_patrol_start():
         cmd = [PYTHON, script, "--headless"] + brands
         # 每品牌最多1分钟 + 2分钟buffer（preflight+收尾）
         timeout_sec = len(brands) * 60 + 120
-        print(f"[patrol] 启动: headless={headless}, brands={brands}, timeout={timeout_sec}s")
+        print(f"[patrol] 启动: headless=True, brands={brands}, timeout={timeout_sec}s")
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -3585,6 +3597,57 @@ def _ensure_debug_chrome():
         pass
     print("[chrome] Chrome启动后debug端口仍不可用")
     return False
+
+
+def _check_goku_login():
+    """通过debug Chrome检查goku插件登录状态，返回 {"ok": bool, "message": str}"""
+    try:
+        check_script = os.path.join(WORKSPACE, "browser.py")
+        result = subprocess.run(
+            [PYTHON, "-c", f"""
+import asyncio, sys
+sys.path.insert(0, '{WORKSPACE}')
+from browser import check_headless_login
+from playwright.async_api import async_playwright
+
+async def check():
+    pw = await async_playwright().start()
+    try:
+        b = await pw.chromium.connect_over_cdp("http://localhost:9222")
+        ctx = b.contexts[0] if b.contexts else await b.new_context()
+        ok, msg = await check_headless_login(ctx)
+        print("OK:" + msg if ok else "FAIL:" + msg)
+    except Exception as e:
+        print("FAIL:Chrome连接失败: " + str(e))
+    finally:
+        await pw.stop()
+
+asyncio.run(check())
+"""],
+            capture_output=True, text=True, timeout=30, cwd=WORKSPACE
+        )
+        output = result.stdout.strip().split("\n")[-1] if result.stdout.strip() else ""
+        if output.startswith("OK:"):
+            return {"ok": True, "message": output[3:]}
+        elif output.startswith("FAIL:"):
+            msg = output[5:]
+            # 简化消息给popup显示
+            if "登录后使用" in msg:
+                return {"ok": False, "message": "悟空插件未登录，请在Chrome中登录悟空后再巡检"}
+            elif "登录过期" in msg:
+                return {"ok": False, "message": "悟空登录过期，请在Chrome中重新登录悟空"}
+            elif "打不开" in msg or "找不到" in msg:
+                return {"ok": False, "message": "悟空插件打不开，请确认Chrome中已安装悟空插件"}
+            elif "加载" in msg:
+                return {"ok": False, "message": "悟空品牌列表没加载出来，请稍后重试"}
+            return {"ok": False, "message": msg[:100]}
+        else:
+            stderr = result.stderr.strip()[-200:] if result.stderr else ""
+            return {"ok": False, "message": f"悟空检查异常: {output[:50]} {stderr[:50]}"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "message": "悟空检查超时，请确认Chrome正在运行"}
+    except Exception as e:
+        return {"ok": False, "message": f"悟空检查失败: {str(e)[:80]}"}
 
 
 def _schedule_patrol():

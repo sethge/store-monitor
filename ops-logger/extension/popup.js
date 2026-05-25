@@ -699,9 +699,11 @@ async function startPatrol() {
     btn.textContent = '巡检';
     dot.className = 'agent-dot off';
   } else {
-    msg.textContent = (result && result.message) || '启动失败';
+    var errText = (result && result.message) || '启动失败';
+    msg.textContent = errText;
+    msg.style.color = errText.indexOf('悟空') >= 0 ? '#c62828' : '';
     btn.disabled = false;
-    btn.textContent = '巡检';
+    btn.textContent = '重试';
     dot.className = 'agent-dot off';
   }
 }
