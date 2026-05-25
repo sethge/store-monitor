@@ -1757,9 +1757,9 @@ def dashboard():
 
 @app.route("/api/extension/version")
 def extension_version():
-    # 根目录manifest是最新版本，优先返回
+    # extension/manifest.json是权威版本，优先返回
     base = os.path.dirname(__file__)
-    for subdir in [".", "extension"]:
+    for subdir in ["extension", "."]:
         manifest_path = os.path.join(base, subdir, "manifest.json")
         try:
             with open(manifest_path) as f:
