@@ -1870,8 +1870,31 @@ def _load_patrol_result():
 
 @app.route("/api/daily")
 def daily_report():
-    """日报API — 读patrol_result.json"""
-    data = _load_patrol_result()
+    """日报API — 巡检中返回增量进度，否则读patrol_result.json"""
+    # 巡检中：从内存中的增量进度返回
+    with _patrol_lock:
+        is_running = _patrol_state["state"] == "running"
+        progress = dict(_patrol_progress) if is_running else None
+    if is_running and progress and progress.get("done", 0) > 0:
+        data = {
+            "ts": progress["ts"],
+            "brands": progress["done"],
+            "duration": 0,
+            "issues": progress["issues"],
+            "all_stores": progress["all_stores"],
+            "brand_stores": progress["brand_stores"],
+            "_running": True,
+            "_done": progress["done"],
+            "_total": progress["total"],
+        }
+    else:
+        data = _load_patrol_result()
+        # 检查结果是否属于当前运营（防止切换运营后看到旧数据）
+        if data:
+            result_op = data.get("operator", "")
+            current_op = load_config().get("operator", "")
+            if result_op and current_op and result_op != current_op:
+                data = None
     if not data:
         return jsonify({"ts": None, "stores": []})
 
@@ -1955,8 +1978,14 @@ def daily_report():
     if orphans:
         brands_grouped.append({"brand": "其他", "stores": orphans})
 
-    return jsonify({"ts": ts, "stores": stores, "brands_grouped": brands_grouped,
-                     "brands": data.get("brands", 0), "duration": data.get("duration", 0)})
+    resp = {"ts": ts, "stores": stores, "brands_grouped": brands_grouped,
+            "brands": data.get("brands", 0), "duration": data.get("duration", 0)}
+    # 巡检中时附带进度信息
+    if data.get("_running"):
+        resp["_running"] = True
+        resp["_done"] = data.get("_done", 0)
+        resp["_total"] = data.get("_total", 0)
+    return jsonify(resp)
 
 
 @app.route("/api/alerts")
@@ -2241,6 +2270,7 @@ WORKSPACE = os.path.dirname(os.path.dirname(__file__))  # ops-logger/../ = store
 _patrol_state = {"state": "idle", "message": "", "pid": None}
 _patrol_lock = threading.Lock()
 _task_queue = []  # 排队等待的任务: [{"brands": [...], "label": "...", "script": "..."}]
+_patrol_progress = {"issues": {}, "all_stores": {}, "brand_stores": {}, "done": 0, "total": 0, "ts": ""}  # 增量巡检进度
 
 
 def _cleanup_headless():
@@ -2493,8 +2523,15 @@ def api_patrol_start():
             _patrol_state["state"] = "running"
             _patrol_state["message"] = f"巡检 {', '.join(brands)}..."
             _patrol_state["log"] = ""
+            # 清空增量进度
+            _patrol_progress["issues"] = {}
+            _patrol_progress["all_stores"] = {}
+            _patrol_progress["brand_stores"] = {}
+            _patrol_progress["done"] = 0
+            _patrol_progress["total"] = len(brands)
+            _patrol_progress["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M")
         # 强制无头模式，不允许走9222的可见Chrome巡检
-        cmd = [PYTHON, script, "--headless"] + brands
+        cmd = [PYTHON, script, "--headless", "--operator", operator] + brands
         # 每品牌最多1分钟 + 2分钟buffer（preflight+收尾）
         timeout_sec = len(brands) * 60 + 120
         print(f"[patrol] 启动: headless=True, brands={brands}, timeout={timeout_sec}s")
@@ -2571,6 +2608,26 @@ def api_patrol_start():
     t = threading.Thread(target=_run_patrol, daemon=True)
     t.start()
     return jsonify({"ok": True, "message": f"巡检已启动: {', '.join(brands)}"})
+
+
+@app.route("/api/patrol/progress", methods=["POST"])
+def api_patrol_progress():
+    """接收run_all_fast.py每个品牌完成后的增量推送"""
+    data = request.get_json(silent=True) or {}
+    with _patrol_lock:
+        _patrol_progress["ts"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        _patrol_progress["done"] = data.get("done", 0)
+        _patrol_progress["total"] = data.get("total", 0)
+        # 合并issues
+        for store, items in data.get("issues", {}).items():
+            _patrol_progress["issues"][store] = items
+        # 合并all_stores
+        for store, plats in data.get("all_stores", {}).items():
+            _patrol_progress["all_stores"][store] = plats
+        # 合并brand_stores
+        for brand, stores in data.get("brand_stores", {}).items():
+            _patrol_progress["brand_stores"][brand] = stores
+    return jsonify({"ok": True})
 
 
 @app.route("/api/patrol/stop", methods=["POST"])

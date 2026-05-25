@@ -92,6 +92,25 @@ async def get_all_brands(ext):
     return brands
 
 
+def _post_brand_progress(brand, brand_issues, brand_stores_map, all_stores_map, done_count, total_count):
+    """每完成一个品牌，立刻推送进度到server，popup实时刷新"""
+    import requests as _req
+    try:
+        payload = {
+            "brand": brand,
+            "issues": {store: items for store, items in brand_issues.items()},
+            "brand_stores": {brand: brand_stores_map.get(brand, [])},
+            "all_stores": dict(all_stores_map),
+            "done": done_count,
+            "total": total_count,
+        }
+        s = _req.Session()
+        s.trust_env = False
+        s.post("http://127.0.0.1:5500/api/patrol/progress", json=payload, timeout=3)
+    except Exception:
+        pass  # 推送失败不影响巡检
+
+
 def _log_error(error_type, message, context=None):
     """记录错误到 patrol_errors.json（追加）"""
     err_file = os.path.join(os.path.dirname(__file__), "ops-logger", "patrol_errors.json")
@@ -127,6 +146,7 @@ async def main():
     parser = argparse.ArgumentParser(description='全量巡检')
     parser.add_argument('brands', nargs='*', help='品牌名')
     parser.add_argument('--headless', action='store_true', help='无头模式，零窗口')
+    parser.add_argument('--operator', default='', help='运营名')
     args = parser.parse_args()
 
     # ========== Preflight Check ==========
@@ -503,6 +523,9 @@ async def main():
 
         print(f"{time.time()-t_brand:.0f}s")
 
+        # 每完成一个品牌，立刻推送进度给popup
+        _post_brand_progress(brand, all_issues, brand_stores, all_stores, bi+1, len(brands))
+
     # 清理incomplete
     for store in list(all_issues.keys()):
         all_issues[store] = [i for i in all_issues[store] if i['type'] != 'incomplete']
@@ -542,6 +565,7 @@ async def main():
     try:
         result_data = {
             "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "operator": args.operator,
             "brands": len(brands),
             "duration": int(total),
             "all_stores": dict(all_stores),

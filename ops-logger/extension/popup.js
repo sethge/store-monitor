@@ -88,7 +88,9 @@ async function refreshServerStatus(containerId) {
 function buildInfoModule(data, settings) {
   // Line 1: patrol status
   var line1 = '';
-  if (data && data.ts) {
+  if (data && data._running) {
+    line1 = '\u23F3 巡检中 ' + (data._done || 0) + '/' + (data._total || '?') + ' 品牌';
+  } else if (data && data.ts) {
     line1 = esc(data.ts) + ' 巡检完成';
     if (data.brands) line1 += ' \u00B7 ' + data.brands + '个品牌';
     if (data.duration) line1 += ' \u00B7 ' + data.duration + '秒';
@@ -147,6 +149,8 @@ function initInfoModule() {
       var open = settings.style.display !== 'none';
       settings.style.display = open ? 'none' : 'block';
       toggleBtn.style.color = open ? '#bbb' : '#e94560';
+      // 关闭设置面板时刷新显示（让修改后的时间/间隔立刻生效）
+      if (open) loadDaily();
     });
   }
   // Bind setting controls
@@ -643,6 +647,8 @@ async function checkAgent() {
     btn.disabled = false;
     btn.textContent = '停止';
     btn.dataset.action = 'stop';
+    // 巡检中实时刷新结果（巡一家出一家）
+    loadDaily();
     setTimeout(checkAgent, 3000);
     return;
   }
