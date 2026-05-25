@@ -3712,6 +3712,17 @@ def _schedule_patrol():
                     except Exception as _ce:
                         pass  # 拉指令失败不影响正常调度
 
+                # === 每天6点同步operators.json（从PA拉最新运营-店铺关系） ===
+                if now.hour == 6 and now.minute < 2 and getattr(_scheduler, '_last_sync_date', None) != today:
+                    _scheduler._last_sync_date = today
+                    try:
+                        from sync_operators import sync as _sync_op
+                        print("[schedule] 开始每日同步operators.json...")
+                        _sync_op()
+                        print("[schedule] operators.json同步完成")
+                    except Exception as _se:
+                        print(f"[schedule] operators.json同步失败: {_se}")
+
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")
 

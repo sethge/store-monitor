@@ -1,10 +1,10 @@
 """
-sync_operators.py - 从PA数据库拉运营-品牌-店铺关系，存入本地SQLite
+sync_operators.py - 从PA数据库拉运营-品牌-店铺关系，存入本地SQLite + operators.json
 用法: python3 sync_operators.py [运营名字]
   不传名字 = 同步全部运营
   传名字 = 只查这个人的品牌和店铺
 """
-import sys, os, sqlite3
+import sys, os, json, sqlite3
 import pymysql
 
 PA_HOST = "rm-uf6e0001sq5g9foel.mysql.rds.aliyuncs.com"
@@ -95,7 +95,7 @@ def sync(operator_name=None):
         key = (op, brand)
         if key not in brands:
             brands[key] = []
-        brands[key].append((shop, plat))
+        brands[key].append((shop, plat, shop_id))
 
     operators = {}
     for (op, brand), shops in brands.items():
@@ -110,12 +110,39 @@ def sync(operator_name=None):
         print(f"{'='*50}")
         for brand, shops in sorted(brand_dict.items()):
             print(f"\n  {brand} ({len(shops)}家)")
-            for shop, plat in shops:
+            for shop, plat, _ in shops:
                 print(f"    - {shop}  [{plat}]")
 
     local.close()
     print(f"\n--- 同步完成: {len(rows)}条记录 ---")
+
+    # 生成 operators.json（仅全量同步时生成）
+    if not operator_name:
+        _generate_json(operators)
+
     return rows
+
+
+def _generate_json(operators_dict):
+    """把operators字典写成popup用的operators.json格式"""
+    # 格式: { "运营名": { "品牌名": [{"shop": "店名", "id": shop_id, "p": "meituan/eleme"}, ...] } }
+    result = {}
+    for op, brand_dict in sorted(operators_dict.items()):
+        result[op] = {}
+        for brand, shops in sorted(brand_dict.items()):
+            result[op][brand] = [
+                {"shop": shop, "id": shop_id, "p": plat}
+                for shop, plat, shop_id in shops
+            ]
+
+    base_dir = os.path.dirname(__file__)
+    for subdir in [".", "extension"]:
+        path = os.path.join(base_dir, subdir, "operators.json")
+        if os.path.isdir(os.path.join(base_dir, subdir)):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False)
+            print(f"[sync] 已更新 {path}")
+
 
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else None
