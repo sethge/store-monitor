@@ -244,7 +244,7 @@ async function loadDaily() {
     var key = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
     return !dismissed[key];
   });
-  updateBadge('alertBadge', activeAlerts.length + authAlerts.length + errorAlerts.length);
+  updateBadge('alertBadge', activeAlerts.length);
 
   if (activeAlerts.length > 0) {
     html += '<div class="alert-section-title">\uD83D\uDD14 预警 ' + activeAlerts.length + '条</div>';

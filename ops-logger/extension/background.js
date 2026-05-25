@@ -657,12 +657,14 @@ async function pollAlerts() {
     const res = await fetch(SERVER_URL + "/api/alerts?t=" + Date.now());
     if (!res.ok) return;
     const alerts = await res.json();
-    const hasRed = alerts.some(a => a.level === "red");
-    const totalCount = alerts.length;
+    // 只计算实际预警（不含auth/error）
+    const realAlerts = alerts.filter(a => a.type !== "auth" && a.type !== "error");
+    const hasRed = realAlerts.some(a => a.level === "red");
+    const alertCount = realAlerts.length;
 
-    if (totalCount > 0) {
+    if (alertCount > 0) {
       chrome.action.setBadgeBackgroundColor({ color: hasRed ? "#c62828" : "#e65100" });
-      chrome.action.setBadgeText({ text: String(totalCount) });
+      chrome.action.setBadgeText({ text: String(alertCount) });
     } else {
       // Check for unpushed logs
       const { ops_logs = [] } = await chrome.storage.local.get("ops_logs");
