@@ -770,8 +770,8 @@ async function checkVersion() {
       btn.style.display = 'inline-block';
       btn.textContent = 'v' + data.version + ' 可更新';
       btn.onclick = function() {
-        btn.textContent = '更新中...';
-        chrome.runtime.sendMessage({ type: 'OPS_RELOAD' });
+        btn.textContent = '下载中...';
+        chrome.tabs.create({ url: SERVER_URL + '/api/extension/download' });
       };
     }
   }
