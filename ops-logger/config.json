@@ -91,5 +91,5 @@
   "patrol_enabled": true,
   "alert_enabled": true,
   "patrol_time": "10:00",
-  "alert_interval": 16
+  "alert_interval": 10
 }

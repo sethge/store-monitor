@@ -1777,22 +1777,23 @@ def extension_download():
     import zipfile, io, glob as _glob
     from flask import send_file
     base = os.path.dirname(__file__)
-    # 读版本号
+    ext_dir = os.path.join(base, "extension")
+    # 读版本号（优先extension/manifest.json）
     try:
-        with open(os.path.join(base, "manifest.json")) as f:
+        with open(os.path.join(ext_dir, "manifest.json")) as f:
             ver = json.load(f).get("version", "0")
     except:
         ver = "0"
-    # 只打包扩展需要的文件
-    ext_files = ["manifest.json", "popup.html", "popup.js", "background.js",
-                 "content.js", "content-bridge.js", "content-cache.js",
-                 "content-inject.js", "injector.js", "operators.json"]
+    # 从extension/子目录打包
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for fn in ext_files:
-            fp = os.path.join(base, fn)
-            if os.path.exists(fp):
-                zf.write(fp, fn)
+        for root, dirs, files in os.walk(ext_dir):
+            for fn in files:
+                if fn.startswith('.') or fn.startswith('_'):
+                    continue
+                fp = os.path.join(root, fn)
+                arcname = os.path.relpath(fp, ext_dir)
+                zf.write(fp, arcname)
     buf.seek(0)
     return send_file(buf, mimetype="application/zip",
                      as_attachment=True,
@@ -2090,6 +2091,42 @@ def alerts():
     result.sort(key=lambda x: x.get("event_time") or x.get("patrol_ts") or "", reverse=True)
 
     return jsonify(result)
+
+
+@app.route("/api/store-cookies")
+def store_cookies():
+    """返回指定店铺的cookie快照，供扩展点击预警时切店"""
+    store = request.args.get("store", "")
+    platform = request.args.get("platform", "")
+    if not store:
+        return jsonify({"error": "missing store"}), 400
+    snap_file = os.path.join(WORKSPACE, "ops-logger", "_cookie_snapshots.json")
+    if not os.path.exists(snap_file):
+        return jsonify({"error": "no snapshots"}), 404
+    try:
+        with open(snap_file) as f:
+            snaps = json.load(f)
+    except:
+        return jsonify({"error": "bad snapshot file"}), 500
+    # 匹配店铺：精确匹配 > 包含匹配
+    matched = None
+    for s in snaps:
+        if s.get("store") == store and (not platform or s.get("platform") == platform):
+            matched = s
+            break
+    if not matched:
+        for s in snaps:
+            if store in (s.get("store") or "") and (not platform or s.get("platform") == platform):
+                matched = s
+                break
+    if not matched:
+        return jsonify({"error": "store not found"}), 404
+    # 只返回浏览器需要的cookie（过滤掉httpOnly等敏感标记由扩展自己处理）
+    return jsonify({
+        "store": matched.get("store"),
+        "platform": matched.get("platform"),
+        "cookies": matched.get("cookies", [])
+    })
 
 
 @app.route("/api/tracking/feedback", methods=["POST"])

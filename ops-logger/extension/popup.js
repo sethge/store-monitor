@@ -24,6 +24,42 @@ function openUrl(url) {
   if (url) chrome.tabs.create({ url: url });
 }
 
+// 切cookie后再跳转到对应店铺页面
+async function openStoreUrl(url, storeName, platform) {
+  if (!url) return;
+  if (!storeName) { openUrl(url); return; }
+  try {
+    var resp = await api('/api/store-cookies?store=' + encodeURIComponent(storeName) + '&platform=' + encodeURIComponent(platform || ''));
+    if (resp && resp.cookies && resp.cookies.length > 0) {
+      // 确定目标域名
+      var domain = '.waimai.meituan.com';
+      if (platform === 'eleme' || platform === '饿了么') domain = '.ele.me';
+      // 批量设置cookie
+      var promises = [];
+      for (var i = 0; i < resp.cookies.length; i++) {
+        var c = resp.cookies[i];
+        var cookieDomain = c.domain || domain;
+        var cookieUrl = 'https://' + cookieDomain.replace(/^\./, '');
+        promises.push(chrome.cookies.set({
+          url: cookieUrl,
+          name: c.name,
+          value: c.value,
+          domain: cookieDomain,
+          path: c.path || '/',
+          secure: c.secure !== false,
+          httpOnly: c.httpOnly || false,
+          sameSite: c.sameSite === 'None' ? 'no_restriction' : (c.sameSite === 'Lax' ? 'lax' : 'unspecified')
+        }));
+      }
+      await Promise.all(promises);
+    }
+  } catch(e) {
+    console.warn('[popup] cookie switch failed:', e);
+  }
+  // 无论cookie切换成功与否都跳转
+  chrome.tabs.create({ url: url });
+}
+
 function fmtHM(ts) {
   try { var d = new Date(ts); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
   catch(e) { return ''; }
@@ -270,7 +306,7 @@ async function loadDaily() {
         var akey = (a.store||'') + '|' + (a.type||'') + '|' + (a.msg||'');
         var aUrl = platformUrl(a.platform, a.type);
         html += '<div class="alert-row alert-dismissable" data-alert-key="' + esc(akey) + '"' +
-          (aUrl ? ' data-url="' + esc(aUrl) + '" style="cursor:pointer"' : '') + '>' +
+          (aUrl ? ' data-url="' + esc(aUrl) + '" data-store="' + esc(a.store||'') + '" data-platform="' + esc(a.platform||'') + '" style="cursor:pointer"' : '') + '>' +
           '<div class="alert-dot ' + a.level + '"></div>' +
           '<div class="alert-body">' +
             '<div class="alert-msg">' + esc(a.msg) + (pname ? ' <span style="color:#999;font-weight:400;font-size:10px">' + esc(pname) + '</span>' : '') + '</div>' +
@@ -311,11 +347,11 @@ async function loadDaily() {
     }
 
     // Helper: build compact platform status for one platform
-    function platformStatus(p) {
+    function platformStatus(p, storeName) {
       var pPlat = p.platform === '美团' ? 'meituan' : 'eleme';
       var pCls = p.platform === '美团' ? 'p-mt' : 'p-ele';
       var pUrl = platformUrl(pPlat);
-      var pTag = '<span class="' + pCls + ' p-link" data-url="' + esc(pUrl) + '" style="cursor:pointer">' + (p.platform === '美团' ? '美' : '饿') + '</span>';
+      var pTag = '<span class="' + pCls + ' p-link" data-url="' + esc(pUrl) + '" data-store="' + esc(storeName||'') + '" data-platform="' + esc(pPlat) + '" style="cursor:pointer">' + (p.platform === '美团' ? '美' : '饿') + '</span>';
       if (p.has_auth_issue) return pTag + '<span class="ps-bad">未授权</span>';
       var parts = [];
       if (p.bad_review_count > 0) parts.push('<span class="ps-bad">' + p.bad_review_count + '差评</span>');
@@ -368,7 +404,7 @@ async function loadDaily() {
           html += '<span class="store-short-name">' + esc(sn) + '</span>';
           html += '<span class="store-platforms">';
           for (var j = 0; j < store.platforms.length; j++) {
-            html += platformStatus(store.platforms[j]);
+            html += platformStatus(store.platforms[j], store.store);
             if (j < store.platforms.length - 1) html += ' ';
           }
           html += '</span></div>';
@@ -424,19 +460,19 @@ async function loadDaily() {
         }, 300);
       });
     }
-    // Click to open platform page
+    // Click to open platform page (先切cookie到对应店铺)
     if (item.dataset.url) {
       item.addEventListener('click', function(e) {
         if (e.target.classList.contains('dismiss-btn')) return;
-        openUrl(item.dataset.url);
+        openStoreUrl(item.dataset.url, item.dataset.store, item.dataset.platform);
       });
     }
   });
 
-  // Bind platform tag clicks in patrol results
+  // Bind platform tag clicks in patrol results (切cookie后跳转)
   el.querySelectorAll('.p-link').forEach(function(link) {
     link.addEventListener('click', function() {
-      openUrl(link.dataset.url);
+      openStoreUrl(link.dataset.url, link.dataset.store, link.dataset.platform);
     });
   });
 }
@@ -1161,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     sendMsg();
   });
   document.getElementById('chatInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') sendMsg();
+    if (e.key === 'Enter' && !e.isComposing) sendMsg();
   });
   // Quick buttons
   document.querySelectorAll('.quick-btn').forEach(function(btn) {

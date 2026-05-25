@@ -17,6 +17,14 @@ const UPDATE_CHECK_INTERVAL = 86400000; // 24h
 let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
 let shopCache = {};   // shopId -> shopName
 
+// 启动时从storage恢复shopCache（service worker重启不丢）
+chrome.storage.local.get("ops_shop_cache", (data) => {
+  if (data.ops_shop_cache) {
+    shopCache = data.ops_shop_cache;
+    console.log("[OpsLogger] shopCache restored:", Object.keys(shopCache).length);
+  }
+});
+
 // ========== Runtime config ==========
 let ignoreApiMethods = new Set();
 let ignoreApiPrefixes = [];
@@ -235,7 +243,10 @@ chrome.webRequest.onBeforeRequest.addListener(
             const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
             if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
               entry.shopName = tName;
-              if (shopId) shopCache[shopId] = tName;
+              if (shopId) {
+                shopCache[shopId] = tName;
+                chrome.storage.local.set({ ops_shop_cache: shopCache });
+              }
             }
           }
           chrome.storage.local.get("ops_operator", (data) => {
@@ -419,7 +430,11 @@ function processShopCache(shops) {
     }
   }
   console.log("[OpsLogger] shop cache:", Object.keys(shopCache).length, "new:", newShops.length);
-  if (newShops.length > 0) syncCacheToServer("shops", newShops);
+  if (newShops.length > 0) {
+    syncCacheToServer("shops", newShops);
+    // 持久化shopCache，service worker重启后恢复
+    chrome.storage.local.set({ ops_shop_cache: shopCache });
+  }
 }
 
 async function syncCacheToServer(type, data) {

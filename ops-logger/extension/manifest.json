@@ -7,7 +7,8 @@
     "storage",
     "webRequest",
     "scripting",
-    "tabs"
+    "tabs",
+    "cookies"
   ],
   "host_permissions": [
     "*://*.waimai.meituan.com/*",
