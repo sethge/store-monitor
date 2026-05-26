@@ -1263,6 +1263,15 @@ async function sendMsg() {
   chatThinking = true;
   document.getElementById('sendBtn').disabled = true;
 
+  // Show thinking bubble
+  var thinkDiv = document.createElement('div');
+  thinkDiv.className = 'chat-msg thinking';
+  thinkDiv.id = 'chatThinking';
+  thinkDiv.innerHTML = '思考中<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+  var area = document.getElementById('chatArea');
+  area.appendChild(thinkDiv);
+  area.scrollTop = area.scrollHeight;
+
   try {
     var opData = await chrome.storage.local.get('ops_operator');
     var res = await fetch(SERVER_URL + '/api/chat', {
@@ -1270,6 +1279,10 @@ async function sendMsg() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: text, operator: opData.ops_operator || '', history: chatHistory.slice(-20) })
     });
+    // Remove thinking bubble
+    var tb = document.getElementById('chatThinking');
+    if (tb) tb.remove();
+
     if (!res.ok) { addChatMsg('err', '服务出错: ' + res.status); }
     else {
       var data = await res.json();
@@ -1282,6 +1295,8 @@ async function sendMsg() {
       syncChatToServer(chatHistory);
     }
   } catch(e) {
+    var tb = document.getElementById('chatThinking');
+    if (tb) tb.remove();
     addChatMsg('err', '连接失败: ' + e.message);
   }
   chatThinking = false;

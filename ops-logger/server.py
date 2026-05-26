@@ -2919,9 +2919,12 @@ AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
 根据运营的问题选择合适的工具。优先用CRM工具查诊断和会议纪要。
 运营闲聊或请教运营问题时，结合你的运营认知直接回答，不需要调工具。
 
-## 重要：诊断报告必须原文转发
-查到诊断报告后，直接把原文完整发给运营，不要改写、不要重新生成、不要自己编内容。
-报告是专业团队做的，你的工作是转发，不是重写。可以在报告前后加一两句话引导，但报告本身一个字不改。"""
+## 重要：诊断报告必须原文转发（最高优先级规则）
+1. 运营问诊断报告时，**必须先调crm_query_diagnosis工具**，绝对不能自己编
+2. 工具返回的report_content就是原文，**原样复制粘贴给运营，一个数字都不改**
+3. 你可以在报告前面加一句引导语，但报告内容本身不能改写、不能补充、不能换措辞
+4. **绝对禁止**：自己编造评分、月售、客单价、满减档位等数据。编造数据会严重误导运营决策
+5. 如果工具没查到报告，就说"没找到这个品牌的诊断报告"，不要自己凑一份"""
 
 AGENT_TOOLS = [
     {
@@ -3454,7 +3457,7 @@ def _crm_query_diagnosis(args):
     return _crm_remote_call("crm_query_diagnosis", args)
 
 def _crm_query_diagnosis_local(args):
-    """查诊断报告（本地）"""
+    """查诊断报告（本地）— 返回最新报告的关键部分，控制长度"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
@@ -3473,17 +3476,45 @@ def _crm_query_diagnosis_local(args):
     results = []
     for s in stores[:3]:  # 最多3个品牌
         docs = conn.execute(
-            "SELECT doc_type, title, content, created_at FROM documents WHERE store_id=? ORDER BY created_at DESC",
+            "SELECT doc_type, title, content, created_at FROM documents WHERE store_id=? AND doc_type='report' ORDER BY created_at DESC LIMIT 1",
             (s["id"],)).fetchall()
         store_info = {"brand": s["store_name"], "branch": s["branch"], "operator": s["operator_name"],
                       "stage": s["stage"], "diagnosed_at": s["diagnosed_at"]}
-        reports = []
-        for d in docs:
-            reports.append({"type": d["doc_type"], "title": d["title"], "content": d["content"], "date": d["created_at"]})
-        store_info["documents"] = reports
+        if docs:
+            content = docs[0]["content"]
+            # 提取关键部分，控制返回长度（DeepSeek处理超长tool output会编造）
+            key_content = _extract_report_key_sections(content)
+            store_info["report_title"] = docs[0]["title"]
+            store_info["report_date"] = docs[0]["created_at"]
+            store_info["report_content"] = key_content
+            store_info["_notice"] = "以下是官方诊断报告原文，必须原样转发给运营，一个字不改"
         results.append(store_info)
     conn.close()
     return json.dumps(results, ensure_ascii=False)
+
+
+def _extract_report_key_sections(content):
+    """从诊断报告md中提取关键部分：诊断总结+TODO+做对了的，控制在4000字内"""
+    import re
+    sections = []
+    # 尝试提取第二次诊断（复诊）部分
+    m = re.search(r'(## 第\d+次诊断.*)', content, re.DOTALL)
+    if m:
+        sections.append(m.group(1)[:4000])
+    else:
+        # 提取诊断总结
+        m = re.search(r'(## 三、诊断总结.*?)(?=\n## 四、|$)', content, re.DOTALL)
+        if m:
+            sections.append(m.group(1)[:2000])
+        # 提取TODO
+        m = re.search(r'(## 四、TODO.*?)(?=\n## 五、|$)', content, re.DOTALL)
+        if m:
+            sections.append(m.group(1)[:2000])
+        # 如果都没找到，取最后40%的内容（通常是总结部分）
+        if not sections:
+            cut = max(0, len(content) - 4000)
+            sections.append(content[cut:])
+    return "\n".join(sections)
 
 def _crm_query_meeting(args):
     """查会议纪要 — 本地优先，无则走远程"""
