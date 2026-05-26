@@ -166,22 +166,46 @@ async function resolveShopName(entry, tabId, shopId) {
       }
     } catch(e) {}
   }
-  // 3. 从tab title兜底
-  if (tabId > 0) {
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      if (tab && tab.title && !tab.title.startsWith('http')) {
-        let tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
-        const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
-        if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
-          entry.shopName = tName;
-          if (shopId) {
-            shopCache[shopId] = tName;
-            chrome.storage.local.set({ ops_shop_cache: shopCache });
+  // 3. 饿了么：从cookie读店铺名（SHOPNAME / shopName）
+  if (!entry.shopName && entry.url && entry.url.includes('ele.me')) {
+    for (const cname of ['SHOPNAME', 'shopName', 'SHOP_NAME']) {
+      try {
+        const c = await chrome.cookies.get({ url: 'https://melody.shop.ele.me', name: cname });
+        if (c && c.value) {
+          let decoded = c.value;
+          try { decoded = decodeURIComponent(c.value); } catch(e) {}
+          if (decoded.length > 1 && decoded.length < 60) {
+            entry.shopName = decoded;
+            if (shopId) {
+              shopCache[shopId] = decoded;
+              chrome.storage.local.set({ ops_shop_cache: shopCache });
+            }
+            break;
           }
         }
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }
+  }
+  // 4. 从tab title兜底（尝试两次，第二次延迟500ms等SPA渲染完）
+  if (!entry.shopName && tabId > 0) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 500));
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab && tab.title && !tab.title.startsWith('http')) {
+          let tName = tab.title.replace(/\s*[-–—|·]\s*(饿了么|美团|商家).*$/i, '').trim();
+          const BAD_TITLES = ['淘宝闪购商家版', '饿了么商家版', '美团外卖商家版', '商家版', '饿了么', '美团', 'melody'];
+          if (tName && tName.length > 1 && tName.length < 40 && !BAD_TITLES.includes(tName)) {
+            entry.shopName = tName;
+            if (shopId) {
+              shopCache[shopId] = tName;
+              chrome.storage.local.set({ ops_shop_cache: shopCache });
+            }
+            break;
+          }
+        }
+      } catch(e) {}
+    }
   }
 }
 
