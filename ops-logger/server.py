@@ -2743,8 +2743,14 @@ def api_patrol_start():
     operator = data.get("operator", "")
     brands = data.get("brands", [])
 
-    # 如果传了运营名，自动查品牌
+    # 巡检前先同步最新运营-店铺关系（确保新门店不遗漏）
     if operator and not brands:
+        try:
+            from sync_operators import sync
+            sync(operator)
+            print(f"[patrol] 已同步{operator}最新门店")
+        except Exception as e:
+            print(f"[patrol] 同步门店失败（用本地缓存）: {e}")
         brands = _get_operator_brands(operator)
         print(f"[patrol] 运营={operator}, 品牌={brands}")
 
@@ -3894,6 +3900,13 @@ def _schedule_patrol():
                         target = now.replace(hour=10, minute=0, second=0)
                     # 在目标时间的±2分钟窗口内，且今天没跑过
                     if abs((now - target).total_seconds()) < 120 and last_patrol_date != today:
+                        # 巡检前先同步最新门店
+                        try:
+                            from sync_operators import sync as _sync_op_single
+                            _sync_op_single(operator)
+                            print(f"[schedule] 已同步{operator}最新门店")
+                        except Exception as _se:
+                            print(f"[schedule] 同步门店失败（用本地缓存）: {_se}")
                         brands = _get_operator_brands(operator)
                         if brands:
                             last_patrol_date = today

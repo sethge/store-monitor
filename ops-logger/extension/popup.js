@@ -608,15 +608,19 @@ async function loadChanges() {
 
         html += '</div>'; // change-body
 
-        // Toggle for today's changes
-        if (daysDiff <= 1 && l.id && tr) {
-          var isOn = true;
-          html += '<div class="toggle-wrap">' +
-            '<button class="toggle-switch on" data-logid="' + l.id + '" data-enabled="1">' +
-              '<span class="toggle-text on-text">追踪</span>' +
-              '<span class="toggle-text off-text">关</span>' +
-              '<span class="toggle-knob"></span>' +
-            '</button></div>';
+        // Toggle for today's changes (追踪/关)
+        if (daysDiff <= 1 && l.id) {
+          var isTrackOn = tr ? true : false;
+          // 检查是否被disabled了
+          var disabledTr = trackData && trackData.find(function(t) { return t.log_id == l.id && t.status === 'disabled'; });
+          if (tr || disabledTr) {
+            html += '<div class="toggle-wrap">' +
+              '<button class="toggle-switch' + (isTrackOn ? ' on' : '') + '" data-logid="' + l.id + '" data-enabled="' + (isTrackOn ? '1' : '0') + '">' +
+                '<span class="toggle-text on-text">追踪</span>' +
+                '<span class="toggle-text off-text">关</span>' +
+                '<span class="toggle-knob"></span>' +
+              '</button></div>';
+          }
         }
 
         html += '</div>'; // timeline-change

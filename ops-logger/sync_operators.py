@@ -123,11 +123,50 @@ def sync(operator_name=None):
     local.close()
     print(f"\n--- 同步完成: {len(rows)}条记录 ---")
 
-    # 生成 operators.json（仅全量同步时生成）
-    if not operator_name:
+    # 生成 operators.json
+    if operator_name:
+        # 单人同步：读现有json，只更新这个人的部分
+        _update_json_for_operator(operator_name, operators)
+    else:
         _generate_json(operators)
 
     return rows
+
+
+def _update_json_for_operator(op_name, op_brands):
+    """单人同步时只更新operators.json里这个人的品牌"""
+    base_dir = os.path.dirname(__file__)
+    for subdir in [".", "extension"]:
+        path = os.path.join(base_dir, subdir, "operators.json")
+        if not os.path.isdir(os.path.join(base_dir, subdir)):
+            continue
+        existing = {}
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    existing = json.load(f)
+            except:
+                pass
+        # 重建这个运营的品牌数据
+        brand_dict = {}
+        for (op, brand), shops in op_brands.items():
+            if op == op_name:
+                brand_dict[brand] = shops
+        if brand_dict:
+            by_brand = {}
+            for brand, shops in sorted(brand_dict.items()):
+                by_ish = {}
+                for shop, plat, shop_id, ish_id, ish_name in shops:
+                    if ish_id not in by_ish:
+                        by_ish[ish_id] = {"store": ish_name, "ish_id": ish_id, "platforms": []}
+                    by_ish[ish_id]["platforms"].append({"shop": shop, "id": shop_id, "p": plat})
+                by_brand[brand] = list(by_ish.values())
+            existing[op_name] = by_brand
+        else:
+            existing.pop(op_name, None)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False)
+        print(f"[sync] 已更新 {path} (运营: {op_name})")
 
 
 def _generate_json(operators_dict):
