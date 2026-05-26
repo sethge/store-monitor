@@ -91,6 +91,11 @@ const MUTATION_KEYWORDS = [
 function isMutationApi(m) {
   if (!m) return false;
   const l = m.toLowerCase();
+  // 方法名本身以get/query/list/count/check/fetch/search/find开头的是查询，不是修改
+  const methodName = l.includes('.') ? l.split('.').pop() : l;
+  const QUERY_PREFIXES = ['get', 'query', 'list', 'count', 'check', 'fetch', 'search', 'find', 'load', 'pull', 'poll',
+    'batchquery', 'batchget', 'batchfetch', 'batchcheck', 'batchlist', 'batchcount', 'batchfind', 'batchsearch', 'batchload'];
+  if (QUERY_PREFIXES.some(p => methodName.startsWith(p))) return false;
   return MUTATION_KEYWORDS.some(kw => l.includes(kw));
 }
 
@@ -362,8 +367,17 @@ async function pushLogs() {
 
     if (res.ok) {
       const result = await res.json();
-      console.log("[OpsLogger] pushed", result.saved, "logs");
-      unpushed.forEach(l => l.pushed = true);
+      console.log("[OpsLogger] pushed", result.saved, "/", unpushed.length, "logs");
+      if (result.saved > 0) {
+        // 服务端实际保存了，标记为已推送
+        unpushed.forEach(l => l.pushed = true);
+      } else {
+        // 服务端全部过滤掉了（查询类API），直接丢弃这些无效日志
+        const pushedIds = new Set(unpushed.map(l => l.timestamp));
+        const cleaned = ops_logs.filter(l => !pushedIds.has(l.timestamp) || l.pushed);
+        ops_logs.length = 0;
+        cleaned.forEach(l => ops_logs.push(l));
+      }
       await chrome.storage.local.set({ ops_logs });
       const remaining = ops_logs.filter(l => !l.pushed).length;
       chrome.action.setBadgeText({ text: remaining > 0 ? String(remaining) : "" });

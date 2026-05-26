@@ -920,10 +920,17 @@ def receive_logs():
 
         action_type, action_detail = parse_action(api_method, body, conn)
 
-        # 跳过查询型POST（get/query/list/count/check开头的方法名不是运营操作）
+        # 跳过非运营操作：
+        # 1. 查询型POST（get/query/list等开头）
+        # 2. action_type是纯英文驼峰（说明parse_action没识别出来，不是正常操作）
         if action_type:
             at_lower = action_type.lower()
-            if any(at_lower.startswith(p) for p in ('get', 'query', 'list', 'count', 'check', 'fetch', 'search', 'find')):
+            if any(at_lower.startswith(p) for p in ('get', 'query', 'list', 'count', 'check', 'fetch', 'search', 'find',
+                    'batchquery', 'batchget', 'batchfetch', 'batchcheck', 'batchlist', 'batchcount', 'batchfind', 'batchsearch', 'batchload')):
+                continue
+            # 纯英文action_type = parse_action没识别，说明不是正常运营操作
+            import re
+            if re.fullmatch(r'[a-zA-Z0-9_.]+', action_type):
                 continue
 
         # Build one-line human-readable change summary

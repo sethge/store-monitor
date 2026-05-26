@@ -87,9 +87,9 @@
     ".woff",
     ".ttf"
   ],
-  "operator": "王丽丽",
+  "operator": "吴蔡倩",
   "patrol_enabled": true,
   "alert_enabled": true,
   "patrol_time": "10:00",
-  "alert_interval": 10
+  "alert_interval": 5
 }
