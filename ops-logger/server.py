@@ -2331,27 +2331,36 @@ def _check_patrol_alive():
             return False
         pid = _patrol_state.get("pid")
         started = _patrol_state.get("started_at")
-    # 检查进程是否存在
-    if pid:
-        try:
-            os.kill(pid, 0)
-        except (OSError, ProcessLookupError):
-            # 进程已死但状态没更新
+    # pid为空但state=running：进程还没启动就挂了，或pid没赋上
+    # 给30秒宽限期等pid赋值，超过30秒还没pid就判定为死
+    if not pid:
+        if started and (_t.time() - started) > 30:
             with _patrol_lock:
                 _patrol_state["state"] = "error"
-                _patrol_state["message"] = "巡检进程异常退出"
+                _patrol_state["message"] = "巡检进程未启动（无pid）"
                 _patrol_state["pid"] = None
                 _patrol_state["started_at"] = None
-            _cleanup_headless()
-            print("[patrol] 进程已死，自动清理")
+            print("[patrol] state=running但pid为空超30秒，自动清理")
             return False
+        return True  # 还在宽限期，等一等
+    # 检查进程是否存在
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        with _patrol_lock:
+            _patrol_state["state"] = "error"
+            _patrol_state["message"] = "巡检进程异常退出"
+            _patrol_state["pid"] = None
+            _patrol_state["started_at"] = None
+        _cleanup_headless()
+        print("[patrol] 进程已死，自动清理")
+        return False
     # 检查是否超时
     if started and (_t.time() - started) > _PATROL_MAX_SEC:
-        if pid:
-            try:
-                os.kill(pid, 9)
-            except Exception:
-                pass
+        try:
+            os.kill(pid, 9)
+        except Exception:
+            pass
         _cleanup_headless()
         with _patrol_lock:
             _patrol_state["state"] = "error"
