@@ -113,4 +113,16 @@ bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type':
     /opt/homebrew/bin/python3 "$DIR/server.py" &
     sleep 2
   fi
+
+  # 检查 Chrome debug 端口
+  if ! curl --noproxy localhost -s --max-time 2 http://localhost:9222/json/version > /dev/null 2>&1; then
+    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if [ -f "$CHROME" ] && ! pgrep -f "remote-debugging-port=9222" > /dev/null 2>&1; then
+      echo "$(date) [keep-alive] Chrome debug port down, restarting..." >> "$LOG"
+      pkill -f "Google Chrome" 2>/dev/null
+      sleep 2
+      "$CHROME" --remote-debugging-port=9222 --no-first-run --no-default-browser-check --proxy-server="direct://" > /dev/null 2>&1 &
+      sleep 3
+    fi
+  fi
 done

@@ -251,5 +251,39 @@ cat > "$HEARTBEAT_CRON" << 'CRONEOF'
 CRONEOF
 echo "  ✓ heartbeat定时任务（已自动开启，每天17:30总结当天经验）"
 
+# ─── 10. 启动 debug Chrome（供小q助手扩展使用）───
+echo "启动 Chrome（调试模式）..."
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+DEBUG_PORT=9222
+
+if curl --noproxy localhost -s http://localhost:$DEBUG_PORT/json/version > /dev/null 2>&1; then
+    echo "  ✓ Chrome 调试端口已就绪"
+else
+    # Chrome 在跑但没 debug 端口 → 需要重启
+    if pgrep -f "Google Chrome" > /dev/null 2>&1; then
+        echo "  Chrome 需要重启以启用调试端口..."
+        pkill -f "Google Chrome" 2>/dev/null
+        sleep 2
+    fi
+
+    if [ -f "$CHROME" ]; then
+        FRONT_APP=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
+        "$CHROME" \
+            --remote-debugging-port=$DEBUG_PORT \
+            --no-first-run \
+            --no-default-browser-check \
+            --proxy-server="direct://" \
+            > /dev/null 2>&1 &
+        sleep 3
+        [ -n "$FRONT_APP" ] && osascript -e "tell application \"$FRONT_APP\" to activate" 2>/dev/null
+        echo "  ✓ Chrome 已启动（调试模式）"
+    else
+        echo "  ⚠️ 找不到 Chrome，请手动安装 Google Chrome"
+    fi
+fi
+
 echo ""
-echo "✅ 安装完成！在对话框跟我说「装好了」，我来引导你设置。"
+echo "✅ 安装完成！"
+echo ""
+echo "👉 下一步：安装「小q助手」Chrome扩展"
+echo "   在对话框跟我说「装好了」，我发给你扩展安装包。"
