@@ -395,15 +395,20 @@ setInterval(pushLogs, 60000);
 // ========== Install / Update: 清理旧状态 ==========
 
 chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install' || details.reason === 'update') {
-    // 清掉临时状态，保留 ops_operator / ops_shop_cache
+  if (details.reason === 'install') {
+    // 首次安装：全部清空，让运营重新输入身份
+    chrome.storage.local.clear();
+    chrome.action.setBadgeText({ text: '' });
+    console.log('[OpsLogger] install -> cleared all state');
+  } else if (details.reason === 'update') {
+    // 更新：只清临时状态，保留 ops_operator / ops_shop_cache
     chrome.storage.local.remove([
-      'ops_logs',           // 未推送日志（重装后server已有）
-      'ops_update_available', // 版本提示
-      'dismissed_alerts',   // 已dismiss的预警
+      'ops_logs',
+      'ops_update_available',
+      'dismissed_alerts',
     ]);
     chrome.action.setBadgeText({ text: '' });
-    console.log('[OpsLogger]', details.reason, '-> cleared stale state');
+    console.log('[OpsLogger] update -> cleared stale state');
   }
 });
 
