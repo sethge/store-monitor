@@ -202,6 +202,51 @@ const interceptorCode = `
     });
   };
 
+  // ========== 页面加载后主动读店铺名（饿了么/美团） ==========
+  function probeShopName() {
+    var shopId = getShopIdFromUrl();
+    // 饿了么：从页面DOM读店铺名（header里的店铺选择器/标题）
+    var selectors = [
+      '.shop-name',                    // 常见class
+      '.restaurant-name',
+      '[class*="shopName"]',
+      '[class*="shop-name"]',
+      '.header-shop-name',
+      '.sidebar-shop-name',
+      'title'                          // 最后从document.title读
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      try {
+        var el = document.querySelector(selectors[i]);
+        if (!el) continue;
+        var text = selectors[i] === 'title' ? document.title : (el.textContent || el.innerText || '');
+        text = text.replace(/\\s*[-–—|·]\\s*(饿了么|美团|商家).*$/i, '').trim();
+        var BAD = ['淘宝闪购商家版','饿了么商家版','美团外卖商家版','商家版','饿了么','美团','melody',''];
+        if (text.length > 1 && text.length < 60 && BAD.indexOf(text) === -1) {
+          var sid = shopId || '';
+          // 美团从cookie读wmPoiId
+          if (!sid && location.hostname.indexOf('meituan') !== -1) {
+            var m = document.cookie.match(/wmPoiId=(\\d+)/);
+            if (m) sid = m[1];
+          }
+          // 饿了么从cookie或metas
+          if (!sid && location.hostname.indexOf('ele.me') !== -1) {
+            var m2 = document.cookie.match(/shopId=(\\d+)/);
+            if (m2) sid = m2[1];
+          }
+          if (sid) {
+            window.postMessage({type:'OPS_SHOP_CACHE_DATA', shops:[{shopId:String(sid), shopName:text}]}, '*');
+            console.log('[OpsLogger] probed shop:', sid, text);
+          }
+          return;
+        }
+      } catch(e) {}
+    }
+  }
+  // 延迟执行，等SPA渲染完
+  setTimeout(probeShopName, 2000);
+  setTimeout(probeShopName, 5000);
+
   console.log('[OpsLogger] API response interceptor active');
 })();
 `;
