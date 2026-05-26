@@ -378,6 +378,21 @@ async function pushLogs() {
 // Fallback periodic push (catches any missed)
 setInterval(pushLogs, 60000);
 
+// ========== Install / Update: 清理旧状态 ==========
+
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install' || details.reason === 'update') {
+    // 清掉临时状态，保留 ops_operator / ops_shop_cache
+    chrome.storage.local.remove([
+      'ops_logs',           // 未推送日志（重装后server已有）
+      'ops_update_available', // 版本提示
+      'dismissed_alerts',   // 已dismiss的预警
+    ]);
+    chrome.action.setBadgeText({ text: '' });
+    console.log('[OpsLogger]', details.reason, '-> cleared stale state');
+  }
+});
+
 // ========== Startup ==========
 
 discoverServer().then(() => {
