@@ -3860,7 +3860,7 @@ def api_chat_save():
 
 
 def _ensure_debug_chrome():
-    """确保Chrome带debug端口在跑。没有就自动重启Chrome"""
+    """确保Chrome带debug端口在跑。没有就清零重来：杀debug Chrome → 拷贝登录态 → 重启"""
     try:
         r = subprocess.run(
             ["curl", "--noproxy", "localhost", "-s", "http://localhost:9222/json/version"],
@@ -3872,22 +3872,72 @@ def _ensure_debug_chrome():
     except Exception:
         pass
 
-    # 没有debug端口 → 需要重启Chrome带debug端口
-    # 注意：必须用同一个profile（共享登录态），所以要杀现有Chrome
-    print("[chrome] Chrome未启动debug端口，正在重启...")
+    # === 清零重来 ===
+    print("[chrome] debug端口不可用，清零重启...")
     chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if not os.path.exists(chrome_path):
         print("[chrome] 找不到Chrome")
         return False
 
-    # kill现有Chrome（必须杀，Chrome不支持后加debug端口）
+    debug_profile = os.path.expanduser("~/chrome-debug")
+    default_profile = os.path.expanduser("~/Library/Application Support/Google/Chrome")
+
+    # 1. 杀掉debug Chrome（只杀debug实例，不影响运营日常Chrome）
     try:
-        subprocess.run(["pkill", "-f", "Google Chrome"], capture_output=True, timeout=5)
+        subprocess.run(["pkill", "-f", "user-data-dir.*chrome-debug"], capture_output=True, timeout=5)
         import time as _t; _t.sleep(2)
     except Exception:
         pass
 
-    # 构建扩展加载路径
+    # 2. 删除旧debug profile（清零）
+    import shutil
+    if os.path.exists(debug_profile):
+        try:
+            shutil.rmtree(debug_profile)
+            print("[chrome] 旧debug profile已清除")
+        except Exception as e:
+            print(f"[chrome] 清除旧profile失败: {e}")
+
+    # 3. 从默认Chrome profile拷贝登录态
+    os.makedirs(os.path.join(debug_profile, "Default"), exist_ok=True)
+    default_dir = os.path.join(default_profile, "Default")
+    if os.path.isdir(default_dir):
+        # 拷贝关键文件：Cookies(登录态) + Login Data + Local Storage(扩展数据)
+        for item in ["Cookies", "Cookies-journal", "Login Data", "Login Data-journal",
+                      "Web Data", "Web Data-journal", "Preferences", "Secure Preferences"]:
+            src = os.path.join(default_dir, item)
+            if os.path.exists(src):
+                try:
+                    shutil.copy2(src, os.path.join(debug_profile, "Default", item))
+                except Exception:
+                    pass
+        # 拷贝Local Storage（含扩展状态）
+        local_storage = os.path.join(default_dir, "Local Storage")
+        if os.path.isdir(local_storage):
+            try:
+                shutil.copytree(local_storage, os.path.join(debug_profile, "Default", "Local Storage"))
+            except Exception:
+                pass
+        # 拷贝Extension State
+        for ext_dir_name in ["Extension State", "Extension Rules", "IndexedDB"]:
+            ext_src = os.path.join(default_dir, ext_dir_name)
+            if os.path.isdir(ext_src):
+                try:
+                    shutil.copytree(ext_src, os.path.join(debug_profile, "Default", ext_dir_name))
+                except Exception:
+                    pass
+        # 拷贝Local State（顶层，非Default下）
+        local_state = os.path.join(default_profile, "Local State")
+        if os.path.exists(local_state):
+            try:
+                shutil.copy2(local_state, os.path.join(debug_profile, "Local State"))
+            except Exception:
+                pass
+        print("[chrome] 登录态已从默认profile拷贝")
+    else:
+        print("[chrome] 未找到默认Chrome profile，debug Chrome需要手动登录")
+
+    # 4. 构建扩展加载路径
     my_dir = os.path.dirname(os.path.abspath(__file__))
     ext_dir = os.path.join(my_dir, "extension")
     goku_dir = os.path.join(os.path.dirname(my_dir), "goku")
@@ -3898,7 +3948,7 @@ def _ensure_debug_chrome():
         load_ext_parts.append(goku_dir)
     load_ext = ",".join(load_ext_parts)
 
-    # 记住当前前台app，启动后切回去
+    # 5. 记住当前前台app，启动后切回去
     front_app = ""
     try:
         r = subprocess.run(["osascript", "-e",
@@ -3908,16 +3958,18 @@ def _ensure_debug_chrome():
     except Exception:
         pass
 
+    # 6. 启动debug Chrome（独立profile，不影响运营日常Chrome）
     cmd = [chrome_path,
            "--remote-debugging-port=9222",
            "--no-first-run",
            "--no-default-browser-check",
-           "--proxy-server=direct://"]
+           "--proxy-server=direct://",
+           f"--user-data-dir={debug_profile}"]
     if load_ext:
         cmd.append(f"--load-extension={load_ext}")
 
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print(f"[chrome] Chrome已启动 (debug:9222, 扩展: {load_ext})")
+    print(f"[chrome] debug Chrome已启动 (profile: {debug_profile}, 扩展: {load_ext})")
 
     import time as _t; _t.sleep(3)
 
@@ -3929,18 +3981,18 @@ def _ensure_debug_chrome():
         except Exception:
             pass
 
-    # 验证是否成功
+    # 7. 验证
     try:
         r = subprocess.run(
             ["curl", "--noproxy", "localhost", "-s", "http://localhost:9222/json/version"],
             capture_output=True, text=True, timeout=3
         )
         if r.returncode == 0 and r.stdout.strip():
-            print("[chrome] Chrome debug端口验证通过")
+            print("[chrome] debug端口验证通过")
             return True
     except Exception:
         pass
-    print("[chrome] Chrome启动后debug端口仍不可用")
+    print("[chrome] 启动后debug端口仍不可用")
     return False
 
 
