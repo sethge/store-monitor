@@ -110,6 +110,18 @@ def init_db():
     # food_snapshot table (created by init_snapshot.py, ensure it exists)
     # Change tracking: auto follow-up at T+3 and T+7
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS operator_stores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operator TEXT,
+            brand TEXT,
+            store TEXT,
+            shop_id TEXT,
+            platform TEXT,
+            ish_id TEXT,
+            updated_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS change_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             log_id INTEGER,
