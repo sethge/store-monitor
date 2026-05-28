@@ -3254,6 +3254,32 @@ def _exec_tool(name, args):
 
 # ========== 日志上报（远程→管理员） ==========
 
+def _backfill_log_names():
+    """回填logs表中空的shop_name和item_name（从food_cache/shop_cache补全）"""
+    try:
+        conn = get_db()
+        # 回填shop_name
+        conn.execute("""
+            UPDATE logs SET shop_name = (
+                SELECT shop_name FROM shop_cache WHERE shop_cache.shop_id = logs.shop_id
+            ) WHERE (shop_name = '' OR shop_name IS NULL)
+              AND shop_id <> ''
+              AND EXISTS (SELECT 1 FROM shop_cache WHERE shop_cache.shop_id = logs.shop_id)
+        """)
+        # 回填item_name（单个item_id，不含逗号的）
+        conn.execute("""
+            UPDATE logs SET item_name = (
+                SELECT name FROM food_cache WHERE food_cache.item_key = logs.item_id
+            ) WHERE (item_name = '' OR item_name IS NULL)
+              AND item_id <> '' AND item_id NOT LIKE '%,%'
+              AND EXISTS (SELECT 1 FROM food_cache WHERE food_cache.item_key = logs.item_id)
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[backfill] 回填失败: {e}")
+
+
 def _report_logs(log_type="error"):
     """将本地日志上报给管理员server（非阻塞）"""
     def _do_report():
@@ -4156,12 +4182,13 @@ def _schedule_patrol():
                     except Exception as _se:
                         print(f"[schedule] operators.json同步失败: {_se}")
 
-                # === 每5分钟上报操作日志（积压补发） ===
+                # === 每5分钟上报操作日志（积压补发）+ 回填空店名/菜名 ===
                 if not hasattr(_scheduler, '_last_ops_report'):
                     _scheduler._last_ops_report = now
                 if (now - _scheduler._last_ops_report).total_seconds() >= 300:
                     _scheduler._last_ops_report = now
                     _report_logs("ops")
+                    _backfill_log_names()
 
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")
