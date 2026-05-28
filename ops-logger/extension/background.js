@@ -191,6 +191,54 @@ async function resolveShopName(entry, tabId, shopId) {
       } catch(e) {}
     }
   }
+  // 3.5 饿了么：从页面DOM主动读店铺名（cookie拿不到时）
+  if (!entry.shopName && tabId > 0 && entry.url && entry.url.includes('ele.me')) {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          // 1) 常见DOM选择器
+          const sels = [
+            '.shop-name', '.shopName', '[class*="shopName"]',
+            '[class*="shop-name"]', '[class*="storeName"]',
+            '[class*="store-name"]', '.header-shop-name'
+          ];
+          for (const sel of sels) {
+            const el = document.querySelector(sel);
+            if (el && el.textContent.trim().length > 1 && el.textContent.trim().length < 40) {
+              return el.textContent.trim();
+            }
+          }
+          // 2) 从title提取：常见格式 "页面名 - 店铺名 - 饿了么商家版"
+          const parts = document.title.split(/\s*[-–—|]\s*/);
+          if (parts.length >= 3) {
+            const mid = parts[parts.length - 2];
+            if (mid && mid.length > 1 && mid.length < 30
+                && !mid.includes('饿了么') && !mid.includes('商家')) {
+              return mid;
+            }
+          }
+          // 3) 从window状态对象找shopName
+          try {
+            const nd = window.__NEXT_DATA__ || window.__INITIAL_STATE__ || window.__APP_DATA__;
+            if (nd) {
+              const s = JSON.stringify(nd);
+              const m = s.match(/"(?:shopName|restaurantName|storeName)"\s*:\s*"([^"]{2,30})"/);
+              if (m) return m[1];
+            }
+          } catch(e) {}
+          return null;
+        }
+      });
+      if (results && results[0] && results[0].result) {
+        entry.shopName = results[0].result;
+        if (shopId) {
+          shopCache[shopId] = results[0].result;
+          chrome.storage.local.set({ ops_shop_cache: shopCache });
+        }
+      }
+    } catch(e) {}
+  }
   // 4. 从tab title兜底（尝试两次，第二次延迟500ms等SPA渲染完）
   if (!entry.shopName && tabId > 0) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -606,7 +654,8 @@ function injectCacheInterceptor(tabId) {
         function walk(o, d) {
           if(!o||typeof o!=='object'||d>8) return;
           if(Array.isArray(o)){o.forEach(function(x){walk(x,d+1);});return;}
-          var sid=o.shopId||o.restaurantId, sn=o.shopName||o.restaurantName;
+          var sid=o.shopId||o.restaurantId||o.storeId||o.poiId;
+          var sn=o.shopName||o.restaurantName||o.storeName||o.poiName||o.shop_name||o.store_name;
           if(sid&&sn&&!seen[sid]){seen[sid]=true;shops.push({shopId:String(sid),shopName:String(sn)});}
           try{Object.values(o).forEach(function(v){if(v&&typeof v==='object')walk(v,d+1);});}catch(e){}
         }
