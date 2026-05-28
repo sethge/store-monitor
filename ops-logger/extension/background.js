@@ -17,11 +17,15 @@ const UPDATE_CHECK_INTERVAL = 86400000; // 24h
 let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
 let shopCache = {};   // shopId -> shopName
 
-// 启动时从storage恢复shopCache（service worker重启不丢）
-chrome.storage.local.get("ops_shop_cache", (data) => {
+// 启动时从storage恢复缓存（service worker重启不丢）
+chrome.storage.local.get(["ops_shop_cache", "ops_food_cache"], (data) => {
   if (data.ops_shop_cache) {
     shopCache = data.ops_shop_cache;
     console.log("[OpsLogger] shopCache restored:", Object.keys(shopCache).length);
+  }
+  if (data.ops_food_cache) {
+    foodCache = data.ops_food_cache;
+    console.log("[OpsLogger] foodCache restored:", Object.keys(foodCache).length);
   }
 });
 
@@ -449,7 +453,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.action.setBadgeText({ text: '' });
     console.log('[OpsLogger] install -> cleared all state');
   } else if (details.reason === 'update') {
-    // 更新：只清临时状态，保留 ops_operator / ops_shop_cache
+    // 更新：只清临时状态，保留 ops_operator / ops_shop_cache / ops_food_cache
     chrome.storage.local.remove([
       'ops_logs',
       'ops_update_available',
@@ -530,8 +534,11 @@ function processFoodCache(foods) {
     }
   }
   console.log("[OpsLogger] food cache:", Object.keys(foodCache).length, "new:", newFoods.length);
-  // Sync to server
-  if (newFoods.length > 0) syncCacheToServer("foods", newFoods);
+  if (newFoods.length > 0) {
+    syncCacheToServer("foods", newFoods);
+    // 持久化foodCache，service worker重启后恢复
+    chrome.storage.local.set({ ops_food_cache: foodCache });
+  }
 }
 
 function processShopCache(shops) {

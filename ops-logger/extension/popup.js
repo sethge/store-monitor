@@ -118,6 +118,8 @@ function initTabs() {
       tab.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      // 切到调整/复盘tab时自动刷新数据
+      if (tab.dataset.tab === 'changes') loadChanges();
       // 切到预警Tab时不自动清红点，由用户点"知道了"逐条清
     });
   });
@@ -1218,10 +1220,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Refresh every 30s
+  // 操作记录5秒刷新一次（实时感），预警30秒刷一次
+  setInterval(function() { loadChanges(); }, 5000);
   setInterval(function() {
     loadDaily();
-    loadChanges();
     checkAgent();
   }, 30000);
 });
