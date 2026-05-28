@@ -266,6 +266,60 @@ async function resolveShopName(entry, tabId, shopId) {
   }
 }
 
+// 缓存拿不到菜名时，从页面DOM读取
+async function resolveItemName(entry, tabId) {
+  if (entry.itemName || !entry.itemId || tabId <= 0) return;
+  try {
+    const itemIds = entry.itemId.split(',').map(s => s.trim()).filter(Boolean);
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (ids) => {
+        // 饿了么/美团菜品管理页，菜名通常在列表项里
+        // 策略1：找所有菜品名元素，匹配选中/高亮的
+        var names = [];
+        // 通用：找所有看起来像菜品名的元素
+        var sels = [
+          '[class*="food-name"]', '[class*="foodName"]', '[class*="item-name"]',
+          '[class*="itemName"]', '[class*="dish-name"]', '[class*="goods-name"]',
+          '.food-name', '.item-name', '.dish-name',
+          'td.name', 'div.name', 'span.name'
+        ];
+        for (var i = 0; i < sels.length; i++) {
+          var els = document.querySelectorAll(sels[i]);
+          if (els.length > 0) {
+            els.forEach(function(el) {
+              var t = el.textContent.trim();
+              if (t && t.length > 1 && t.length < 60) names.push(t);
+            });
+            if (names.length > 0) break;
+          }
+        }
+        // 策略2：找被选中/checked的行里的文字
+        if (names.length === 0) {
+          var checked = document.querySelectorAll('tr.selected, tr.checked, [class*="selected"], [class*="checked"]');
+          checked.forEach(function(row) {
+            var t = row.querySelector('[class*="name"], td:nth-child(2), td:nth-child(3)');
+            if (t && t.textContent.trim().length > 1) names.push(t.textContent.trim());
+          });
+        }
+        return names.length > 0 ? names : null;
+      },
+      args: [itemIds]
+    });
+    if (results && results[0] && results[0].result) {
+      var domNames = results[0].result;
+      // 如果只有一个ID，取第一个DOM名字
+      if (itemIds.length === 1 && domNames.length > 0) {
+        entry.itemName = domNames[0];
+        foodCache[itemIds[0]] = foodCache[itemIds[0]] || {};
+        foodCache[itemIds[0]].name = domNames[0];
+      } else if (domNames.length > 0) {
+        entry.itemName = domNames.slice(0, itemIds.length).join(',');
+      }
+    }
+  } catch(e) {}
+}
+
 function extractItemInfo(body) {
   if (!body || typeof body !== 'object') return { itemId: '', itemName: '', beforeSnapshot: null };
   const params = body.params || {};
@@ -348,8 +402,10 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    // 异步补全shopId+shopName，然后保存
+    // 异步补全shopId+shopName+itemName，然后保存
     resolveShopName(entry, details.tabId, shopId).then(() => {
+      return resolveItemName(entry, details.tabId);
+    }).then(() => {
       chrome.storage.local.get("ops_operator", (data) => {
         entry.operator = data.ops_operator || "";
         saveLog(entry);
