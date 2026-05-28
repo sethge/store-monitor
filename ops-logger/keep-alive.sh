@@ -118,11 +118,20 @@ bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type':
   if ! curl --noproxy localhost -s --max-time 2 http://localhost:9222/json/version > /dev/null 2>&1; then
     CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if [ -f "$CHROME" ] && ! pgrep -f "remote-debugging-port=9222" > /dev/null 2>&1; then
-      echo "$(date) [keep-alive] Chrome debug port down, restarting..." >> "$LOG"
+      echo "$(date) [keep-alive] Chrome debug port down, restarting Chrome..." >> "$LOG"
+      # 必须杀现有Chrome重启（Chrome不支持后加debug端口，且需要共享登录态）
       pkill -f "Google Chrome" 2>/dev/null
       sleep 2
-      "$CHROME" --remote-debugging-port=9222 --no-first-run --no-default-browser-check --proxy-server="direct://" > /dev/null 2>&1 &
+      # 加载扩展
+      EXT_DIR="$DIR/extension"
+      GOKU_DIR="$(dirname "$DIR")/goku"
+      LOAD_EXT=""
+      [ -d "$EXT_DIR" ] && LOAD_EXT="$EXT_DIR"
+      [ -d "$GOKU_DIR" ] && LOAD_EXT="${LOAD_EXT:+$LOAD_EXT,}$GOKU_DIR"
+      "$CHROME" --remote-debugging-port=9222 --no-first-run --no-default-browser-check \
+        --proxy-server="direct://" ${LOAD_EXT:+--load-extension="$LOAD_EXT"} > /dev/null 2>&1 &
       sleep 3
+      echo "$(date) [keep-alive] Chrome restarted with debug port" >> "$LOG"
     fi
   fi
 done

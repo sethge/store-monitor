@@ -3872,14 +3872,15 @@ def _ensure_debug_chrome():
     except Exception:
         pass
 
-    # 没有debug端口 → 自动启动
-    print("[chrome] Chrome未启动debug端口，正在自动启动...")
+    # 没有debug端口 → 需要重启Chrome带debug端口
+    # 注意：必须用同一个profile（共享登录态），所以要杀现有Chrome
+    print("[chrome] Chrome未启动debug端口，正在重启...")
     chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if not os.path.exists(chrome_path):
         print("[chrome] 找不到Chrome")
         return False
 
-    # kill现有Chrome
+    # kill现有Chrome（必须杀，Chrome不支持后加debug端口）
     try:
         subprocess.run(["pkill", "-f", "Google Chrome"], capture_output=True, timeout=5)
         import time as _t; _t.sleep(2)
