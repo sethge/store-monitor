@@ -50,9 +50,26 @@ def init_db():
             action_type TEXT,
             action_detail TEXT,
             before_snapshot TEXT,
-            received_at TEXT DEFAULT (datetime('now','localtime'))
+            received_at TEXT DEFAULT (datetime('now','localtime')),
+            reported INTEGER DEFAULT 0,
+            change_summary TEXT
         )
     """)
+    # 兼容旧表：加reported列（如果不存在）
+    try:
+        conn.execute("SELECT reported FROM logs LIMIT 1")
+    except:
+        try:
+            conn.execute("ALTER TABLE logs ADD COLUMN reported INTEGER DEFAULT 0")
+        except:
+            pass
+    try:
+        conn.execute("SELECT change_summary FROM logs LIMIT 1")
+    except:
+        try:
+            conn.execute("ALTER TABLE logs ADD COLUMN change_summary TEXT")
+        except:
+            pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS food_cache (
             item_key TEXT PRIMARY KEY,
@@ -3270,6 +3287,24 @@ def _report_logs(log_type="error"):
                     "state": _patrol_state.get("state", "idle"),
                     "message": _patrol_state.get("message", ""),
                 }]
+            elif log_type == "ops":
+                # 上报未同步的操作日志（积压补发）
+                conn = get_db()
+                rows = conn.execute("""
+                    SELECT id, operator, timestamp, api_method, platform,
+                           shop_id, shop_name, item_id, item_name,
+                           action_type, action_detail, before_snapshot,
+                           change_summary, received_at
+                    FROM logs WHERE reported = 0
+                    ORDER BY id ASC LIMIT 100
+                """).fetchall()
+                if rows:
+                    entries = [dict(r) for r in rows]
+                    # 标记为已上报
+                    ids = [r["id"] for r in rows]
+                    conn.execute(f"UPDATE logs SET reported=1 WHERE id IN ({','.join('?' * len(ids))})", ids)
+                    conn.commit()
+                conn.close()
 
             if not entries:
                 return
@@ -3359,6 +3394,39 @@ def api_logs_report():
             entry["_type"] = log_type
             entry["_received"] = cn_now().strftime("%Y-%m-%d %H:%M:%S")
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # ops类型的日志同时写入本地DB，方便统一查询
+    if log_type == "ops" and entries:
+        try:
+            conn = get_db()
+            for entry in entries:
+                conn.execute(
+                    """INSERT OR IGNORE INTO logs
+                       (operator, timestamp, api_method, url, platform,
+                        shop_id, shop_name, item_id, item_name,
+                        action_type, action_detail, before_snapshot,
+                        change_summary, received_at, reported)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)""",
+                    (entry.get("operator", operator),
+                     entry.get("timestamp", ""),
+                     entry.get("api_method", ""),
+                     entry.get("url", ""),
+                     entry.get("platform", ""),
+                     entry.get("shop_id", ""),
+                     entry.get("shop_name", ""),
+                     entry.get("item_id", ""),
+                     entry.get("item_name", ""),
+                     entry.get("action_type", ""),
+                     entry.get("action_detail", ""),
+                     entry.get("before_snapshot", ""),
+                     entry.get("change_summary", ""),
+                     entry.get("received_at", cn_now().strftime("%Y-%m-%d %H:%M:%S")))
+                )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[remote-log] 写入DB失败: {e}")
+
     print(f"[remote-log] 收到 {operator}@{hostname} 的 {len(entries)} 条 {log_type} 日志")
     return jsonify({"ok": True, "received": len(entries)})
 
@@ -4022,6 +4090,13 @@ def _schedule_patrol():
                         print("[schedule] operators.json同步完成")
                     except Exception as _se:
                         print(f"[schedule] operators.json同步失败: {_se}")
+
+                # === 每5分钟上报操作日志（积压补发） ===
+                if not hasattr(_scheduler, '_last_ops_report'):
+                    _scheduler._last_ops_report = now
+                if (now - _scheduler._last_ops_report).total_seconds() >= 300:
+                    _scheduler._last_ops_report = now
+                    _report_logs("ops")
 
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")
