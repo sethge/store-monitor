@@ -493,25 +493,57 @@ async function readDomAndSave(entry, tabId, shopId) {
     });
   }
 
-  // 6. 等2秒让API完成，再读after快照
-  await new Promise(function(r) { setTimeout(r, 2000); });
-  var domAfter = await sendDomRead(tabId, 'after');
-  if (domAfter && domAfter.foods && domAfter.foods.length > 0) {
-    entry.afterSnapshot = JSON.stringify({
-      source: 'dom',
-      foods: domAfter.foods.slice(0, 20),
-      readAt: domAfter.readAt || new Date().toISOString()
-    });
-  }
-
-  // 7. 获取operator并保存
+  // 6. 立刻保存日志（不等after，避免延迟）
   chrome.storage.local.get("ops_operator", (data) => {
     entry.operator = data.ops_operator || "";
     saveLog(entry);
   });
+
+  // 7. 异步：等2秒读after快照，更新已保存的日志
+  setTimeout(async function() {
+    try {
+      var domAfter = await sendDomRead(tabId, 'after');
+      if (domAfter && domAfter.foods && domAfter.foods.length > 0) {
+        entry.afterSnapshot = JSON.stringify({
+          source: 'dom',
+          foods: domAfter.foods.slice(0, 20),
+          readAt: new Date().toISOString()
+        });
+        // 更新本地已保存的日志
+        var data = await chrome.storage.local.get("ops_logs");
+        var logs = data.ops_logs || [];
+        // 找到刚保存的那条（最后一条匹配timestamp的）
+        for (var i = logs.length - 1; i >= 0; i--) {
+          if (logs[i].timestamp === entry.timestamp && logs[i].apiMethod === entry.apiMethod) {
+            logs[i].afterSnapshot = entry.afterSnapshot;
+            await chrome.storage.local.set({ ops_logs: logs });
+            break;
+          }
+        }
+      }
+    } catch(e) {
+      console.log("[OpsLogger] after snapshot failed:", e);
+    }
+  }, 2000);
 }
 
 // ========== Request capture ==========
+
+// 去重：相同apiMethod+itemId在3秒内不重复记录
+let _recentOps = {};
+function isDuplicate(apiMethod, itemId) {
+  var key = apiMethod + '|' + (itemId || '');
+  var now = Date.now();
+  if (_recentOps[key] && now - _recentOps[key] < 3000) return true;
+  _recentOps[key] = now;
+  // 清理过期key（避免内存泄漏）
+  if (Object.keys(_recentOps).length > 100) {
+    for (var k in _recentOps) {
+      if (now - _recentOps[k] > 10000) delete _recentOps[k];
+    }
+  }
+  return false;
+}
 
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
@@ -525,6 +557,12 @@ chrome.webRequest.onBeforeRequest.addListener(
 
     let shopId = extractShopId(body);
     const { itemId, itemName, beforeSnapshot } = extractItemInfo(body);
+
+    // 去重：同一个操作3秒内不重复记
+    if (isDuplicate(apiMethod, itemId)) {
+      console.log("[OpsLogger] skip duplicate:", apiMethod, itemId);
+      return;
+    }
 
     const entry = {
       timestamp: new Date().toISOString(),
@@ -541,7 +579,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    // v2: 先通过content script读DOM拿before快照，等API完成后读after
+    // v2: 先通过content script读DOM拿before快照，立刻保存，after异步更新
     readDomAndSave(entry, details.tabId, shopId);
     debouncedPush();
     console.log("[OpsLogger]", apiMethod, shopId, itemName || itemId);
