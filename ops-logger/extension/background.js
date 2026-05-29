@@ -69,15 +69,31 @@ async function fetchConfig() {
 }
 
 // ========== Auto-update (notify only, no auto-reload) ==========
+function isNewerVersion(remote, local) {
+  // 语义化版本比较：remote > local 才返回true
+  var rParts = (remote || '0').split('.').map(Number);
+  var lParts = (local || '0').split('.').map(Number);
+  for (var i = 0; i < Math.max(rParts.length, lParts.length); i++) {
+    var r = rParts[i] || 0;
+    var l = lParts[i] || 0;
+    if (r > l) return true;
+    if (r < l) return false;
+  }
+  return false;
+}
+
 async function checkForUpdate() {
   if (!SERVER_URL) return;
   try {
     const res = await fetch(SERVER_URL + "/api/extension/version?t=" + Date.now());
     if (!res.ok) return;
     const data = await res.json();
-    if (data.version && data.version !== VERSION) {
+    if (data.version && isNewerVersion(data.version, VERSION)) {
       console.log("[OpsLogger] New version available:", VERSION, "->", data.version);
       chrome.storage.local.set({ ops_update_available: data.version });
+    } else {
+      // 当前版本>=server版本，清除更新提示
+      chrome.storage.local.remove("ops_update_available");
     }
   } catch (e) {}
 }

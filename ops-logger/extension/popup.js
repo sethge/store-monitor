@@ -853,7 +853,16 @@ async function checkVersion() {
   if (verLabel) verLabel.textContent = 'v' + currentVer;
 
   var data = await api('/api/extension/version');
-  if (data && data.version && data.version !== currentVer) {
+  // 语义化版本比较：只有server版本 > 当前版本才提示更新
+  function _isNewer(remote, local) {
+    var rp = (remote||'0').split('.').map(Number), lp = (local||'0').split('.').map(Number);
+    for (var i = 0; i < Math.max(rp.length, lp.length); i++) {
+      if ((rp[i]||0) > (lp[i]||0)) return true;
+      if ((rp[i]||0) < (lp[i]||0)) return false;
+    }
+    return false;
+  }
+  if (data && data.version && _isNewer(data.version, currentVer)) {
     var btn = document.getElementById('upgradeBtn');
     if (btn) {
       btn.style.display = 'inline-block';
