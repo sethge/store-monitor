@@ -101,6 +101,7 @@ def init_db():
             "body_full": "ALTER TABLE logs ADD COLUMN body_full TEXT",
             "shop_name": "ALTER TABLE logs ADD COLUMN shop_name TEXT",
             "change_summary": "ALTER TABLE logs ADD COLUMN change_summary TEXT",
+            "after_snapshot": "ALTER TABLE logs ADD COLUMN after_snapshot TEXT",
         }
         for col, sql in migrations.items():
             if col not in cols:
@@ -1011,13 +1012,15 @@ def receive_logs():
                      json.dumps(cache_data, ensure_ascii=False), cn_now().isoformat())
                 )
 
+        after_snapshot = log.get("afterSnapshot", "")
+
         conn.execute(
             """INSERT INTO logs (operator, timestamp, api_method, url, body_full, platform,
-                shop_id, shop_name, tab_id, item_id, item_name, action_type, action_detail, before_snapshot, change_summary)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                shop_id, shop_name, tab_id, item_id, item_name, action_type, action_detail, before_snapshot, after_snapshot, change_summary)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (operator, log.get("timestamp", ""), api_method, url[:500], body_str,
              platform, shop_id, shop_name, log.get("tab_id", 0), item_id, item_name,
-             action_type, action_detail, before_snapshot, change_summary)
+             action_type, action_detail, before_snapshot, after_snapshot, change_summary)
         )
         log_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 

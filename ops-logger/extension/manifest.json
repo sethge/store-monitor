@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "4.9.7",
+  "version": "5.0.0",
   "description": "运营助手 — 巡店预警/调整复盘/交流",
   "permissions": [
     "storage",
@@ -24,6 +24,19 @@
     "default_popup": "popup.html",
     "default_title": "小q助手"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.waimai.meituan.com/*",
+        "*://*.meituan.com/*",
+        "*://*.ele.me/*",
+        "*://*.eleme.cn/*"
+      ],
+      "js": ["content-ops-reader.js", "content-inject.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": ["operators.json"],

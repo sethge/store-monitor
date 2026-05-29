@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "4.1.0";
+const VERSION = "5.0.0";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -372,6 +372,145 @@ function extractItemInfo(body) {
   return { itemId: '', itemName: '', beforeSnapshot: null };
 }
 
+// ========== v2: DOM读取 + 日志合并 ==========
+
+async function sendDomRead(tabId, action) {
+  // 向content script发消息读DOM，支持主frame和所有子frame
+  if (!tabId || tabId <= 0) return null;
+  try {
+    // 先尝试直接发消息给tab（content script在all_frames里都有注入）
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: 'OPS_READ_DOM', action: action
+    });
+    if (response && (response.shopName || (response.foods && response.foods.length > 0))) {
+      return response;
+    }
+  } catch(e) {
+    // content script可能没加载（页面刚打开），用scripting.executeScript兜底
+  }
+
+  // 兜底：用chrome.scripting.executeScript注入一次性读取
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      func: () => {
+        // 简化版DOM读取（和content-ops-reader.js逻辑一致）
+        var platform = location.hostname.indexOf('meituan') !== -1 ? 'meituan' :
+                       location.hostname.indexOf('ele.me') !== -1 ? 'eleme' : 'unknown';
+        var shopName = null;
+        if (platform === 'meituan') {
+          var el = document.querySelector('[class*=current-poi] [class*=txt_]') ||
+                   document.querySelector('[class*=txt_]');
+          if (el) { var t = el.textContent.trim(); if (t.length > 1 && t.length < 60) shopName = t; }
+        } else if (platform === 'eleme') {
+          var el2 = document.querySelector('[class*=shopSwitcher]');
+          if (el2) { var t2 = el2.textContent.trim(); if (t2.length > 1 && t2.length < 60) shopName = t2; }
+        }
+
+        var foods = [];
+        if (platform === 'meituan') {
+          document.querySelectorAll('[class*=product-card]').forEach(function(card) {
+            var inp = card.querySelector('[class*=title] input');
+            var h3 = card.querySelector('h3[class*=title]');
+            var price = card.querySelector('[class*=price-val]');
+            var name = inp ? inp.value : (h3 ? (h3.getAttribute('title') || h3.textContent.trim()) : '');
+            if (name) foods.push({ name: name, price: price ? price.textContent.trim().replace(/[^\d.]/g,'') : '' });
+          });
+        } else if (platform === 'eleme') {
+          document.querySelectorAll('[class*=tableRowWithBorderContainer]').forEach(function(row) {
+            var nameEl = row.querySelector('[class*=goodsComNameDisplay] span');
+            var priceEl = row.querySelector('[class*=price]');
+            if (nameEl) foods.push({
+              name: nameEl.textContent.trim(),
+              price: priceEl ? priceEl.textContent.trim().replace(/[^\d.]/g,'') : ''
+            });
+          });
+        }
+
+        if (!shopName && foods.length === 0) return null;
+        return { platform: platform, shopName: shopName, foods: foods, url: location.href };
+      }
+    });
+    // 合并所有frame的结果（取第一个有数据的）
+    for (const r of results) {
+      if (r.result && (r.result.shopName || (r.result.foods && r.result.foods.length > 0))) {
+        return r.result;
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
+async function readDomAndSave(entry, tabId, shopId) {
+  // 1. 读before快照（操作发生时的DOM状态）
+  var domBefore = await sendDomRead(tabId, 'before');
+
+  // 2. 从DOM补全店名
+  if (domBefore && domBefore.shopName && !entry.shopName) {
+    entry.shopName = domBefore.shopName;
+    if (shopId) {
+      shopCache[shopId] = domBefore.shopName;
+      chrome.storage.local.set({ ops_shop_cache: shopCache });
+    }
+  }
+
+  // 3. 从DOM补全菜名（如果body里没有）
+  if (domBefore && domBefore.foods && domBefore.foods.length > 0 && !entry.itemName) {
+    // 尝试通过itemId匹配DOM里的菜品名
+    var domFoodNames = domBefore.foods.map(function(f) { return f.name; }).filter(Boolean);
+    if (domFoodNames.length > 0) {
+      // 如果只有一个菜品操作且DOM有数据，取第一个匹配的
+      var ids = (entry.itemId || '').split(',').filter(Boolean);
+      if (ids.length === 1 && domFoodNames.length > 0) {
+        // 先查缓存名匹配
+        var cached = foodCache[ids[0]];
+        if (cached && cached.name) {
+          var match = domFoodNames.find(function(n) { return n === cached.name; });
+          if (match) entry.itemName = match;
+        }
+        // 缓存没匹配到，但DOM只有少量菜品（可能是当前操作的），就不强制赋值避免误匹配
+      } else if (ids.length > 1) {
+        // 多菜品操作，取DOM里所有名字
+        entry.itemName = domFoodNames.slice(0, ids.length).join(',');
+      }
+    }
+  }
+
+  // 4. DOM没读到的，降级到原有逻辑（缓存+cookie+tab title）
+  if (!entry.shopName) {
+    await resolveShopName(entry, tabId, shopId);
+  }
+  if (!entry.itemName) {
+    await resolveItemName(entry, tabId);
+  }
+
+  // 5. 保存before快照
+  if (domBefore && domBefore.foods && domBefore.foods.length > 0) {
+    entry.beforeSnapshot = JSON.stringify({
+      source: 'dom',
+      foods: domBefore.foods.slice(0, 20),
+      readAt: domBefore.readAt || new Date().toISOString()
+    });
+  }
+
+  // 6. 等2秒让API完成，再读after快照
+  await new Promise(function(r) { setTimeout(r, 2000); });
+  var domAfter = await sendDomRead(tabId, 'after');
+  if (domAfter && domAfter.foods && domAfter.foods.length > 0) {
+    entry.afterSnapshot = JSON.stringify({
+      source: 'dom',
+      foods: domAfter.foods.slice(0, 20),
+      readAt: domAfter.readAt || new Date().toISOString()
+    });
+  }
+
+  // 7. 获取operator并保存
+  chrome.storage.local.get("ops_operator", (data) => {
+    entry.operator = data.ops_operator || "";
+    saveLog(entry);
+  });
+}
+
 // ========== Request capture ==========
 
 chrome.webRequest.onBeforeRequest.addListener(
@@ -402,17 +541,10 @@ chrome.webRequest.onBeforeRequest.addListener(
       pushed: false
     };
 
-    // 异步补全shopId+shopName+itemName，然后保存
-    resolveShopName(entry, details.tabId, shopId).then(() => {
-      return resolveItemName(entry, details.tabId);
-    }).then(() => {
-      chrome.storage.local.get("ops_operator", (data) => {
-        entry.operator = data.ops_operator || "";
-        saveLog(entry);
-      });
-    });
+    // v2: 先通过content script读DOM拿before快照，等API完成后读after
+    readDomAndSave(entry, details.tabId, shopId);
     debouncedPush();
-    console.log("[OpsLogger]", apiMethod, shopName || shopId, itemName || itemId);
+    console.log("[OpsLogger]", apiMethod, shopId, itemName || itemId);
   },
   {
     urls: [
