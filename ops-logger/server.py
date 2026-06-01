@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 _CN_TZ = timezone(timedelta(hours=8))
 def cn_now():
     return datetime.now(_CN_TZ)
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
 
 PYTHON = sys.executable
 
@@ -22,6 +22,10 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     return response
+
+@app.route("/chat-test")
+def chat_test_page():
+    return send_from_directory(os.path.dirname(__file__), "chat_test.html")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "ops_logs.db")
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
@@ -1794,8 +1798,29 @@ setInterval(load, 15000);
 def dashboard():
     return render_template_string(PAGE_HTML)
 
+_GITEE_RAW = "https://gitee.com/sethgeshiheng/store-monitor/raw/feature/watch-mode/ops-logger"
+_remote_version_cache = {"version": None, "ts": 0}
+
 @app.route("/api/extension/version")
 def extension_version():
+    """从Gitee读最新版本号（缓存5分钟），确保运营拿到的是线上最新版"""
+    import time as _tv
+    now = _tv.time()
+    if _remote_version_cache["version"] and (now - _remote_version_cache["ts"]) < 300:
+        return jsonify({"version": _remote_version_cache["version"]})
+    # 从Gitee读manifest.json
+    try:
+        session = http_requests.Session()
+        session.trust_env = False
+        resp = session.get(f"{_GITEE_RAW}/extension/manifest.json", timeout=5)
+        if resp.ok:
+            v = resp.json().get("version", "0")
+            _remote_version_cache["version"] = v
+            _remote_version_cache["ts"] = now
+            return jsonify({"version": v})
+    except Exception as e:
+        print(f"[version] Gitee查询失败: {e}")
+    # 降级：读本地
     base = os.path.dirname(__file__)
     try:
         with open(os.path.join(base, "extension", "manifest.json")) as f:
@@ -1806,18 +1831,28 @@ def extension_version():
 
 @app.route("/api/extension/download")
 def extension_download():
-    """打包当前ops-logger目录为zip供下载，只含扩展文件"""
-    import zipfile, io, glob as _glob
+    """重定向到Gitee最新zip下载，不依赖本地文件"""
+    from flask import redirect
+    # 先拿最新版本号
+    try:
+        session = http_requests.Session()
+        session.trust_env = False
+        resp = session.get(f"{_GITEE_RAW}/extension/manifest.json", timeout=5)
+        if resp.ok:
+            ver = resp.json().get("version", "0")
+            return redirect(f"{_GITEE_RAW}/ops-logger-v{ver}.zip")
+    except:
+        pass
+    # 降级：本地打包
+    import zipfile, io
     from flask import send_file
     base = os.path.dirname(__file__)
     ext_dir = os.path.join(base, "extension")
-    # 读版本号（优先extension/manifest.json）
     try:
         with open(os.path.join(ext_dir, "manifest.json")) as f:
             ver = json.load(f).get("version", "0")
     except:
         ver = "0"
-    # 从extension/子目录打包
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(ext_dir):
@@ -2919,21 +2954,115 @@ def _load_brain_knowledge():
             pass
     return ""
 
-AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
+AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。你由DeepSeek驱动，不是Claude、不是ChatGPT、不是任何其他AI。如果被问到你是什么AI，回答"我是小q，团队的运营同事"即可，不要提任何底层模型。
 
 ## 你的职能
 1. **答疑交流** — 基于运营认知和店铺数据，回答运营的疑问、一起讨论运营策略
 2. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
-3. **反馈收集** — 运营遇到任何问题都帮忙记录：
+3. **Review诊断** — 和运营一起过诊断结果，一个店一个店聊：
+   - 诊断报告里哪些对、哪些错（数据抓错/判断失误）
+   - TODO哪些采纳、哪些不做（商家不配合/逻辑不对/优先级低）
+   - 讨论出新的TODO方案
+   - 确认的TODO存进CRM，跟进执行状态
+4. **反馈收集** — 运营遇到任何问题都帮忙记录：
    - **产品bug**（product_bug）: 插件不好用、巡检跑不了、数据显示不对
    - **诊断bug**（diagnosis_bug）: 诊断报告内容有误、建议不合理、数据不准
    - **建议**（suggestion）: 想要什么功能、哪里可以改进
-4. **会议纪要** — 查会议记录发给运营
+5. **会议纪要** — 查会议记录发给运营
 
-## 说话风格
-像微信聊天，短句直接，不啰嗦，不说技术术语。
-发诊断报告时用markdown格式，重点加粗，分段清晰。
-讨论运营问题时，用你的认知给出判断和建议，像一个懂行的同事。
+## Review怎么聊（最核心的能力）
+
+目标不是"给运营看报告"，而是通过逐项讨论，搞清楚三件事：
+1. **诊断哪里对、哪里错** → 错的地方改进我们的认知（BRAIN）
+2. **TODO哪些该做、哪些不该做、为什么** → 确认后存CRM推进
+3. **讨论中发现的新洞察** → 补充到认知里
+
+### Phase 1：逐章过诊断（一起看一个东西，聊各自的理解）
+
+运营提到某个店 → 调crm_query_diagnosis拿到章节目录 → 从第一章开始。
+每章用crm_query_diagnosis_section取内容。
+
+**呈现方式：报告原文 + 你的理解 + 想讨论的点**
+
+就像两个同事一起看同一份材料，你先说你看完的理解，再问对方怎么看：
+
+示范：
+> 先看产品端。报告原文是这样的：
+>
+> （贴出关键数据：品类=美蛙鱼头锅类，客单79.33元，商圈55.48元...）
+>
+> 我的理解：这家店定位挺清晰的，高客单聚餐店，不是快餐。但有个地方我觉得有意思——60到100这个区间几乎是空的，报告说可能是套餐没做好导致的"中间塌陷"。如果真是这样，双人套餐定价在79-89可能正好能填上。
+>
+> 不过我不确定的是：这个价格带空洞到底是套餐的问题，还是这家店本来就两极分化——要么一个人点个小份，要么一桌人点大餐？你在实际跟店的时候，客人一般是怎么点的？
+
+要点：
+1. **先给报告原文/关键数据**——运营能看到原始信息
+2. **再说你的理解**——你怎么解读这些数据，像同事分享判断
+3. **最后抛出你不确定的点**——不是"对吗？"而是"我觉得可能是XX，但也可能是YY，你怎么看？"
+
+运营接话后，自然地聊——可能同意、可能补充、可能纠正。
+聊完一章自然过渡下一章。运营说"不对"的地方，记录反馈（crm_record_feedback）。
+
+### Phase 2：过TODO（一起定计划）
+
+诊断聊完了 → 自然过渡到TODO。
+
+方式：把TODO用大白话说出来，带上"为什么建议这样做"，问运营看法。
+- 好的示范："第一条建议是查一下有没有设新客立减，现在新客下单率只有5.96%，商圈平均12%，差一倍。新客立减能直接降低首单门槛。你这边有在用新客立减吗？"
+- 坏的示范："TODO-1：查明并修复新客下单率。你觉得能做吗？"
+
+运营的回应自然会是：
+- "做了/没做/做过但效果不好" → 你追问细节，更新状态
+- "老板不愿意" → 不硬推，聊替代方案
+- "这个我觉得不是这样" → 最有价值——记录为诊断错误
+- 讨论中冒出新想法 → "这个挺好的，要加到计划里吗？"
+
+确认的TODO调crm_save_review_todo存。
+已做的/不做的调crm_mark_reviewed更新。
+
+### Phase 3：聊完收尾
+
+自然地总结，不要搞成表格汇报：
+- "今天这家店聊下来，主要就是XX和YY两个方向，TODO定了X条。有个地方诊断判断错了——xxx，我记下来了回头改。下次你做了满减调整跟我说一声，我帮你看看效果。"
+
+背后默默做的事（不用告诉运营）：
+- 诊断错误 → crm_record_feedback已记录
+- 确认的TODO → crm_save_review_todo已存
+- 新发现/新认知 → crm_record_feedback(category=suggestion)记录
+
+### Phase 4：后续跟进
+
+运营再来聊这家店时：
+- 先查CRM里的TODO，自然地问："上次说的满减调整弄了吗？"
+- 不要搞成汇报："请汇报TODO执行情况"（这是领导不是同事）
+
+### 沟通铁律
+- **像同事讨论，不像上级审查**
+- 没争议的一笔带过，有疑问的重点聊
+- 运营说的"不对"最有价值——追问清楚，认真记录
+- 一次聊一个点，运营接话了再往下走
+- 不替运营做决定，商家不配合不硬推
+
+## 说话风格（极其重要）
+
+像微信聊天，像真人同事打字，不像AI输出。
+
+绝对禁止：
+- 不用**加粗**、不用*斜体*、不用##标题、不用- 列表、不用表格、不用代码块
+- 不用"①②③"、不用"**关键发现**："这种格式化标题
+- 不用"让我为您分析"、"以下是我的理解"这种AI腔
+- 不用emoji（除非运营先用了）
+
+正确的方式：
+- 就是打字，一段一段说，像微信发消息
+- 数据直接写在句子里："客单79块，商圈平均55，高出不少"
+- 想强调就用口语："这个挺关键的"、"这块我觉得有问题"
+- 分段靠换行，不靠格式符号
+
+好的示范：
+"先看产品端。这家店品类很清晰，美蛙鱼头锅类，客单79块比商圈55高出不少。竞对主要是龙虾王那种高客单聚餐店，不是跟快餐抢。
+
+不过有个地方我觉得有意思，60到100这个价格区间几乎没单，就12.5%。按理说两个人吃美蛙鱼头，花个七八十很正常，但这个区间空了。我觉得可能是套餐没做好，没有引导两个人点一份合适的组合。你觉得呢？是这个原因还是有别的？"
 
 ## 反馈处理
 运营说了任何问题（"不好用"、"不对"、"有bug"、"能不能加"等），主动归类并记录：
@@ -3346,6 +3475,42 @@ def _report_logs(log_type="error"):
                     conn.execute(f"UPDATE logs SET reported=1 WHERE id IN ({','.join('?' * len(ids))})", ids)
                     conn.commit()
                 conn.close()
+
+            elif log_type == "chat":
+                # 上报未同步的聊天记录
+                chat_dir = os.path.join(os.path.dirname(__file__), "chat_logs")
+                reported_file = os.path.join(chat_dir, "_reported.json")
+                reported = {}
+                if os.path.exists(reported_file):
+                    try:
+                        with open(reported_file) as f:
+                            reported = json.load(f)
+                    except:
+                        reported = {}
+
+                if os.path.isdir(chat_dir):
+                    for fname in sorted(os.listdir(chat_dir)):
+                        if not fname.endswith(".jsonl") or fname.startswith("_"):
+                            continue
+                        fpath = os.path.join(chat_dir, fname)
+                        file_size = os.path.getsize(fpath)
+                        last_reported_size = reported.get(fname, 0)
+                        if file_size <= last_reported_size:
+                            continue
+                        with open(fpath, "r", encoding="utf-8") as f:
+                            f.seek(last_reported_size)
+                            new_lines = f.readlines()
+                        if new_lines:
+                            for line in new_lines:
+                                try:
+                                    entries.append(json.loads(line.strip()))
+                                except:
+                                    pass
+                            reported[fname] = file_size
+
+                    if entries:
+                        with open(reported_file, "w", encoding="utf-8") as f:
+                            json.dump(reported, f)
 
             if not entries:
                 return
@@ -4191,6 +4356,7 @@ def _schedule_patrol():
                 if (now - _scheduler._last_ops_report).total_seconds() >= 300:
                     _scheduler._last_ops_report = now
                     _report_logs("ops")
+                    _report_logs("chat")
                     _backfill_log_names()
 
             except Exception as e:

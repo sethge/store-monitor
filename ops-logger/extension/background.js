@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.0.0";
+const VERSION = "5.1.0";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
