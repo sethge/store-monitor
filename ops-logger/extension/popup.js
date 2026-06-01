@@ -149,9 +149,9 @@ function buildInfoModule(data, settings, agentStatus) {
     var parts1 = [];
     var patrolTs = (agentStatus && agentStatus.last_patrol) || (data && data.ts) || '';
     var alertTs = (agentStatus && agentStatus.last_alert) || '';
-    if (patrolTs) parts1.push('\u4E0A\u6B21\u5DE1\u5E97 ' + esc(patrolTs));
-    if (alertTs) parts1.push('\u4E0A\u6B21\u9884\u8B66 ' + esc(alertTs));
-    line1 = parts1.length > 0 ? parts1.join(' \u00B7 ') : '\u5C1A\u672A\u5DE1\u68C0';
+    if (patrolTs) parts1.push('\u5DE1' + esc(patrolTs));
+    if (alertTs) parts1.push('\u8B66' + esc(alertTs));
+    line1 = parts1.length > 0 ? '\u6700\u8FD1 ' + parts1.join(' \u00B7 ') : '\u5C1A\u672A\u5DE1\u68C0';
   }
 
   // Line 2: schedule info
