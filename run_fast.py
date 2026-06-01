@@ -34,6 +34,81 @@ def sd(d):
     return f"{int(m.group(1))}月{int(m.group(2))}日" if m else str(d)
 
 
+async def _dismiss_modal(page):
+    """关掉美团/饿了么常见的弹窗遮罩（知道了/确定/关闭）"""
+    try:
+        dismiss_selectors = [
+            'button:has-text("知道了")',
+            'button:has-text("确定")',
+            'button:has-text("我知道了")',
+            'button:has-text("关闭")',
+            '[class*=modal] [class*=close]',
+            '[class*=dialog] [class*=close]',
+            '[class*=overlay] button',
+            '[class*=mask] button',
+            '.ant-modal-close',
+            '.el-dialog__close',
+        ]
+        for sel in dismiss_selectors:
+            try:
+                el = page.locator(sel).first
+                if await el.is_visible(timeout=500):
+                    await el.click(timeout=2000)
+                    L.step("mt", f"关掉弹窗: {sel}")
+                    await asyncio.sleep(0.5)
+                    return True
+            except:
+                continue
+    except:
+        pass
+    return False
+
+
+async def _check_login_redirect(page):
+    """检查是否跳到了登录页面，返回True表示在登录页"""
+    url = page.url.lower()
+    return ('passport' in url or 'login' in url or 'signin' in url or
+            'account.waimai' in url or 'epassport' in url)
+
+
+async def _goto_retry(page, url, retries=3, timeout=15000):
+    """带重试的goto，处理超时/登录跳转/弹窗遮罩"""
+    for i in range(retries):
+        try:
+            await page.goto(url, wait_until="commit", timeout=timeout)
+
+            # 检查是否跳到了登录页
+            if await _check_login_redirect(page):
+                L.step("mt", f"跳到登录页，尝试点击一键登录({i+1})")
+                try:
+                    btn = page.locator('button:has-text("一键登录"), a:has-text("一键登录"), [class*=login-btn]').first
+                    if await btn.is_visible(timeout=2000):
+                        await btn.click(timeout=3000)
+                        await asyncio.sleep(3)
+                        # 登录后重新跳目标页
+                        continue
+                except:
+                    pass
+                if i < retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                else:
+                    raise Exception(f"跳转登录页，{retries}次一键登录均失败")
+
+            # 检查是否有弹窗遮罩
+            await _dismiss_modal(page)
+            return
+
+        except Exception as e:
+            if 'Timeout' in str(e) and i < retries - 1:
+                L.step("mt", f"页面加载超时，重试({i+1}): {url[:50]}")
+                # 超时也可能是弹窗挡住了，先尝试关弹窗
+                await _dismiss_modal(page)
+                await asyncio.sleep(2)
+            else:
+                raise
+
+
 async def fast_mt(page):
     """美团极速检查 ~15s"""
     L.step("mt", f"美团检查开始: {page.url[:60]}")
@@ -59,11 +134,11 @@ async def fast_mt(page):
     page.on("response", on_resp)
 
     # 1. 消息
-    await page.goto("https://e.waimai.meituan.com/new_fe/business_gw#/msgbox", wait_until="commit", timeout=15000)
+    await _goto_retry(page, "https://e.waimai.meituan.com/new_fe/business_gw#/msgbox")
     await asyncio.sleep(1)
 
     # 2. 评价 - 直接去评价页，用Flutter PointerEvent点差评tab (8s)
-    await page.goto("https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw", wait_until="commit", timeout=15000)
+    await _goto_retry(page, "https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw")
     await asyncio.sleep(1)
     # Flutter点击评价列表tab + 差评筛选
     for f in page.frames:
@@ -103,7 +178,7 @@ async def fast_mt(page):
         except: pass
 
     # 3. 推广 - 等iframe加载后点消费记录
-    await page.goto("https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/ad/v1/pc", wait_until="commit", timeout=15000)
+    await _goto_retry(page, "https://e.waimai.meituan.com/#https://waimaieapp.meituan.com/ad/v1/pc")
     for attempt in range(6):
         await asyncio.sleep(1)
         for f in page.frames:
@@ -210,11 +285,11 @@ async def fast_ele(page):
     page.on("response", on_resp)
 
     # 1. 评价 (4s)
-    await page.goto(f"https://melody.shop.ele.me/app/shop/{shop_id}/comments#app.shop.comments", wait_until="commit", timeout=15000)
+    await _goto_retry(page, f"https://melody.shop.ele.me/app/shop/{shop_id}/comments#app.shop.comments")
     await asyncio.sleep(1.5)
 
     # 2. 活动 - 我的活动 (4s)
-    await page.goto(f"https://melody.shop.ele.me/app/shop/{shop_id}/activity__index#app.shop.activity.index", wait_until="commit", timeout=15000)
+    await _goto_retry(page, f"https://melody.shop.ele.me/app/shop/{shop_id}/activity__index#app.shop.activity.index")
     await asyncio.sleep(1)
     for f in page.frames:
         try:
@@ -239,7 +314,7 @@ async def fast_ele(page):
     page.remove_listener("response", on_resp)
 
     # 3. 推广 (4s)
-    await page.goto(f"https://melody.shop.ele.me/app/shop/{shop_id}/vas#app.shop.vas", wait_until="commit", timeout=15000)
+    await _goto_retry(page, f"https://melody.shop.ele.me/app/shop/{shop_id}/vas#app.shop.vas")
     await asyncio.sleep(1.5)
     promo_text = ""
     for f in page.frames:
@@ -319,7 +394,7 @@ async def watch_mt(page):
         except: pass
 
     page.on("response", on_resp)
-    await page.goto("https://e.waimai.meituan.com/new_fe/business_gw#/msgbox", wait_until="commit", timeout=15000)
+    await _goto_retry(page, "https://e.waimai.meituan.com/new_fe/business_gw#/msgbox")
     await asyncio.sleep(2)
     page.remove_listener("response", on_resp)
 
@@ -350,7 +425,7 @@ async def watch_ele(page):
     shop_id = m.group(1) if m else ""
     if not shop_id: return []
 
-    await page.goto(f"https://melody.shop.ele.me/app/shop/{shop_id}/dashboard#app.shop.dashboard", wait_until="commit", timeout=15000)
+    await _goto_retry(page, f"https://melody.shop.ele.me/app/shop/{shop_id}/dashboard#app.shop.dashboard")
     await asyncio.sleep(2)
 
     todos = []
