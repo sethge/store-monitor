@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.1.1";
+const VERSION = "5.2.0";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -16,6 +16,7 @@ const UPDATE_CHECK_INTERVAL = 86400000; // 24h
 // ========== Caches ==========
 let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
 let shopCache = {};   // shopId -> shopName
+let pageStates = {};  // tabId -> {current, previous, baseline} from content script snapshots
 
 // 启动时从storage恢复缓存（service worker重启不丢）
 chrome.storage.local.get(["ops_shop_cache", "ops_food_cache"], (data) => {
@@ -388,163 +389,133 @@ function extractItemInfo(body) {
   return { itemId: '', itemName: '', beforeSnapshot: null };
 }
 
-// ========== v2: DOM读取 + 日志合并 ==========
+// ========== v3: 快照diff模式 ==========
+// 秘书原理：content script一直盯着页面拍快照，API触发时做diff得到精确变化
 
-async function sendDomRead(tabId, action) {
-  // 向content script发消息读DOM，支持主frame和所有子frame
-  if (!tabId || tabId <= 0) return null;
-  try {
-    // 先尝试直接发消息给tab（content script在all_frames里都有注入）
-    const response = await chrome.tabs.sendMessage(tabId, {
-      type: 'OPS_READ_DOM', action: action
-    });
-    if (response && (response.shopName || (response.foods && response.foods.length > 0))) {
-      return response;
+function diffSnapshots(prev, curr) {
+  if (!prev) return [];
+  var changes = [];
+
+  // Diff列表项（按name匹配）
+  var prevMap = {};
+  var prevItems = prev.items || [];
+  for (var i = 0; i < prevItems.length; i++) {
+    if (prevItems[i].name) prevMap[prevItems[i].name] = prevItems[i];
+  }
+  var currItems = curr.items || [];
+  var currMap = {};
+  for (var j = 0; j < currItems.length; j++) {
+    var ci = currItems[j];
+    if (!ci.name) continue;
+    currMap[ci.name] = ci;
+    var old = prevMap[ci.name];
+    if (!old) {
+      if (prevItems.length > 0) {
+        changes.push({ target: ci.name, field: '新增', from: '', to: '出现在列表' });
+      }
+      continue;
     }
-  } catch(e) {
-    // content script可能没加载（页面刚打开），用scripting.executeScript兜底
+    var keys = Object.keys(ci);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      if (key === 'name') continue;
+      var oldVal = String(old[key] || '');
+      var newVal = String(ci[key] || '');
+      if (oldVal !== newVal && (oldVal || newVal)) {
+        changes.push({ target: ci.name, field: key, from: oldVal, to: newVal });
+      }
+    }
+  }
+  for (var pn in prevMap) {
+    if (!currMap[pn]) {
+      changes.push({ target: pn, field: '移除', from: '在列表', to: '' });
+    }
   }
 
-  // 兜底：用chrome.scripting.executeScript注入一次性读取
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      func: () => {
-        // 简化版DOM读取（和content-ops-reader.js逻辑一致）
-        var platform = location.hostname.indexOf('meituan') !== -1 ? 'meituan' :
-                       location.hostname.indexOf('ele.me') !== -1 ? 'eleme' : 'unknown';
-        var shopName = null;
-        if (platform === 'meituan') {
-          var el = document.querySelector('[class*=current-poi] [class*=txt_]') ||
-                   document.querySelector('[class*=txt_]');
-          if (el) { var t = el.textContent.trim(); if (t.length > 1 && t.length < 60) shopName = t; }
-        } else if (platform === 'eleme') {
-          var el2 = document.querySelector('[class*=shopSwitcher]');
-          if (el2) { var t2 = el2.textContent.trim(); if (t2.length > 1 && t2.length < 60) shopName = t2; }
-        }
-
-        var foods = [];
-        if (platform === 'meituan') {
-          document.querySelectorAll('[class*=product-card]').forEach(function(card) {
-            var inp = card.querySelector('[class*=title] input');
-            var h3 = card.querySelector('h3[class*=title]');
-            var price = card.querySelector('[class*=price-val]');
-            var name = inp ? inp.value : (h3 ? (h3.getAttribute('title') || h3.textContent.trim()) : '');
-            if (name) foods.push({ name: name, price: price ? price.textContent.trim().replace(/[^\d.]/g,'') : '' });
-          });
-        } else if (platform === 'eleme') {
-          document.querySelectorAll('[class*=tableRowWithBorderContainer]').forEach(function(row) {
-            var nameEl = row.querySelector('[class*=goodsComNameDisplay] span');
-            var priceEl = row.querySelector('[class*=price]');
-            if (nameEl) foods.push({
-              name: nameEl.textContent.trim(),
-              price: priceEl ? priceEl.textContent.trim().replace(/[^\d.]/g,'') : ''
-            });
-          });
-        }
-
-        if (!shopName && foods.length === 0) return null;
-        return { platform: platform, shopName: shopName, foods: foods, url: location.href };
-      }
-    });
-    // 合并所有frame的结果（取第一个有数据的）
-    for (const r of results) {
-      if (r.result && (r.result.shopName || (r.result.foods && r.result.foods.length > 0))) {
-        return r.result;
-      }
+  // Diff表单字段
+  var prevForms = prev.forms || {};
+  var currForms = curr.forms || {};
+  var allKeys = {};
+  for (var pf in prevForms) allKeys[pf] = true;
+  for (var cf in currForms) allKeys[cf] = true;
+  for (var fk in allKeys) {
+    var oldF = prevForms[fk] || '';
+    var newF = currForms[fk] || '';
+    if (oldF !== newF) {
+      changes.push({ target: '', field: fk, from: oldF, to: newF });
     }
-  } catch(e) {}
-  return null;
+  }
+
+  return changes;
 }
 
-async function readDomAndSave(entry, tabId, shopId) {
-  // 1. 读before快照（操作发生时的DOM状态）
-  var domBefore = await sendDomRead(tabId, 'before');
+async function captureAndSave(entry, tabId, shopId) {
+  let gotDiff = false;
 
-  // 2. 从DOM补全店名
-  if (domBefore && domBefore.shopName && !entry.shopName) {
-    entry.shopName = domBefore.shopName;
-    if (shopId) {
-      shopCache[shopId] = domBefore.shopName;
-      chrome.storage.local.set({ ops_shop_cache: shopCache });
+  // === 方式1：实时问content script要diff（最准确）===
+  if (tabId > 0) {
+    try {
+      const diff = await chrome.tabs.sendMessage(tabId, { type: 'OPS_GET_DIFF' });
+      if (diff) {
+        if (diff.shopName && !entry.shopName) entry.shopName = diff.shopName;
+        if (diff.pageType) entry.pageType = diff.pageType;
+
+        // 优先用recentChanges，创建类操作用fullChanges
+        let useChanges = diff.changes || [];
+        const isCreate = (entry.apiMethod || '').toLowerCase().match(/create|add|insert|new/);
+        if (isCreate && diff.fullChanges && diff.fullChanges.length > 0) {
+          useChanges = diff.fullChanges;
+        }
+
+        if (useChanges.length > 0) {
+          entry.changes = JSON.stringify(useChanges);
+          const targets = [...new Set(useChanges.map(c => c.target).filter(Boolean))];
+          if (targets.length > 0 && !entry.itemName) entry.itemName = targets.join(',');
+          gotDiff = true;
+        }
+      }
+    } catch(e) {
+      console.log("[OpsLogger] diff pull failed:", e.message);
     }
   }
 
-  // 3. 从DOM补全菜名（如果body里没有）
-  if (domBefore && domBefore.foods && domBefore.foods.length > 0 && !entry.itemName) {
-    // 尝试通过itemId匹配DOM里的菜品名
-    var domFoodNames = domBefore.foods.map(function(f) { return f.name; }).filter(Boolean);
-    if (domFoodNames.length > 0) {
-      // 如果只有一个菜品操作且DOM有数据，取第一个匹配的
-      var ids = (entry.itemId || '').split(',').filter(Boolean);
-      if (ids.length === 1 && domFoodNames.length > 0) {
-        // 先查缓存名匹配
-        var cached = foodCache[ids[0]];
-        if (cached && cached.name) {
-          var match = domFoodNames.find(function(n) { return n === cached.name; });
-          if (match) entry.itemName = match;
-        }
-        // 缓存没匹配到，但DOM只有少量菜品（可能是当前操作的），就不强制赋值避免误匹配
-      } else if (ids.length > 1) {
-        // 多菜品操作，取DOM里所有名字
-        entry.itemName = domFoodNames.slice(0, ids.length).join(',');
+  // === 方式2：用background缓存的pageStates做diff ===
+  if (!gotDiff && pageStates[tabId]) {
+    const state = pageStates[tabId];
+    if (state.current && state.previous) {
+      const changes = diffSnapshots(state.previous, state.current);
+      if (changes.length > 0) {
+        entry.changes = JSON.stringify(changes);
+        const targets = [...new Set(changes.map(c => c.target).filter(Boolean))];
+        if (targets.length > 0 && !entry.itemName) entry.itemName = targets.join(',');
+        gotDiff = true;
       }
     }
+    if (state.current && state.current.shopName && !entry.shopName) {
+      entry.shopName = state.current.shopName;
+    }
+    if (state.current && state.current.pageType && !entry.pageType) {
+      entry.pageType = state.current.pageType;
+    }
   }
 
-  // 4. DOM没读到的，降级到原有逻辑（缓存+cookie+tab title）
+  // === 方式3：降级到旧方式（foodCache + cookie + tab title）===
   if (!entry.shopName) {
     await resolveShopName(entry, tabId, shopId);
+  }
+  if (!entry.itemName && entry.itemId) {
+    const cached = foodCache[entry.itemId];
+    if (cached && cached.name) entry.itemName = cached.name;
   }
   if (!entry.itemName) {
     await resolveItemName(entry, tabId);
   }
 
-  // 5. 保存before快照（foodCache精确快照优先，DOM只做兜底）
-  if (domBefore && domBefore.foods && domBefore.foods.length > 0) {
-    if (!entry.beforeSnapshot) {
-      // foodCache没数据，用DOM兜底
-      entry.beforeSnapshot = JSON.stringify({
-        source: 'dom',
-        foods: domBefore.foods.slice(0, 20),
-        readAt: domBefore.readAt || new Date().toISOString()
-      });
-    }
-    // foodCache已有精确快照时不覆盖
-  }
-
-  // 6. 立刻保存日志（不等after，避免延迟）
+  // 保存日志
   chrome.storage.local.get("ops_operator", (data) => {
     entry.operator = data.ops_operator || "";
     saveLog(entry);
   });
-
-  // 7. 异步：等2秒读after快照，更新已保存的日志
-  setTimeout(async function() {
-    try {
-      var domAfter = await sendDomRead(tabId, 'after');
-      if (domAfter && domAfter.foods && domAfter.foods.length > 0) {
-        entry.afterSnapshot = JSON.stringify({
-          source: 'dom',
-          foods: domAfter.foods.slice(0, 20),
-          readAt: new Date().toISOString()
-        });
-        // 更新本地已保存的日志
-        var data = await chrome.storage.local.get("ops_logs");
-        var logs = data.ops_logs || [];
-        // 找到刚保存的那条（最后一条匹配timestamp的）
-        for (var i = logs.length - 1; i >= 0; i--) {
-          if (logs[i].timestamp === entry.timestamp && logs[i].apiMethod === entry.apiMethod) {
-            logs[i].afterSnapshot = entry.afterSnapshot;
-            await chrome.storage.local.set({ ops_logs: logs });
-            break;
-          }
-        }
-      }
-    } catch(e) {
-      console.log("[OpsLogger] after snapshot failed:", e);
-    }
-  }, 2000);
 }
 
 // ========== Request capture ==========
@@ -595,12 +566,14 @@ chrome.webRequest.onBeforeRequest.addListener(
       itemId: itemId,
       itemName: itemName,
       beforeSnapshot: beforeSnapshot ? JSON.stringify(beforeSnapshot) : '',
+      changes: '',    // v3: 快照diff的精确变化
+      pageType: '',   // v3: 页面类型
       tab_id: details.tabId,
       pushed: false
     };
 
-    // v2: 先通过content script读DOM拿before快照，立刻保存，after异步更新
-    readDomAndSave(entry, details.tabId, shopId);
+    // v3: 从content script快照获取精确变化
+    captureAndSave(entry, details.tabId, shopId);
     debouncedPush();
     console.log("[OpsLogger]", apiMethod, shopId, itemName || itemId);
   },
@@ -745,6 +718,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       pushLogs();
     });
     return true;
+  }
+  if (msg.type === "OPS_PAGE_STATE") {
+    // v3: content script推送的页面快照
+    const tabId = sender.tab ? sender.tab.id : 0;
+    if (tabId && msg.current) {
+      const existing = pageStates[tabId];
+      const newCount = (msg.current.items || []).length + Object.keys(msg.current.forms || {}).length;
+      const oldCount = existing ? (existing.current.items || []).length + Object.keys(existing.current.forms || {}).length : 0;
+      // 保留数据更多的frame
+      if (!existing || newCount >= oldCount) {
+        pageStates[tabId] = {
+          current: msg.current,
+          previous: msg.previous,
+          baseline: msg.baseline
+        };
+      }
+    }
+    return false; // 不需要response
   }
   if (msg.type === "OPS_FOOD_CACHE") {
     processFoodCache(msg.foods);
@@ -1006,6 +997,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Clean up closed tabs
 chrome.tabs.onRemoved.addListener((tabId) => {
   injectedTabs.delete(tabId);
+  delete pageStates[tabId];
 });
 
 // Inject into existing tabs on startup

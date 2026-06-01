@@ -54,6 +54,8 @@ def init_db():
             action_type TEXT,
             action_detail TEXT,
             before_snapshot TEXT,
+            changes TEXT,
+            page_type TEXT,
             received_at TEXT DEFAULT (datetime('now','localtime')),
             reported INTEGER DEFAULT 0,
             change_summary TEXT
@@ -74,6 +76,15 @@ def init_db():
             conn.execute("ALTER TABLE logs ADD COLUMN change_summary TEXT")
         except:
             pass
+    # v3: changes + page_type columns
+    for col, ctype in [("changes", "TEXT"), ("page_type", "TEXT")]:
+        try:
+            conn.execute(f"SELECT {col} FROM logs LIMIT 1")
+        except:
+            try:
+                conn.execute(f"ALTER TABLE logs ADD COLUMN {col} {ctype}")
+            except:
+                pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS food_cache (
             item_key TEXT PRIMARY KEY,
@@ -505,6 +516,36 @@ def parse_action(api_method, body, conn=None):
     # ====== Fallback ======
     method_name = api_method.split(".")[-1] if "." in api_method else api_method
     return method_name, ""
+
+
+def _build_summary_from_changes(changes_str, action_type=""):
+    """从v3快照diff生成人话摘要。changes是JSON数组: [{target, field, from, to}, ...]"""
+    try:
+        changes = json.loads(changes_str) if isinstance(changes_str, str) else changes_str
+    except:
+        return ""
+    if not changes or not isinstance(changes, list):
+        return ""
+
+    parts = []
+    for c in changes[:5]:  # 最多显示5条变化
+        target = c.get("target", "")
+        field = c.get("field", "")
+        frm = c.get("from", "")
+        to = c.get("to", "")
+        if target and frm and to:
+            parts.append(f"「{target}」{field}: {frm} → {to}")
+        elif target and to:
+            parts.append(f"「{target}」{field}: → {to}")
+        elif target:
+            parts.append(f"「{target}」{field}")
+        elif frm and to:
+            parts.append(f"{field}: {frm} → {to}")
+        elif to:
+            parts.append(f"{field}: → {to}")
+    if len(changes) > 5:
+        parts.append(f"...等{len(changes)}项变化")
+    return "; ".join(parts)
 
 
 def build_change_summary(action_type, api_method, body, before_snapshot):
@@ -1025,14 +1066,22 @@ def receive_logs():
                 )
 
         after_snapshot = log.get("afterSnapshot", "")
+        changes_str = log.get("changes", "")
+        page_type = log.get("pageType", "")
+
+        # v3: 如果有changes（快照diff），用它增强change_summary
+        if changes_str and not change_summary:
+            change_summary = _build_summary_from_changes(changes_str, action_type)
 
         conn.execute(
             """INSERT INTO logs (operator, timestamp, api_method, url, body_full, platform,
-                shop_id, shop_name, tab_id, item_id, item_name, action_type, action_detail, before_snapshot, after_snapshot, change_summary)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                shop_id, shop_name, tab_id, item_id, item_name, action_type, action_detail,
+                before_snapshot, after_snapshot, changes, page_type, change_summary)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (operator, log.get("timestamp", ""), api_method, url[:500], body_str,
              platform, shop_id, shop_name, log.get("tab_id", 0), item_id, item_name,
-             action_type, action_detail, before_snapshot, after_snapshot, change_summary)
+             action_type, action_detail, before_snapshot, after_snapshot,
+             changes_str, page_type, change_summary)
         )
         log_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 

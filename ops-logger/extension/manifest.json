@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "5.1.1",
+  "version": "5.2.0",
   "description": "运营助手 — 巡店预警/调整复盘/交流",
   "permissions": [
     "storage",
