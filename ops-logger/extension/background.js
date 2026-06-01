@@ -14,18 +14,13 @@ const CONFIG_REFRESH = 300000;
 const UPDATE_CHECK_INTERVAL = 86400000; // 24h
 
 // ========== Caches ==========
-let foodCache = {};   // itemId/globalId -> {name, price, specs, shopId}
 let shopCache = {};   // shopId -> shopName
 
 // 启动时从storage恢复缓存（service worker重启不丢）
-chrome.storage.local.get(["ops_shop_cache", "ops_food_cache"], (data) => {
+chrome.storage.local.get(["ops_shop_cache"], (data) => {
   if (data.ops_shop_cache) {
     shopCache = data.ops_shop_cache;
     console.log("[OpsLogger] shopCache restored:", Object.keys(shopCache).length);
-  }
-  if (data.ops_food_cache) {
-    foodCache = data.ops_food_cache;
-    console.log("[OpsLogger] foodCache restored:", Object.keys(foodCache).length);
   }
 });
 
@@ -324,11 +319,8 @@ async function resolveItemName(entry, tabId) {
     });
     if (results && results[0] && results[0].result) {
       var domNames = results[0].result;
-      // 如果只有一个ID，取第一个DOM名字
       if (itemIds.length === 1 && domNames.length > 0) {
         entry.itemName = domNames[0];
-        foodCache[itemIds[0]] = foodCache[itemIds[0]] || {};
-        foodCache[itemIds[0]].name = domNames[0];
       } else if (domNames.length > 0) {
         entry.itemName = domNames.slice(0, itemIds.length).join(',');
       }
@@ -343,31 +335,20 @@ function extractItemInfo(body) {
   // updateGoodsAttr
   if (params.updateGoodsAttr) {
     const attr = params.updateGoodsAttr;
-    const itemId = String(attr.itemId || '');
-    const cached = foodCache[itemId];
     return {
-      itemId: itemId,
-      itemName: attr.name || cached?.name || '',
-      beforeSnapshot: cached || null
+      itemId: String(attr.itemId || ''),
+      itemName: attr.name || '',
+      beforeSnapshot: null
     };
   }
 
   // batchUpdateFood
   if (params.request && params.request.itemGlobalIds) {
     const ids = params.request.itemGlobalIds;
-    const names = [];
-    const befores = {};
-    for (const gid of ids) {
-      const cached = foodCache[gid];
-      if (cached) {
-        names.push(cached.name);
-        befores[gid] = cached;
-      }
-    }
     return {
       itemId: ids.join(','),
-      itemName: names.join(','),
-      beforeSnapshot: Object.keys(befores).length > 0 ? befores : null
+      itemName: '',
+      beforeSnapshot: null
     };
   }
 
@@ -375,12 +356,10 @@ function extractItemInfo(body) {
   if (params.food || params.request) {
     const food = params.food || params.request;
     if (food && typeof food === 'object') {
-      const itemId = String(food.id || food.itemId || food.itemGlobalId || '');
-      const cached = foodCache[itemId];
       return {
-        itemId: itemId,
-        itemName: food.name || food.foodName || cached?.name || '',
-        beforeSnapshot: cached || null
+        itemId: String(food.id || food.itemId || food.itemGlobalId || ''),
+        itemName: food.name || food.foodName || '',
+        beforeSnapshot: null
       };
     }
   }
@@ -472,21 +451,12 @@ async function readDomAndSave(entry, tabId, shopId) {
 
   // 3. 从DOM补全菜名（如果body里没有）
   if (domBefore && domBefore.foods && domBefore.foods.length > 0 && !entry.itemName) {
-    // 尝试通过itemId匹配DOM里的菜品名
     var domFoodNames = domBefore.foods.map(function(f) { return f.name; }).filter(Boolean);
     if (domFoodNames.length > 0) {
-      // 如果只有一个菜品操作且DOM有数据，取第一个匹配的
       var ids = (entry.itemId || '').split(',').filter(Boolean);
-      if (ids.length === 1 && domFoodNames.length > 0) {
-        // 先查缓存名匹配
-        var cached = foodCache[ids[0]];
-        if (cached && cached.name) {
-          var match = domFoodNames.find(function(n) { return n === cached.name; });
-          if (match) entry.itemName = match;
-        }
-        // 缓存没匹配到，但DOM只有少量菜品（可能是当前操作的），就不强制赋值避免误匹配
+      if (ids.length <= 1 && domFoodNames.length > 0) {
+        entry.itemName = domFoodNames[0];
       } else if (ids.length > 1) {
-        // 多菜品操作，取DOM里所有名字
         entry.itemName = domFoodNames.slice(0, ids.length).join(',');
       }
     }
@@ -695,7 +665,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.action.setBadgeText({ text: '' });
     console.log('[OpsLogger] install -> cleared all state');
   } else if (details.reason === 'update') {
-    // 更新：只清临时状态，保留 ops_operator / ops_shop_cache / ops_food_cache
+    // 更新：只清临时状态，保留 ops_operator / ops_shop_cache
     chrome.storage.local.remove([
       'ops_logs',
       'ops_update_available',
@@ -728,7 +698,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         operator: data.ops_operator || "",
         logCount: logs.length,
         unpushed: logs.filter(l => !l.pushed).length,
-        foodCacheSize: Object.keys(foodCache).length,
         shopCacheSize: Object.keys(shopCache).length,
         recentLogs: logs.slice(-30).reverse(),
       });
@@ -742,46 +711,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
-  if (msg.type === "OPS_FOOD_CACHE") {
-    processFoodCache(msg.foods);
-    sendResponse({ ok: true });
-    return true;
-  }
   if (msg.type === "OPS_SHOP_CACHE") {
     processShopCache(msg.shops);
     sendResponse({ ok: true });
     return true;
   }
 });
-
-function processFoodCache(foods) {
-  if (!Array.isArray(foods)) return;
-  const newFoods = [];
-  for (const f of foods) {
-    const entry = {
-      name: f.name || '', price: f.price || 0, shopId: f.shopId || '',
-      specs: f.specs || [], image: f.image || '', description: f.description || '',
-      monthlySales: f.monthlySales || 0, isOnShelf: f.isOnShelf,
-      categoryName: f.categoryName || ''
-    };
-    if (f.itemId) {
-      const key = String(f.itemId);
-      if (!foodCache[key] || foodCache[key].name !== entry.name) newFoods.push({...entry, itemId: f.itemId, itemGlobalId: f.itemGlobalId || ''});
-      foodCache[key] = entry;
-    }
-    if (f.itemGlobalId) {
-      const key = String(f.itemGlobalId);
-      if (!foodCache[key]) newFoods.push({...entry, itemId: f.itemId || '', itemGlobalId: f.itemGlobalId});
-      foodCache[key] = entry;
-    }
-  }
-  console.log("[OpsLogger] food cache:", Object.keys(foodCache).length, "new:", newFoods.length);
-  if (newFoods.length > 0) {
-    syncCacheToServer("foods", newFoods);
-    // 持久化foodCache，service worker重启后恢复
-    chrome.storage.local.set({ ops_food_cache: foodCache });
-  }
-}
 
 function processShopCache(shops) {
   if (!Array.isArray(shops)) return;
@@ -818,198 +753,6 @@ async function syncCacheToServer(type, data) {
     console.error("[OpsLogger] cache sync error:", e.message);
   }
 }
-
-// ========== Tab-based cache injection ==========
-// Inject API response interceptor into ele.me/meituan pages
-// Uses chrome.scripting.executeScript which bypasses CSP
-
-const injectedTabs = new Set();
-
-function injectCacheInterceptor(tabId) {
-  if (injectedTabs.has(tabId)) return;
-
-  // Inject MAIN world script to intercept XHR/fetch responses
-  chrome.scripting.executeScript({
-    target: { tabId: tabId, allFrames: true },
-    world: "MAIN",
-    func: function() {
-      if (window.__OPS_LOGGER_INJECTED__) return;
-      window.__OPS_LOGGER_INJECTED__ = true;
-
-      function extractFoods(obj, shopId) {
-        var foods = [];
-        var seen = {};
-        function walk(o, depth) {
-          if (!o || typeof o !== 'object' || depth > 10) return;
-          if (Array.isArray(o)) { o.forEach(function(x) { walk(x, depth+1); }); return; }
-          var cn = o._cat || '';
-          // Match ele.me food items: must have itemGlobalId or (itemId && name)
-          var gid = o.itemGlobalId || o.globalId || '';
-          var iid = o.itemId || o.vfoodId || o.id || '';
-          var fname = o.name || o.foodName || '';
-          if (gid && fname && fname.length > 1 && !seen[gid]) {
-            seen[gid] = true;
-            var specs = (o.sfoodSpecs || o.specs || o.skuList || []).filter(function(s){return s && typeof s==='object'});
-            var price = 0;
-            var parsedSpecs = specs.map(function(s){
-              var sp = {id:String(s.id||s.specId||s.specGlobalId||''), name:s.name||s.specName||'', price:s.price||0, stock:s.stock!==undefined?s.stock:-1};
-              if (sp.price && !price) price = sp.price;
-              return sp;
-            });
-            if (!price) price = o.price || o.currentPrice || 0;
-            foods.push({
-              itemId: String(iid),
-              itemGlobalId: String(gid),
-              name: fname,
-              price: price,
-              image: o.imagePath || o.image || o.imageUrl || '',
-              shopId: String(o.shopId || o.restaurantId || shopId || ''),
-              description: o.description || o.desc || '',
-              monthlySales: o.recentSales || o.monthSale || o.monthlySales || 0,
-              isOnShelf: o.onShelf !== undefined ? o.onShelf : (o.isOnShelf !== undefined ? o.isOnShelf : true),
-              categoryName: cn,
-              specs: parsedSpecs
-            });
-          } else if (iid && fname && fname.length > 1 && !gid && !seen[iid]) {
-            // Fallback for items without globalId
-            seen[iid] = true;
-            foods.push({
-              itemId: String(iid), itemGlobalId: '',
-              name: fname, price: o.price || 0,
-              image: o.imageUrl || o.image || '',
-              shopId: String(o.shopId || o.restaurantId || shopId || ''),
-              description: '', monthlySales: o.recentSales || 0,
-              isOnShelf: o.onShelf !== undefined ? o.onShelf : true,
-              categoryName: cn, specs: []
-            });
-          }
-          try { Object.keys(o).forEach(function(k) { var v=o[k]; if(v&&typeof v==='object') walk(v,depth+1); }); } catch(e){}
-        }
-        // Annotate categories
-        function annCat(o, cn) {
-          if (!o||typeof o!=='object') return;
-          if (Array.isArray(o)) { o.forEach(function(x){annCat(x,cn);}); return; }
-          var c = o.categoryName || o.name || cn || '';
-          (o.foodList||o.foods||o.itemList||[]).forEach(function(f){if(f&&typeof f==='object')f._cat=c;});
-          (o.childCategories||o.subCategories||o.children||[]).forEach(function(s){annCat(s,c);});
-        }
-        annCat(obj, '');
-        walk(obj, 0);
-        return foods;
-      }
-
-      function extractShops(obj) {
-        var shops = [], seen = {};
-        function walk(o, d) {
-          if(!o||typeof o!=='object'||d>8) return;
-          if(Array.isArray(o)){o.forEach(function(x){walk(x,d+1);});return;}
-          var sid=o.shopId||o.restaurantId||o.storeId||o.poiId;
-          var sn=o.shopName||o.restaurantName||o.storeName||o.poiName||o.shop_name||o.store_name;
-          if(sid&&sn&&!seen[sid]){seen[sid]=true;shops.push({shopId:String(sid),shopName:String(sn)});}
-          try{Object.values(o).forEach(function(v){if(v&&typeof v==='object')walk(v,d+1);});}catch(e){}
-        }
-        walk(obj, 0);
-        return shops;
-      }
-
-      function getShopId() {
-        var m = location.href.match(/shop\/(\d+)/);
-        return m ? m[1] : '';
-      }
-
-      function processResponse(text, url) {
-        try {
-          if (!text || text.length < 50) return;
-          var data = JSON.parse(text);
-          var sid = getShopId();
-          var foods = extractFoods(data, sid);
-          if (foods.length > 0) {
-            window.postMessage({type:'OPS_FOOD_CACHE_DATA', foods:foods, url:(url||'').substring(0,200)}, '*');
-          }
-          var shops = extractShops(data);
-          if (shops.length > 0) {
-            window.postMessage({type:'OPS_SHOP_CACHE_DATA', shops:shops}, '*');
-          }
-        } catch(e) {}
-      }
-
-      function shouldProcess(url) {
-        return url && (url.indexOf('app-api.shop.ele.me')!==-1 || url.indexOf('meituan.com')!==-1);
-      }
-
-      // Intercept XHR
-      var oOpen = XMLHttpRequest.prototype.open;
-      var oSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function(m,u) { this._ou=u; this._om=m; return oOpen.apply(this,arguments); };
-      XMLHttpRequest.prototype.send = function(b) {
-        var self=this;
-        if(self._om==='POST'&&shouldProcess(self._ou||'')) {
-          self.addEventListener('load',function(){try{processResponse(self.responseText,self._ou);}catch(e){}});
-        }
-        return oSend.apply(this,arguments);
-      };
-
-      // Intercept fetch
-      var oFetch = window.fetch;
-      window.fetch = function(input, init) {
-        var url = typeof input==='string' ? input : (input&&input.url?input.url:'');
-        var method = (init&&init.method)||(typeof input==='object'?input.method:'GET');
-        return oFetch.apply(this,arguments).then(function(resp) {
-          if(method==='POST'&&shouldProcess(url)) {
-            try{var c=resp.clone();c.text().then(function(t){processResponse(t,url);}).catch(function(){});}catch(e){}
-          }
-          return resp;
-        });
-      };
-      console.log('[OpsLogger] MAIN world interceptor active');
-    }
-  }).catch(e => console.log("[OpsLogger] MAIN inject error:", e.message));
-
-  // Inject ISOLATED world bridge to relay postMessage to extension
-  chrome.scripting.executeScript({
-    target: { tabId: tabId, allFrames: true },
-    func: function() {
-      if (window.__OPS_BRIDGE__) return;
-      window.__OPS_BRIDGE__ = true;
-      window.addEventListener('message', function(event) {
-        if (event.source !== window || !event.data) return;
-        if (event.data.type === 'OPS_FOOD_CACHE_DATA') {
-          chrome.runtime.sendMessage({type:'OPS_FOOD_CACHE', foods:event.data.foods});
-        }
-        if (event.data.type === 'OPS_SHOP_CACHE_DATA') {
-          chrome.runtime.sendMessage({type:'OPS_SHOP_CACHE', shops:event.data.shops});
-        }
-      });
-      console.log('[OpsLogger] Bridge active');
-    }
-  }).catch(e => console.log("[OpsLogger] bridge inject error:", e.message));
-
-  injectedTabs.add(tabId);
-  console.log("[OpsLogger] injected cache interceptor into tab", tabId);
-}
-
-// Inject on tab updates (page loads)
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    if (tab.url.includes('ele.me') || tab.url.includes('meituan.com')) {
-      // Re-inject on each page load (SPA might recreate contexts)
-      injectedTabs.delete(tabId);
-      injectCacheInterceptor(tabId);
-    }
-  }
-});
-
-// Clean up closed tabs
-chrome.tabs.onRemoved.addListener((tabId) => {
-  injectedTabs.delete(tabId);
-});
-
-// Inject into existing tabs on startup
-chrome.tabs.query({ url: ["*://*.ele.me/*", "*://*.meituan.com/*"] }, (tabs) => {
-  for (const tab of tabs) {
-    injectCacheInterceptor(tab.id);
-  }
-});
 
 // Auto-cleanup: remove logs older than 7 days
 function cleanupOldLogs() {
