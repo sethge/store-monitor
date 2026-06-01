@@ -1,0 +1,2527 @@
+[
+  {
+    "url": "https://e.waimai.meituan.com/gw/api/message/category/list?region_id=1000310100&region_version=1730536164&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779703998584%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22lGBIpzvCt8hYtwX7qOQN%2BMomGGwHkQGszGUj9L71Q3CiwFxqHnDt8LjbTDnd5dVj3B6DiU9UcP6gb9YKjhJbui7ljU9MpNDkqd2ApnUvKJaqTcEvASzPbEV%3D%22%2C%22a6%22%3A%22hs1.6dosmVNL9aUtzxdj2hV9Ut7gT5KT4nGggxu9k11ZYm019pjguCea7iTfGb3heuSW03mdjl5b6OyoN3GdHOTY8XBdbiE3pVtdui0egPFSkfIbmz51divaWtAx33miWTA5UhG16xAcQaaMu5dsHTzbTWw%3D%3D%22%2C%22a8%22%3A%227a055fa58900e4979dd3f1048ec13ac8%22%2C%22a9%22%3A%224.2.0%2C7%2C245%22%2C%22a10%22%3A%221e%22%2C%22x0%22%3A4%2C%22d1%22%3A%2292ddf2363913937ab4ba591babce6148%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://e.waimai.meituan.com/new_fe/business_gw",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "accept": "application/json, text/plain, */*",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://e.waimai.meituan.com/gw/phf/api/notice/combineOrder?region_id=1000310100&region_version=1730536164&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704001900%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22r7cThOoVtRFsLztxbJ9Fj99%2BSUkAZscE%2BItNBHofa%2BNlPB9SNeNs7m2Nift792cyYhsOkeyl0CFpRekEWy1DrmZ0ModHQHAIq8uouJmSSevapWtd9fKDdodF%22%2C%22a6%22%3A%22hs1.67KqtQeO1o2zr9eY3Ztk9oSSqXw5rmn5KTuH7NgDLHW%2FK%2F7al4tWbHq5UW5I8laaKojpCx4DXCuvPC36gjmTRCkOknWLEu4Qw%2BVqQUXxY1EDm00ZjCjlZe%2FgYxmpbeFll0%2F6bohV9S60tKUYpLMvOyg%3D%3D%22%2C%22a8%22%3A%22f69bd01e1dd51bf4c53d37518d3dd0dc%22%2C%22a9%22%3A%224.2.0%2C7%2C88%22%2C%22a10%22%3A%2295%22%2C%22x0%22%3A4%2C%22d1%22%3A%226f0470f665088f89620283770a0cff6d%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://e.waimai.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "accept": "application/json, text/plain, */*",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://e.waimai.meituan.com/gw/api/message/notice/setting/query?region_id=1000310100&region_version=1730536164&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704001904%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%224BSiaZCtymoG8XAASgUilj6L3bbHRJtVHsk47JA8zq7WFJIoSDxp6UGPETlLXeQKGs%2Ff30fSEUbMux2H2tHHnIKgJcCo%2FPUdTvj7D2z%2FGXvl3Uek984Ow%2BnU%22%2C%22a6%22%3A%22hs1.67KqtQeO1o2zr9eY3Ztk9oSSqXw5rmn5KTuH7NgDLHW%2FK%2F7al4tWbHq5UW5I8laaKojpCx4DXCuvPC36gjmTRCkOknWLEu4Qw%2BVqQUXxY1EDm00ZjCjlZe%2FgYxmpbeFll0%2F6bohV9S60tKUYpLMvOyg%3D%3D%22%2C%22a8%22%3A%2250e5b6863c3e726aaf9c1a5af82d32f7%22%2C%22a9%22%3A%224.2.0%2C7%2C88%22%2C%22a10%22%3A%2295%22%2C%22x0%22%3A4%2C%22d1%22%3A%222395e6bd687f9bc6db36513b4bea7d5b%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://e.waimai.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "accept": "application/json, text/plain, */*",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/pv?v=1&sdk=1.9.5&project=com.sankuai.waimaieapp.ffw.usercomment&pageurl=index&pageId=owl-ea5043a5-eaa4-99a9-26d3-3a9b-1779704002284&timestamp=1779704002286&region=&operator=&network=4g&container=&os=&unionid=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/1.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/2.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/4.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/9b7b1e/5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/fonts/MaterialIcons-Regular-e69041.woff",
+    "method": "GET",
+    "headers": {
+      "origin": "https://waimaieapp.meituan.com",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/packages/open_iconic_flutter/assets/open-iconic.woff",
+    "method": "GET",
+    "headers": {
+      "origin": "https://waimaieapp.meituan.com",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_140.part-dc22f6.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_13.part-011015.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_10.part-f74a12.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_12.part-2b4550.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_72.part-01160f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_9.part-1d0439.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_129.part-f33685.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_64.part-b90aa3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_71.part-585376.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_11.part-605ec3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_70.part-a6ed48.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_44.part-dc93ac.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_87.part-a7a921.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_69.part-990b9e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_5.part-c40c81.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_173.part-82aa60.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_78.part-7be363.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_128.part-6f62bc.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_63.part-cc826c.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_75.part-e282f5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_76.part-136f90.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_101.part-c230be.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_41.part-edbf85.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_97.part-57e98a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_142.part-dcfd5a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_68.part-6596bf.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_174.part-2d5208.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_66.part-87ad51.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_43.part-a3eb68.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_77.part-cca330.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_111.part-1e37e7.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_46.part-97096f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_74.part-305ae4.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_8.part-7b99ee.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_124.part-2017dd.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_125.part-9628f8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_3.part-a79fff.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_105.part-077d2d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_96.part-3832e7.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_108.part-308974.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_159.part-dea556.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_207.part-e14d17.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_138.part-37a3a1.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_132.part-d6cced.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_102.part-9542a5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_47.part-61c841.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_126.part-ab0ad8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_115.part-6deee8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_122.part-b6119d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_121.part-74b096.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_45.part-797d3f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_100.part-0a1cd6.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_176.part-18fc2e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_165.part-94b660.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_118.part-e97762.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_95.part-25b7d2.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_131.part-2e52fc.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_148.part-fc3c5d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_2.part-afb346.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_143.part-2ef58e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_85.part-1b804a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_164.part-41c068.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_90.part-c2a837.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_147.part-60e749.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_99.part-77b686.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_84.part-100c96.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_203.part-62fa90.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_149.part-73e56e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_93.part-9c1ec5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_65.part-66073a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_215.part-13c442.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_214.part-cbd885.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_34.part-ef6bf0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_243.part-884eb0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_284.part-2f151b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_30.part-a6cd53.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_137.part-0a5be0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_6.part-724754.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_218.part-193b86.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_242.part-a78582.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_52.part-d6bce1.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_55.part-493d14.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_217.part-74db67.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_62.part-551212.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_202.part-88adcb.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_54.part-6f1439.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_200.part-3807c9.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_80.part-85dc36.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_213.part-31ae70.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_141.part-826999.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_208.part-d640cf.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_247.part-c8f71d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_177.part-534d88.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_187.part-64f492.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_16.part-5f092d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_60.part-bca89e.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_199.part-bfba9d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_168.part-1b117a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_27.part-842bf3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_22.part-cd1701.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_88.part-c7e574.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_192.part-1bc4ea.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_29.part-e24110.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_7.part-4068f7.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_198.part-bdc54a.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_51.part-306a24.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_59.part-926794.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_25.part-c65b0c.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_201.part-f6d5cc.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_239.part-bf07ab.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_24.part-582c49.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_158.part-6968d1.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_61.part-d3d940.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_56.part-5bff9b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_152.part-b9b1ce.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_279.part-ec98e3.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_139.part-8853d8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_79.part-0a14ba.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_278.part-3158fb.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_266.part-74a2a5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_163.part-b945bf.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_20.part-a02e86.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_269.part-1bbfcc.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_82.part-6153f8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_135.part-ab6d42.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_245.part-2e2422.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_249.part-3b8533.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_184.part-61b2b0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_238.part-e9a74f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_186.part-8b727b.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_162.part-ce4ff6.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_268.part-7170e0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_133.part-195d90.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_91.part-8789e1.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_264.part-3cb72f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_263.part-e25f98.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_181.part-64da92.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_169.part-823d73.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_246.part-4ed425.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_236.part-5f5242.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_272.part-aeb456.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_267.part-9c673d.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_228.part-2b51d0.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_223.part-d7c022.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_178.part-f26102.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_232.part-7d56e8.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_222.part-97fae7.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_160.part-346677.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_259.part-014dac.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_19.part-9ee677.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_251.part-f9b882.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_274.part-578ea5.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_83.part-1c4767.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_49.part-b1d751.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_175.part-26e23f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_233.part-7c4a89.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_185.part-0e483f.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_50.part-de2990.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_235.part-9d8c02.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_237.part-61dc44.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/app_1.part-db0a86.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/gray/config?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002928%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%220acJu60nyRwcE0vBv%2BJ7rbkea5t4iJFpQ1wYpx9S4PtA0EVZpYp9RM7LMwnUcoMbp76kaR6O5h9e0cistTyarXcJhc%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22c302467a32c866210727b8fcd3bea58e%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22a0fdb1b69abb799e52831b573a46c829%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/scores?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&source=1&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002933%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%226wGXlXr9ou6J264VSyCuTHu6uIerCFm%2F9CYbQNGp%2Br9poM43srWT8CKeQTvJZh1RG8agBpdPHJ6pcCxdrPHn0BZwrW%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22dca21cdbea4d4e8ce4c0d03c869986e5%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%224048950dcba6ff79552f11138bee6a77%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/gray/config?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002933%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%226wGXlXr9ou6JKK4VSyCuTHu6uIerCFm%2F9CYbQNGp%2Br9poM43srWT8CKeQTvJZh1RG8agBpdPHJ6pcCxdrPHn0BZwrW%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22dca21cdbea4d4e8ce4c0d03c869986e5%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%229d81d881ce7496f1c727433f53f54e74%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/common/gray?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&key=comment_knowledge&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002934%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22G27pm1oOlG2GkcpZW5c2jfjEnaCbiw9O2EYWzNdkv%2FoHlfHjaRdlD5dIjBM4J48mB2isQM5PMTLZQvSq8BQcTvas%2Fc%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22ffc0c08f05f445f46e354d7212fc1b84%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22271cae5190491b35c3be4a01b755b561%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/complain/remainder?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002934%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22G27pm1oOlG2GkWpZW5c2jfjEnaCbiw9O2EYWzNdkv%2FoHlfHjaRdlD5dIjBM4J48mB2isQM5PMTLZQvSq8BQcTvas%2Fc%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22ffc0c08f05f445f46e354d7212fc1b84%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22d7382ae1e886428084bbd8693fbe6867%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/bizdata/notice/get?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&terminal=2&showPlace=23&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002935%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22gIH%2Bcv1XeH5zDcpFkD2WaDq7WpOj1H2HiHPDWYrLmqJDx4f%2BhkBSjg%2BWYdUJvbUYfR02ssooklluAwx%2BHaV8N46k4c%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%222e299c2d6fbfaed2fee67c141b3bf951%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%2255e4e6202c7f9dc940060233799b7bee%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/poi/scores?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002935%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22gIH%2Bcv1XeH5zdWpFkD2WaDq7WpOj1H2HiHPDWYrLmqJDx4f%2BhkBSjg%2BWYdUJvbUYfR02ssooklluAwx%2BHaV8N46k4c%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%222e299c2d6fbfaed2fee67c141b3bf951%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%227c510282a0a8561613368b43dcf9549c%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/score/update/gray?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002936%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22YTxTTVgAv%2F6dZABbR170bu3aJnMrchzqTRYBELnwrZthNt24GFNIZxduWG40Cl5Y2ZXPygVeD8lriiJJwKwEef47hZ%3D%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22f5ff076b08224f7fdab22f82ec54042e%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%229e407511024360255a9f43319c03153d%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/phf/complain/remainder?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704002936%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22YTxTTVgAv%2F6dsU9NhOK5sR%2FZG7bGgiQq148mhLBwrWtEtJ9mKMvVoNKWd8kjCcBnKdCsygL%2BUkENh80bQ6f7bf8A0QP%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22f5ff076b08224f7fdab22f82ec54042e%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22580f9f0c3f414f3188260161674ed037%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/h5/frontweb/comment",
+    "method": "GET",
+    "headers": {
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "upgrade-insecure-requests": "1",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\""
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/api/kangaroo/query/awards?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&codes=%5B%22comment.top%22%2C%22comment.reply.batch%22%5D&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704003004%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22yT1XjvVLaFPahL5YNTRzjG4AQS6rnW%2FyBlg9w2i4i%2FMdKB%2Fits3WJf2%2B3ysNYxL21pl3q7iqa8U4tDovspzWOLK%2F0uG%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%2263b57be4063636830a8581a151c15e5c%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22548accf8cca3d0e3263bd97f98291c16%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/scores?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&source=1&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704003005%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22rdEdoLpaTqP82l7cT2cCNQextUPZe3sSYfnJ%2Bg00TQSr5OQ%2Fb2UY6MYHb0Q%2FXKNGZShJt0C4UggobagJRwLi01So9LF%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22e623c6f8b2dd5816ef82969f1722f09b%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%229ce9affc6ea343aa51130947f24aec58%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/h5/frontweb/comment",
+    "method": "GET",
+    "headers": {
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "upgrade-insecure-requests": "1",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\""
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/h5/frontweb/comment",
+    "method": "GET",
+    "headers": {
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "upgrade-insecure-requests": "1",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\""
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/AssetManifest.json",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/images/user_comment/star_full.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/images/user_comment/star_empty.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/pv?v=1&sdk=1.12.1&webVersion=1.12.1&project=owl&pageurl=v_1.12.1&pageId=owl-3b8bc83e-abdf-5c54-36a5-2fc6-1779704003258&timestamp=1779704003258&region=&operator=&network=4g&container=&os=&unionid=78273654c21504d74eb4.1777431108.1.0.0&ctags=%7B%22project%22%3A%22com.sankuai.waimaie.web.comment%22%2C%22version%22%3A%221.12.1%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/pv?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&project=com.sankuai.waimaie.web.comment&pageurl=https%3A%2F%2Fwaimaieapp.meituan.com%2Fh5%2Ffrontweb%2Fcomment%23%2FScoreDetailPagePc&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&timestamp=1779704003260&region=&operator=&network=4g&container=&os=&unionid=78273654c21504d74eb4.1777431108.1.0.0&ctags=%7B%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://portal-portm.meituan.com/horn/v1/modules/H5guard_BaseSec/prod?appKey=&dfpId=7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x&utm_medium=h5&ver=4.2.0&host=waimaieapp.meituan.com&ref=waimaieapp.meituan.com%2Fh5%2Ffrontweb%2Fcomment&i18n=CN&sso=0",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/css/roo_mobile_css_vendor.fc57d755.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/css/roo_pc_css_vendor.af485ecc.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/css/waimai_e_fe_h5_comment.bbdd9827.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/runtime.abd50303.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/roo_mobile_css_vendor.d5aadccd.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/roo_pc_css_vendor.50f142b4.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/waimai_e_fe_h5_comment.39ee7e67.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://portal-portm.meituan.com/horn/v1/modules/H5guardTrack/prod?appKey=&dfpId=7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x&utm_medium=h5&ver=4.2.0&host=waimaieapp.meituan.com&ref=waimaieapp.meituan.com%2Fh5%2Ffrontweb%2Fcomment&i18n=CN&pVer=1.1.2&sso=0",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/metric?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&p=com.sankuai.waimaie.web.comment&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&unionId=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/metric?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&p=com.sankuai.waimaie.web.comment&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&unionId=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/metric?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&p=com.sankuai.waimaie.web.comment&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&unionId=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/css/38.fe649241.css",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/38.708b8ac9.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/metric?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&p=com.sankuai.waimaie.web.comment&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&unionId=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/js/243.c122f3fb.js",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/scores/detail?acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&appType=3&deviceUUID=!804f0234-48cd-474c-93eb-6d3778da6830&yodaReady=h5&csecplatform=4&csecversion=4.2.0",
+    "method": "GET",
+    "headers": {
+      "m-traceid": "-3237852956895505714",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "mtgsig": "{\"a1\":\"1.2\",\"a2\":1779704004207,\"a3\":\"7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x\",\"a5\":\"L2QZyvpjVoMsnB9Q5/BrXGmz0BYXo0pIomfCKwMb4LBxNgrzgm2xlQ9VZpO38unLYHsqJ7xBwgb4glABdu/jnPqx5w7TY5dO71hGNQcLk2aQizfTtRoFfEi=\",\"a6\":\"h1.9pclgytg09ZwVGJzfrCUJ3gnm4gNY0NVSyHYqDtSB37LOQ6sRsjCdYoy8c+wdwbW2Dbgb/7A6y1V1ksMuo+PGz0AcueEkhXoEAslfd6Dko9mNELAEQIoE2shLpHa/alsSnO7PNhSw+g8OBkfmZFQm8hUATrApasDMadCgCde8MJ1mN13/1WYsDxQuuQRJ6JQurxyOY+dc32B5R4123dumfIIJ8WvZm+4dzwShexdmJSrPDA22UvwgDHCaCXhsJugv\",\"a8\":\"03412444f0d2804088b8e3ad88be5bd7\",\"a9\":\"4.2.0,7,233\",\"a10\":\"47\",\"x0\":4,\"d1\":\"b1370605689eb28a69071b3fd9a9b48e\"}",
+      "m-appkey": "fe_com.sankuai.waimaie.web.comment",
+      "referer": "https://waimaieapp.meituan.com/h5/frontweb/comment",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "accept": "application/json, text/plain, */*"
+    }
+  },
+  {
+    "url": "https://s3.meituan.net/static-prod01/ws-assets/com.sankuai.waimaie.web.comment/N6VN9PWtry4n2qLS8sbx7/fonts/roo-icon-e1ceb0.woff2",
+    "method": "GET",
+    "headers": {
+      "origin": "https://waimaieapp.meituan.com",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://catfront.dianping.com/api/metric?v=1&sdk=1.12.1&webVersion=4/14/2026%208:39:38%20PM_production_21827646_ba259a4_94f9d59c80885eb1909b0b530183adb9b4b32f84_&p=com.sankuai.waimaie.web.comment&pageId=owl-79c2141a-c2c3-afad-79ac-37fc-1779704003255&unionId=78273654c21504d74eb4.1777431108.1.0.0",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/images/user_comment/search.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://awp-assets.meituan.net/wm/waimai_e_fe_flutter_user_comment/web/assets/images/user_comment/empty_list.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/complain/available/time?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006614%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22udw5Vgiyb%2BidRxk%2BWBWzNpKsz5j7F%2BAX6K7BjXAs6Oh9BdHSGa12UbW9jJQRQJfd5ONe4c1XL8bdFKl5d6ubRx7GY8h%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%226b7507438c8d4fc6091c122b9e514aa2%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%227769da5f118790d4a0a35a1f66ee4a84%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/im/realtime/rights?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006615%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%224EX6r2s%2Fc8cMPRQqn5qxiRhffIVKrGizaIVso%2FFsrJjofHcYqQkBOmkFzs1GVxJDqGzriIaWNUgIfoIsnyJv%2B5S0vLc%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22d4498477ec051858645789d470a92730%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22766165b710dc7b8085bac21f66bd1e27%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/ai/reply/status/show?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006615%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%224EX6r2s%2Fc8cMPR%2Bqn5qxiRhffIVKrGizaIVso%2FFsrJjofHcYqQkBOmkFzs1GVxJDqGzriIaWNUgIfoIsnyJv%2B5S0vLc%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22d4498477ec051858645789d470a92730%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22877edeb091b517c807a3d80116cbc969%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/gray/config?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006616%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22vPrKwLImY8BRfRpuS9PyjyKbQId7USZE9EXqJ7BJcd9E8us1yKU0ZRuksV5v3WLMTmK%2BUcrgcr%2FnBfUest69Tu2x9ZF%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22ffe57cebc8954b76742a51f9eb2ce3e3%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22050e9d802c98b5f41db3035d29962867%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/ai/filter?ignoreSetRouterProxy=true&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006616%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22vPrKwLImY8BRf%2BluS9PyjyKbQId7USZE9EXqJ7BJcd9E8us1yKU0ZRuksV5v3WLMTmK%2BUcrgcr%2FnBfUest69Tu2x9ZF%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22ffe57cebc8954b76742a51f9eb2ce3e3%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22f3bc9a161ac363a6a62a185fe97ff9a4%22%7D",
+    "method": "POST",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "content-type": "application/x-www-form-urlencoded",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/realtime/rights?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006617%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22NlZ9CcYG9HUcMAQtXfu%2BHQHWx7h9dY6EsGlIf6KDjKz2Vt1pPm%2FUeDynfhw%2FKGyrGTTRA0%2BFcqUQS9t93Lc6VWhzxli%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22f0aee512a4cfff031385abf04276045b%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%224ecda70e363c79a91f06887778f1deb1%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/complain/remainder?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006617%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22NlZ9CcYG9HUcMA%2BtXfu%2BHQHWx7h9dY6EsGlIf6KDjKz2Vt1pPm%2FUeDynfhw%2FKGyrGTTRA0%2BFcqUQS9t93Lc6VWhzxli%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22f0aee512a4cfff031385abf04276045b%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%228b537c4cf53bc42f420788177e68b874%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/audit/notPassed?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&source=1&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006618%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%228F5ju5KMqwuSuXZAQs019wkrAxIsFFwx0u9lgLq%2FrWLGAThmMYw9zrU1lYJ6kHUetFHVANE9NY%2Bffu6UFRXJtOobTlc%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22b7ba3d8adb93ddc7a1bb5f5929002fa0%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%22c7444de62ec3cfc5f22a4847e987823b%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://waimaieapp.meituan.com/gw/customer/comment/list?ignoreSetRouterProxy=true&acctId=214598107&wmPoiId=25436759&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo%2A&appType=3&commScore=0&commType=-1&hasContent=-1&periodType=1&beginTime=1777014000&endTime=1779606000&pageNum=1&onlyAuditNotPass=0&pageSize=10&source=1&yodaReady=h5&csecplatform=4&csecversion=4.2.0&mtgsig=%7B%22a1%22%3A%221.2%22%2C%22a2%22%3A1779704006720%2C%22a3%22%3A%227w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x%22%2C%22a5%22%3A%22kI3MFv9BIXDde%2BOIutx5KYChc%2FGNL8Dj2fqEgFIeeOePgY6c%2Fr7sYkM71T3jCVaxSiWjwuULuIbf%2FI9c4Mz4L46dVLF%3D%22%2C%22a6%22%3A%22hs1.6mttzUKbpa%2BvEar18BDwSj7CP3Zv%2FGPUiNCnA0j61Ng74bqIHLFz4GXrO8%2BZ0R0T%2Bel19%2FkSVx46gytWp%2Bu9pavfoR7tAAasd1twWy6INj1zbkjEnEnEeXxyizKH4JiBt%22%2C%22a8%22%3A%22a606acaf6d9f814a9ea27b73e046323a%22%2C%22a9%22%3A%224.2.0%2C7%2C211%22%2C%22a10%22%3A%227c%22%2C%22x0%22%3A4%2C%22d1%22%3A%2265c3d1a321a78ebb71a3ca6544645f02%22%7D",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/frontweb/ffw/userComment_gw?_source=PC&token=0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*&acctId=214598107&wmPoiId=25436759&region_id=1000310100&device_uuid=!804f0234-48cd-474c-93eb-6d3778da6830&bsid=JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw&appType=3&fromPoiChange=false&userId=&topOrigin=https%253A%252F%252Fe.waimai.meituan.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3plus-bj02.sankuai.com/comment-right-picture/%E5%88%87%E5%9B%BE/chucanyunying-xiao%402x.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3plus-bj02.sankuai.com/comment-right-picture/%E5%88%87%E5%9B%BE/tuikuanxieshang-xiao%402x.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3plus-bj02.sankuai.com/comment-right-picture/%E5%88%87%E5%9B%BE/%E9%9D%9Eshangze-xiao%402x.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://s3plus-bj02.sankuai.com/comment-right-picture/%E5%88%87%E5%9B%BE/xiaoxipingjia-xiaosuo%402x.png",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  },
+  {
+    "url": "https://p0.meituan.net/wmcomment/504dc4e679448147944381f387b01a12783273.jpg.webp@1e_1l_136w_136h",
+    "method": "GET",
+    "headers": {
+      "sec-ch-ua-platform": "\"macOS\"",
+      "referer": "https://waimaieapp.meituan.com/",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0"
+    }
+  }
+]

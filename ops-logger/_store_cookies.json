@@ -1,0 +1,1518 @@
+{
+  "brand": "喜乐川菜（前滩店）",
+  "store": "_auto_0",
+  "platform": "meituan",
+  "ts": "2026-05-25 03:12:03",
+  "cookies": [
+    {
+      "name": "set_info",
+      "value": "%7B%22wmPoiId%22%3A%2225436759%22%2C%22region_id%22%3A%221000310100%22%2C%22region_version%22%3A1730536164%7D",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pushToken",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "utm_source_rg",
+      "value": "AM%25f4eATAo%25303%25XyIneyITnAdnuPnXeMPXeLnKMMnlTyeI-KgKAPKnTygnXnu-edgTM-lg",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "setPrivacyTime",
+      "value": "1_20260512",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wpush_server_url",
+      "value": "wss://wpush.meituan.com",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logan_session_token",
+      "value": "9oya6yehvsg8vpicdfbl",
+      "domain": "ka.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid",
+      "value": "78273654c21504d74eb4.1777431108.1.0.0",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "WEBDFPID",
+      "value": "7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x-1779783846156-1772075198864IWOMUCIfd79fef3d01d5e9aadc18ccd4d0c95072362",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_cuid",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "e_u_id_3299326472",
+      "value": "8a70c7f4e0fb563b61faf42f099cb1ce",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "device_uuid",
+      "value": "!804f0234-48cd-474c-93eb-6d3778da6830",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid_update",
+      "value": "true",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "shopCategory",
+      "value": "food",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "16uaexy502q5uf2afxoy9fhkf",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "com.sankuai.jsprotect.h5guard_strategy",
+      "value": "",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bsid",
+      "value": "JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "acctId",
+      "value": "214598107",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "token",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "brandId",
+      "value": "-1",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wmPoiId",
+      "value": "25436759",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isOfflineSelfOpen",
+      "value": "0",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_id",
+      "value": "310100",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isChain",
+      "value": "0",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "existBrandPoi",
+      "value": "false",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ignore_set_router_proxy",
+      "value": "false",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_id",
+      "value": "1000310100",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_version",
+      "value": "1730536164",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "newCategory",
+      "value": "false",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_location_id",
+      "value": "310100",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "location_id",
+      "value": "310115",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_s",
+      "value": "19dd72634c2-f04-c5a-bd6%7C%7C9",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cityId",
+      "value": "320600",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": 1782295911.113881,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "provinceId",
+      "value": "320000",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": 1782295911.113927,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "scIndex",
+      "value": "0",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": 1782295911.113964,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info_single",
+      "value": "%7B%22regionIdForSingle%22%3A%221000310100%22%2C%22regionVersionForSingle%22%3A1730536164%7D",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": 1782295911,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info",
+      "value": "%7B%22wmPoiId%22%3A%2225436759%22%2C%22region_id%22%3A%221000310100%22%2C%22region_version%22%3A1730536164%7D",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": 1782295911,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pushToken",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "utm_source_rg",
+      "value": "AM%25f4eATAo%25303%25XyIneyITnAdnuPnXeMPXeLnKMMnlTyeI-KgKAPKnTygnXnu-edgTM-lg",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "setPrivacyTime",
+      "value": "1_20260512",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid",
+      "value": "78273654c21504d74eb4.1777431108.1.0.0",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "WEBDFPID",
+      "value": "7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x-1779783846156-1772075198864IWOMUCIfd79fef3d01d5e9aadc18ccd4d0c95072362",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_cuid",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "e_u_id_3299326472",
+      "value": "8a70c7f4e0fb563b61faf42f099cb1ce",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "device_uuid",
+      "value": "!804f0234-48cd-474c-93eb-6d3778da6830",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid_update",
+      "value": "true",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "shopCategory",
+      "value": "food",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "16uaexy502q5uf2afxoy9fhkf",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "com.sankuai.jsprotect.h5guard_strategy",
+      "value": "",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bsid",
+      "value": "JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "acctId",
+      "value": "214598107",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "token",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "brandId",
+      "value": "-1",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wmPoiId",
+      "value": "25436759",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isOfflineSelfOpen",
+      "value": "0",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_id",
+      "value": "310100",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isChain",
+      "value": "0",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "existBrandPoi",
+      "value": "false",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ignore_set_router_proxy",
+      "value": "false",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_id",
+      "value": "1000310100",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_version",
+      "value": "1730536164",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "newCategory",
+      "value": "false",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_location_id",
+      "value": "310100",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "location_id",
+      "value": "310115",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_s",
+      "value": "19dd72634c2-f04-c5a-bd6%7C%7C9",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cityId",
+      "value": "320600",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "provinceId",
+      "value": "320000",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "scIndex",
+      "value": "0",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info_single",
+      "value": "%7B%22regionIdForSingle%22%3A%221000310100%22%2C%22regionVersionForSingle%22%3A1730536164%7D",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info",
+      "value": "%7B%22wmPoiId%22%3A%2225436759%22%2C%22region_id%22%3A%221000310100%22%2C%22region_version%22%3A1730536164%7D",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pushToken",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "utm_source_rg",
+      "value": "AM%25f4eATAo%25303%25XyIneyITnAdnuPnXeMPXeLnKMMnlTyeI-KgKAPKnTygnXnu-edgTM-lg",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "setPrivacyTime",
+      "value": "1_20260512",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wpush_server_url",
+      "value": "wss://wpush.meituan.com",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logan_session_token",
+      "value": "9oya6yehvsg8vpicdfbl",
+      "domain": "epassport.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid",
+      "value": "78273654c21504d74eb4.1777431108.1.0.0",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "WEBDFPID",
+      "value": "7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x-1779783846156-1772075198864IWOMUCIfd79fef3d01d5e9aadc18ccd4d0c95072362",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_cuid",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "e_u_id_3299326472",
+      "value": "8a70c7f4e0fb563b61faf42f099cb1ce",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "device_uuid",
+      "value": "!804f0234-48cd-474c-93eb-6d3778da6830",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid_update",
+      "value": "true",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "shopCategory",
+      "value": "food",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "16uaexy502q5uf2afxoy9fhkf",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "com.sankuai.jsprotect.h5guard_strategy",
+      "value": "",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bsid",
+      "value": "JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "acctId",
+      "value": "214598107",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "token",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "brandId",
+      "value": "-1",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wmPoiId",
+      "value": "25436759",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isOfflineSelfOpen",
+      "value": "0",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_id",
+      "value": "310100",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isChain",
+      "value": "0",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "existBrandPoi",
+      "value": "false",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ignore_set_router_proxy",
+      "value": "false",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_id",
+      "value": "1000310100",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_version",
+      "value": "1730536164",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "newCategory",
+      "value": "false",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_location_id",
+      "value": "310100",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "location_id",
+      "value": "310115",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_s",
+      "value": "19dd72634c2-f04-c5a-bd6%7C%7C9",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cityId",
+      "value": "320600",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "provinceId",
+      "value": "320000",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "scIndex",
+      "value": "0",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info_single",
+      "value": "%7B%22regionIdForSingle%22%3A%221000310100%22%2C%22regionVersionForSingle%22%3A1730536164%7D",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info",
+      "value": "%7B%22wmPoiId%22%3A%2225436759%22%2C%22region_id%22%3A%221000310100%22%2C%22region_version%22%3A1730536164%7D",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pushToken",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "utm_source_rg",
+      "value": "AM%25f4eATAo%25303%25XyIneyITnAdnuPnXeMPXeLnKMMnlTyeI-KgKAPKnTygnXnu-edgTM-lg",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "setPrivacyTime",
+      "value": "1_20260512",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wpush_server_url",
+      "value": "wss://wpush.meituan.com",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logan_session_token",
+      "value": "9oya6yehvsg8vpicdfbl",
+      "domain": "waimaieapp.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid",
+      "value": "78273654c21504d74eb4.1777431108.1.0.0",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "WEBDFPID",
+      "value": "7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x-1779783846156-1772075198864IWOMUCIfd79fef3d01d5e9aadc18ccd4d0c95072362",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_cuid",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk",
+      "value": "17b5cf3dac05f-082c275d117b37-39664306-100200-17b5cf3dac1ba",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "e_u_id_3299326472",
+      "value": "8a70c7f4e0fb563b61faf42f099cb1ce",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "device_uuid",
+      "value": "!804f0234-48cd-474c-93eb-6d3778da6830",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "uuid_update",
+      "value": "true",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "shopCategory",
+      "value": "food",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "JSESSIONID",
+      "value": "16uaexy502q5uf2afxoy9fhkf",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "com.sankuai.jsprotect.h5guard_strategy",
+      "value": "",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "bsid",
+      "value": "JLVlM3UpGHNJeQzzL1YvOUa60-pTlQ2assVG_d-qyWMATQA7_NbFtGoiZrRE8xJGbPjNwGfkNDzgJSTK0l-7Jw",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "acctId",
+      "value": "214598107",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "token",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "brandId",
+      "value": "-1",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wmPoiId",
+      "value": "25436759",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isOfflineSelfOpen",
+      "value": "0",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_id",
+      "value": "310100",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "isChain",
+      "value": "0",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "existBrandPoi",
+      "value": "false",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ignore_set_router_proxy",
+      "value": "false",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_id",
+      "value": "1000310100",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "region_version",
+      "value": "1730536164",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "newCategory",
+      "value": "false",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "city_location_id",
+      "value": "310100",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "location_id",
+      "value": "310115",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_lxsdk_s",
+      "value": "19dd72634c2-f04-c5a-bd6%7C%7C9",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cityId",
+      "value": "320600",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "provinceId",
+      "value": "320000",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "scIndex",
+      "value": "0",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info_single",
+      "value": "%7B%22regionIdForSingle%22%3A%221000310100%22%2C%22regionVersionForSingle%22%3A1730536164%7D",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "set_info",
+      "value": "%7B%22wmPoiId%22%3A%2225436759%22%2C%22region_id%22%3A%221000310100%22%2C%22region_version%22%3A1730536164%7D",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "pushToken",
+      "value": "0rsWFhy7fSyeonQvCcjgBHIyABbZPimJ73q74P_k6NYo*",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "utm_source_rg",
+      "value": "AM%25f4eATAo%25303%25XyIneyITnAdnuPnXeMPXeLnKMMnlTyeI-KgKAPKnTygnXnu-edgTM-lg",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "setPrivacyTime",
+      "value": "1_20260512",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wpush_server_url",
+      "value": "wss://wpush.meituan.com",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logan_session_token",
+      "value": "9oya6yehvsg8vpicdfbl",
+      "domain": "waimaie.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "WEBDFPID",
+      "value": "7w491w4692y95v971uv71z90uu936w1480x02v096wx979581yx6u83x-1779783846156-1772075198864IWOMUCIfd79fef3d01d5e9aadc18ccd4d0c95072362",
+      "domain": ".meituan.com",
+      "path": "/",
+      "expires": 1814263910.80496,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logan_session_token",
+      "value": "yw998vhdvsf25tn5jmq3",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "wpush_server_url",
+      "value": "wss://wpush.meituan.com",
+      "domain": "e.waimai.meituan.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ]
+}

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 _CN_TZ = timezone(timedelta(hours=8))
 def cn_now():
     return datetime.now(_CN_TZ)
-from flask import Flask, request, jsonify, render_template_string, send_from_directory
+from flask import Flask, request, jsonify, render_template_string
 
 PYTHON = sys.executable
 
@@ -22,10 +22,6 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     return response
-
-@app.route("/chat-test")
-def chat_test_page():
-    return send_from_directory(os.path.dirname(__file__), "chat_test.html")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "ops_logs.db")
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
@@ -112,6 +108,7 @@ def init_db():
                 conn.execute(sql)
     except Exception as e:
         print(f"[migration] {e}")
+    # food_snapshot table (created by init_snapshot.py, ensure it exists)
     # Change tracking: auto follow-up at T+3 and T+7
     conn.execute("""
         CREATE TABLE IF NOT EXISTS operator_stores (
@@ -149,6 +146,16 @@ def init_db():
             snapshot_date TEXT,
             metrics TEXT,
             created_at TEXT DEFAULT (datetime('now','localtime'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS food_snapshot (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_id TEXT, shop_name TEXT, platform TEXT DEFAULT 'eleme',
+            item_id TEXT, item_global_id TEXT, category_name TEXT,
+            name TEXT, price REAL, image_url TEXT, specs TEXT,
+            status TEXT, monthly_sales INTEGER DEFAULT 0,
+            description TEXT, snapshot_at TEXT, raw_data TEXT
         )
     """)
     conn.commit()
@@ -333,7 +340,13 @@ def parse_action(api_method, body, conn=None):
         if is_on is None:
             is_on = "onshelf" in m
         ids = req.get("itemGlobalIds", req.get("foodIds", req.get("spuIds", [])))
-        name_str = f"{len(ids)}个菜品"
+        names = []
+        if conn and ids:
+            for gid in ids:
+                cached = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (str(gid),)).fetchone()
+                if cached and cached["name"]:
+                    names.append(cached["name"])
+        name_str = ", ".join(names) if names else f"{len(ids)}个菜品"
         if is_on is True or is_on == True:
             return "上架", name_str
         elif is_on is False or is_on == False:
@@ -804,6 +817,7 @@ def _get_current_metrics_json(conn, shop_id, platform, item_id=None):
                     "status": specs.get("status", ""),
                     "monthlySales": specs.get("monthlySales", 0),
                 }
+    # Also store shop-level item count
     shop_items = conn.execute("SELECT COUNT(*) as cnt FROM food_cache WHERE shop_id=?", (shop_id,)).fetchone()
     metrics["_shop"] = {"item_count": shop_items["cnt"] if shop_items else 0}
     return json.dumps(metrics, ensure_ascii=False)
@@ -880,7 +894,6 @@ def receive_logs():
             item_id = extract_item_id_from_body(api_method, body)
         if not item_name:
             item_name = extract_item_name_from_body(api_method, body)
-
         # 从food_cache补全item_name（冷启动时extension的foodCache可能为空）
         if item_id and not item_name:
             names = []
@@ -896,6 +909,8 @@ def receive_logs():
 
         # Use extension's beforeSnapshot if provided (captured at onBeforeRequest time, most accurate).
         # Only fallback to food_cache when extension didn't send beforeSnapshot.
+        # Why: cache/sync from response interceptor may update food_cache BEFORE the log arrives,
+        # causing a race condition where before_snapshot = after_snapshot.
         if item_id:
             cache_before = {}
             for iid in item_id.split(","):
@@ -917,6 +932,7 @@ def receive_logs():
                     except:
                         pass
             if cache_before and not before_snapshot:
+                # Fallback: extension didn't provide beforeSnapshot, use food_cache
                 if len(cache_before) == 1:
                     before_snapshot = json.dumps(list(cache_before.values())[0], ensure_ascii=False)
                 else:
@@ -926,9 +942,9 @@ def receive_logs():
         if item_id and not item_name:
             names = []
             for iid in item_id.split(","):
-                cached_fc = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (iid.strip(),)).fetchone()
-                if cached_fc and cached_fc["name"]:
-                    names.append(cached_fc["name"])
+                cached = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (iid.strip(),)).fetchone()
+                if cached and cached["name"]:
+                    names.append(cached["name"])
             if names:
                 item_name = ", ".join(names)
 
@@ -951,11 +967,13 @@ def receive_logs():
         change_summary = build_change_summary(action_type, api_method, body, before_snapshot)
 
         # Update food_cache with NEW state after modification
+        # This ensures next modification picks up the correct "before" value
         if item_id:
             for i, iid in enumerate(item_id.split(",")):
                 iid = iid.strip()
                 if not iid:
                     continue
+                # Get existing cache entry to preserve fields we're not changing
                 existing = conn.execute("SELECT specs FROM food_cache WHERE item_key=?", (iid,)).fetchone()
                 existing_data = {}
                 if existing and existing["specs"]:
@@ -963,22 +981,31 @@ def receive_logs():
                         existing_data = json.loads(existing["specs"])
                     except:
                         pass
+
+                # Determine the new name
                 names = item_name.split(",") if item_name else []
                 new_name = names[i].strip() if i < len(names) else (names[-1].strip() if names else "")
                 if not new_name and existing_data.get("name"):
                     new_name = existing_data["name"]
+
+                # Determine new price
                 new_price = existing_data.get("price", 0)
                 if action_type in ("改价", "改规格", "改规格/价格"):
                     attr = (body.get("params", {}) if isinstance(body, dict) else {}).get("updateGoodsAttr", {})
                     new_specs = attr.get("sfoodSpecs", [])
                     if new_specs and new_specs[0].get("price") is not None:
                         new_price = new_specs[0]["price"]
+
+                # Update status for shelf operations
                 new_status = existing_data.get("status", "")
                 if action_type == "上架":
                     new_status = "上架"
                 elif action_type == "下架":
                     new_status = "下架"
+
+                # Build updated cache data
                 cache_data = {**existing_data, "name": new_name, "price": new_price, "status": new_status}
+
                 conn.execute(
                     "INSERT OR REPLACE INTO food_cache (item_key, item_id, shop_id, name, price, specs, updated_at) VALUES (?,?,?,?,?,?,?)",
                     (iid, iid, shop_id, new_name, new_price,
@@ -986,18 +1013,6 @@ def receive_logs():
                 )
 
         after_snapshot = log.get("afterSnapshot", "")
-
-        # 去重：同一个timestamp+api_method+item_id只存一次
-        ts_val = log.get("timestamp", "")
-        dup = conn.execute(
-            "SELECT id FROM logs WHERE timestamp=? AND api_method=? AND item_id=? LIMIT 1",
-            (ts_val, api_method, item_id)
-        ).fetchone()
-        if dup:
-            # 已存在，如果有新的after_snapshot就更新
-            if after_snapshot:
-                conn.execute("UPDATE logs SET after_snapshot=? WHERE id=?", (after_snapshot, dup["id"]))
-            continue
 
         conn.execute(
             """INSERT INTO logs (operator, timestamp, api_method, url, body_full, platform,
@@ -1189,7 +1204,7 @@ def tracking_summary():
 
 @app.route("/api/cache/sync", methods=["POST"])
 def sync_cache():
-    """Receive shop cache from extension (passive capture from API responses)"""
+    """Receive food/shop cache from extension (passive capture from API responses)"""
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "no data"}), 400
@@ -1211,6 +1226,7 @@ def sync_cache():
             name = f.get("name", "")
             price = f.get("price", 0)
 
+            # Build rich cache data
             cache_data = json.dumps({
                 "name": name, "price": price,
                 "image": f.get("image", ""),
@@ -1229,6 +1245,22 @@ def sync_cache():
                     )
                     saved += 1
 
+            # Also update food_snapshot if exists
+            if item_id:
+                existing = conn.execute("SELECT id FROM food_snapshot WHERE item_id=? AND shop_id=?", (item_id, shop_id)).fetchone()
+                if not existing:
+                    conn.execute(
+                        """INSERT INTO food_snapshot
+                        (shop_id, platform, item_id, item_global_id, category_name, name, price,
+                         image_url, specs, status, monthly_sales, description, snapshot_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        (shop_id, "eleme", item_id, item_global_id, f.get("categoryName", ""),
+                         name, price, f.get("image", ""),
+                         json.dumps(f.get("specs", []), ensure_ascii=False),
+                         "上架" if f.get("isOnShelf", True) else "下架",
+                         f.get("monthlySales", 0), f.get("description", ""), now)
+                    )
+
     elif cache_type == "shops":
         for s in items:
             shop_id = str(s.get("shopId", ""))
@@ -1245,14 +1277,25 @@ def sync_cache():
     print(f"[cache sync] {cache_type}: {saved} items")
     return jsonify({"saved": saved})
 
+@app.route("/api/food_cache", methods=["GET"])
+def get_food_cache():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM food_cache ORDER BY updated_at DESC LIMIT 500").fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
 @app.route("/api/cache_summary", methods=["GET"])
 def cache_summary():
     conn = get_db()
+    food_count = conn.execute("SELECT count(DISTINCT item_id) FROM food_cache").fetchone()[0]
     shop_count = conn.execute("SELECT count(*) FROM shop_cache").fetchone()[0]
     shops = [dict(r) for r in conn.execute("SELECT * FROM shop_cache").fetchall()]
+    snapshot_count = conn.execute("SELECT count(*) FROM food_snapshot").fetchone()[0]
     conn.close()
     return jsonify({
+        "food_count": food_count,
         "shop_count": shop_count,
+        "snapshot_count": snapshot_count,
         "shops": shops
     })
 
@@ -1354,6 +1397,7 @@ PAGE_HTML = """<!DOCTYPE html>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('logs')">操作记录</div>
     <div class="tab" onclick="switchTab('tracking')">效果跟踪 <span id="trackBadge" style="background:#e94560;color:white;padding:1px 6px;border-radius:8px;font-size:10px;display:none">0</span></div>
+    <div class="tab" onclick="switchTab('cache')">菜品缓存</div>
   </div>
   <div id="tab-logs">
     <div class="filters">
@@ -1367,6 +1411,9 @@ PAGE_HTML = """<!DOCTYPE html>
   <div id="tab-tracking" style="display:none">
     <div id="trackingSummary"></div>
     <div id="trackingContent"></div>
+  </div>
+  <div id="tab-cache" style="display:none">
+    <div id="cacheContent"></div>
   </div>
 </div>
 <script>
@@ -1393,8 +1440,82 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-logs').style.display = name === 'logs' ? '' : 'none';
   document.getElementById('tab-tracking').style.display = name === 'tracking' ? '' : 'none';
+  document.getElementById('tab-cache').style.display = name === 'cache' ? '' : 'none';
   event.target.closest('.tab') ? event.target.closest('.tab').classList.add('active') : event.target.classList.add('active');
+  if (name === 'cache') loadCache();
   if (name === 'tracking') loadTracking();
+}
+
+async function loadCache() {
+  const el = document.getElementById('cacheContent');
+  try {
+    const [foodRes, summaryRes] = await Promise.all([
+      fetch('/api/food_cache'),
+      fetch('/api/cache_summary')
+    ]);
+    const foods = await foodRes.json();
+    const summary = await summaryRes.json();
+
+    let html = '';
+
+    // Shop info
+    if (summary.shops && summary.shops.length > 0) {
+      for (const s of summary.shops) {
+        html += '<div class="shop-card"><div class="name">' + esc(s.shop_name) + '</div>' +
+          '<div class="info"><span class="tag tag-eleme">' + esc(s.platform) + '</span> ID: ' + esc(s.shop_id) + ' &mdash; updated ' + fmtTime(s.updated_at) + '</div></div>';
+      }
+    }
+
+    html += '<div class="section-title">food cache <span class="badge">' + summary.food_count + '</span></div>';
+
+    // Group by category (parse specs JSON to get category)
+    const byCat = {};
+    for (const f of foods) {
+      let cat = '';
+      try { const d = JSON.parse(f.specs || '{}'); cat = d.category || ''; } catch(e) {}
+      if (!cat) cat = 'uncategorized';
+      if (!byCat[cat]) byCat[cat] = [];
+      // Dedup: only show items where item_key starts with 300 (globalId) to avoid duplicates
+      if (f.item_key && f.item_key.startsWith('300')) {
+        byCat[cat].push(f);
+      }
+    }
+
+    // If no 300-prefix items, show all
+    const total300 = Object.values(byCat).reduce((s,a) => s + a.length, 0);
+    if (total300 === 0) {
+      for (const f of foods) {
+        let cat = '';
+        try { const d = JSON.parse(f.specs || '{}'); cat = d.category || ''; } catch(e) {}
+        if (!cat) cat = 'uncategorized';
+        if (!byCat[cat]) byCat[cat] = [];
+        byCat[cat].push(f);
+      }
+    }
+
+    for (const [cat, items] of Object.entries(byCat)) {
+      html += '<div class="cat-label">' + esc(cat) + ' (' + items.length + ')</div><div class="food-grid">';
+      for (const f of items) {
+        let status = '', price = f.price;
+        try {
+          const d = JSON.parse(f.specs || '{}');
+          status = d.status || '';
+          if (d.specs && d.specs[0] && d.specs[0].price) price = d.specs[0].price;
+        } catch(e) {}
+        const isOn = status === '上架';
+        html += '<div class="food-item">' +
+          '<span class="fname">' + esc(f.name) + '</span>' +
+          '<span class="fprice">&yen;' + (price||0) + '</span>' +
+          '<span class="fstatus ' + (isOn ? 'on' : 'off') + '">' + (isOn ? 'ON' : 'OFF') + '</span>' +
+        '</div>';
+      }
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="empty">load failed: ' + e.message + '</div>';
+  }
 }
 
 function fmtDate(ts) {
@@ -2798,115 +2919,21 @@ def _load_brain_knowledge():
             pass
     return ""
 
-AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。你由DeepSeek驱动，不是Claude、不是ChatGPT、不是任何其他AI。如果被问到你是什么AI，回答"我是小q，团队的运营同事"即可，不要提任何底层模型。
+AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。
 
 ## 你的职能
 1. **答疑交流** — 基于运营认知和店铺数据，回答运营的疑问、一起讨论运营策略
 2. **诊断助手** — 运营问起某个品牌/店铺，你查诊断报告发给他看，帮他理解问题
-3. **Review诊断** — 和运营一起过诊断结果，一个店一个店聊：
-   - 诊断报告里哪些对、哪些错（数据抓错/判断失误）
-   - TODO哪些采纳、哪些不做（商家不配合/逻辑不对/优先级低）
-   - 讨论出新的TODO方案
-   - 确认的TODO存进CRM，跟进执行状态
-4. **反馈收集** — 运营遇到任何问题都帮忙记录：
+3. **反馈收集** — 运营遇到任何问题都帮忙记录：
    - **产品bug**（product_bug）: 插件不好用、巡检跑不了、数据显示不对
    - **诊断bug**（diagnosis_bug）: 诊断报告内容有误、建议不合理、数据不准
    - **建议**（suggestion）: 想要什么功能、哪里可以改进
-5. **会议纪要** — 查会议记录发给运营
+4. **会议纪要** — 查会议记录发给运营
 
-## Review怎么聊（最核心的能力）
-
-目标不是"给运营看报告"，而是通过逐项讨论，搞清楚三件事：
-1. **诊断哪里对、哪里错** → 错的地方改进我们的认知（BRAIN）
-2. **TODO哪些该做、哪些不该做、为什么** → 确认后存CRM推进
-3. **讨论中发现的新洞察** → 补充到认知里
-
-### Phase 1：逐章过诊断（一起看一个东西，聊各自的理解）
-
-运营提到某个店 → 调crm_query_diagnosis拿到章节目录 → 从第一章开始。
-每章用crm_query_diagnosis_section取内容。
-
-**呈现方式：报告原文 + 你的理解 + 想讨论的点**
-
-就像两个同事一起看同一份材料，你先说你看完的理解，再问对方怎么看：
-
-示范：
-> 先看产品端。报告原文是这样的：
->
-> （贴出关键数据：品类=美蛙鱼头锅类，客单79.33元，商圈55.48元...）
->
-> 我的理解：这家店定位挺清晰的，高客单聚餐店，不是快餐。但有个地方我觉得有意思——60到100这个区间几乎是空的，报告说可能是套餐没做好导致的"中间塌陷"。如果真是这样，双人套餐定价在79-89可能正好能填上。
->
-> 不过我不确定的是：这个价格带空洞到底是套餐的问题，还是这家店本来就两极分化——要么一个人点个小份，要么一桌人点大餐？你在实际跟店的时候，客人一般是怎么点的？
-
-要点：
-1. **先给报告原文/关键数据**——运营能看到原始信息
-2. **再说你的理解**——你怎么解读这些数据，像同事分享判断
-3. **最后抛出你不确定的点**——不是"对吗？"而是"我觉得可能是XX，但也可能是YY，你怎么看？"
-
-运营接话后，自然地聊——可能同意、可能补充、可能纠正。
-聊完一章自然过渡下一章。运营说"不对"的地方，记录反馈（crm_record_feedback）。
-
-### Phase 2：过TODO（一起定计划）
-
-诊断聊完了 → 自然过渡到TODO。
-
-方式：把TODO用大白话说出来，带上"为什么建议这样做"，问运营看法。
-- 好的示范："第一条建议是查一下有没有设新客立减，现在新客下单率只有5.96%，商圈平均12%，差一倍。新客立减能直接降低首单门槛。你这边有在用新客立减吗？"
-- 坏的示范："TODO-1：查明并修复新客下单率。你觉得能做吗？"
-
-运营的回应自然会是：
-- "做了/没做/做过但效果不好" → 你追问细节，更新状态
-- "老板不愿意" → 不硬推，聊替代方案
-- "这个我觉得不是这样" → 最有价值——记录为诊断错误
-- 讨论中冒出新想法 → "这个挺好的，要加到计划里吗？"
-
-确认的TODO调crm_save_review_todo存。
-已做的/不做的调crm_mark_reviewed更新。
-
-### Phase 3：聊完收尾
-
-自然地总结，不要搞成表格汇报：
-- "今天这家店聊下来，主要就是XX和YY两个方向，TODO定了X条。有个地方诊断判断错了——xxx，我记下来了回头改。下次你做了满减调整跟我说一声，我帮你看看效果。"
-
-背后默默做的事（不用告诉运营）：
-- 诊断错误 → crm_record_feedback已记录
-- 确认的TODO → crm_save_review_todo已存
-- 新发现/新认知 → crm_record_feedback(category=suggestion)记录
-
-### Phase 4：后续跟进
-
-运营再来聊这家店时：
-- 先查CRM里的TODO，自然地问："上次说的满减调整弄了吗？"
-- 不要搞成汇报："请汇报TODO执行情况"（这是领导不是同事）
-
-### 沟通铁律
-- **像同事讨论，不像上级审查**
-- 没争议的一笔带过，有疑问的重点聊
-- 运营说的"不对"最有价值——追问清楚，认真记录
-- 一次聊一个点，运营接话了再往下走
-- 不替运营做决定，商家不配合不硬推
-
-## 说话风格（极其重要）
-
-像微信聊天，像真人同事打字，不像AI输出。
-
-绝对禁止：
-- 不用**加粗**、不用*斜体*、不用##标题、不用- 列表、不用表格、不用代码块
-- 不用"①②③"、不用"**关键发现**："这种格式化标题
-- 不用"让我为您分析"、"以下是我的理解"这种AI腔
-- 不用emoji（除非运营先用了）
-
-正确的方式：
-- 就是打字，一段一段说，像微信发消息
-- 数据直接写在句子里："客单79块，商圈平均55，高出不少"
-- 想强调就用口语："这个挺关键的"、"这块我觉得有问题"
-- 分段靠换行，不靠格式符号
-
-好的示范：
-"先看产品端。这家店品类很清晰，美蛙鱼头锅类，客单79块比商圈55高出不少。竞对主要是龙虾王那种高客单聚餐店，不是跟快餐抢。
-
-不过有个地方我觉得有意思，60到100这个价格区间几乎没单，就12.5%。按理说两个人吃美蛙鱼头，花个七八十很正常，但这个区间空了。我觉得可能是套餐没做好，没有引导两个人点一份合适的组合。你觉得呢？是这个原因还是有别的？"
+## 说话风格
+像微信聊天，短句直接，不啰嗦，不说技术术语。
+发诊断报告时用markdown格式，重点加粗，分段清晰。
+讨论运营问题时，用你的认知给出判断和建议，像一个懂行的同事。
 
 ## 反馈处理
 运营说了任何问题（"不好用"、"不对"、"有bug"、"能不能加"等），主动归类并记录：
@@ -2982,6 +3009,21 @@ AGENT_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "query_food_cache",
+            "description": "查询店铺菜单缓存（菜品名称、价格、月售等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "shop_name": {"type": "string", "description": "店铺名称关键词"},
+                    "food_name": {"type": "string", "description": "菜品名称关键词，可选"}
+                },
+                "required": ["shop_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "query_shop_list",
             "description": "查询所有运营的完整店铺列表（含品牌、平台）。运营问'我有哪些店'、'服务几家店'时调用",
             "parameters": {"type": "object", "properties": {}, "required": []}
@@ -2991,7 +3033,7 @@ AGENT_TOOLS = [
         "type": "function",
         "function": {
             "name": "crm_query_diagnosis",
-            "description": "查询品牌诊断报告的概览：基本信息+章节目录+TODO清单。用这个先了解全貌，再用crm_query_diagnosis_section看具体章节",
+            "description": "查询品牌/店铺的诊断报告。运营问起某个品牌的诊断、问题、建议时调用",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -2999,21 +3041,6 @@ AGENT_TOOLS = [
                     "operator": {"type": "string", "description": "运营姓名，可选，不填查所有"}
                 },
                 "required": ["store_name"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "crm_query_diagnosis_section",
-            "description": "查询诊断报告的某个具体章节内容。和运营逐章Review时用：先用crm_query_diagnosis看目录，再用这个逐章展开讨论",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "store_name": {"type": "string", "description": "品牌名"},
-                    "section_keyword": {"type": "string", "description": "章节关键词，如'菜单''价格''活动''评价''曝光''配送''TODO''还需确认'等"}
-                },
-                "required": ["store_name", "section_keyword"]
             }
         }
     },
@@ -3059,42 +3086,6 @@ AGENT_TOOLS = [
                     "content": {"type": "string", "description": "反馈内容，尽量详细"}
                 },
                 "required": ["category", "content"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "crm_save_review_todo",
-            "description": "和运营Review诊断报告后，把确认的TODO存进CRM。每条TODO要有具体内容、漏斗环节、原因逻辑、预估影响",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "store_name": {"type": "string", "description": "品牌名"},
-                    "content": {"type": "string", "description": "TODO具体内容，如'满减改为45减3和58减5'"},
-                    "funnel_stage": {"type": "string", "description": "解决漏斗哪个环节：曝光/新客进店/新客下单/客单升级/复购"},
-                    "reason": {"type": "string", "description": "原因逻辑：为什么改这个会有效"},
-                    "expected_impact": {"type": "string", "description": "预估影响，如'客单30→35'"},
-                    "status": {"type": "string", "description": "状态，默认'待做'", "default": "待做"}
-                },
-                "required": ["store_name", "content", "funnel_stage", "reason"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "crm_mark_reviewed",
-            "description": "更新TODO状态。运营说做了/不做/效果好/效果差时调用",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "store_name": {"type": "string", "description": "品牌名"},
-                    "todo_content": {"type": "string", "description": "TODO内容关键词，用来匹配"},
-                    "new_status": {"type": "string", "description": "新状态，如：已执行/已完成/效果不佳/商家不愿做/搁置/待做"},
-                    "feedback": {"type": "string", "description": "运营反馈或执行结果说明"}
-                },
-                "required": ["store_name", "todo_content", "new_status"]
             }
         }
     }
@@ -3191,6 +3182,40 @@ def _exec_tool(name, args):
                 return "没有待追踪的改动"
             return json.dumps([dict(r) for r in rows], ensure_ascii=False)
 
+        elif name == "query_food_cache":
+            shop_name = args.get("shop_name", "")
+            food_name = args.get("food_name", "")
+            # First find shop_id from shop_cache
+            shops = conn.execute("SELECT shop_id, shop_name FROM shop_cache WHERE shop_name LIKE ?",
+                                 [f"%{shop_name}%"]).fetchall()
+            if not shops:
+                return f"没有找到包含'{shop_name}'的店铺"
+            shop_ids = [s["shop_id"] for s in shops]
+            placeholders = ",".join(["?"] * len(shop_ids))
+            q = f"""SELECT fs.name, fs.price, fs.monthly_sales, fs.category_name, fs.status,
+                           sc.shop_name, fs.shop_id
+                    FROM food_snapshot fs
+                    JOIN shop_cache sc ON fs.shop_id = sc.shop_id
+                    WHERE fs.shop_id IN ({placeholders})"""
+            p = list(shop_ids)
+            if food_name:
+                q += " AND fs.name LIKE ?"
+                p.append(f"%{food_name}%")
+            q += " ORDER BY fs.monthly_sales DESC LIMIT 30"
+            rows = conn.execute(q, p).fetchall()
+            if not rows:
+                # Try food_cache table
+                q2 = f"SELECT name, price, shop_id FROM food_cache WHERE shop_id IN ({placeholders})"
+                p2 = list(shop_ids)
+                if food_name:
+                    q2 += " AND name LIKE ?"
+                    p2.append(f"%{food_name}%")
+                q2 += " LIMIT 30"
+                rows = conn.execute(q2, p2).fetchall()
+            if not rows:
+                return f"找到店铺但没有菜品缓存数据"
+            return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
         elif name == "query_shop_list":
             # 优先从operators.json读完整列表（品牌→门店→平台）
             ops_json_path = os.path.join(os.path.dirname(__file__), "operators.json")
@@ -3216,18 +3241,12 @@ def _exec_tool(name, args):
         # ===== CRM Tools =====
         elif name == "crm_query_diagnosis":
             return _crm_query_diagnosis(args)
-        elif name == "crm_query_diagnosis_section":
-            return _crm_query_diagnosis_section(args)
         elif name == "crm_query_meeting":
             return _crm_query_meeting(args)
         elif name == "crm_list_stores":
             return _crm_list_stores(args)
         elif name == "crm_record_feedback":
             return _crm_record_feedback(args)
-        elif name == "crm_save_review_todo":
-            return _crm_save_review_todo(args)
-        elif name == "crm_mark_reviewed":
-            return _crm_mark_reviewed(args)
 
         else:
             return f"未知工具: {name}"
@@ -3239,7 +3258,7 @@ def _exec_tool(name, args):
 # ========== 日志上报（远程→管理员） ==========
 
 def _backfill_log_names():
-    """回填logs表中空的shop_name（从shop_cache补全）"""
+    """回填logs表中空的shop_name和item_name（从food_cache/shop_cache补全）"""
     try:
         conn = get_db()
         # 回填shop_name
@@ -3249,6 +3268,14 @@ def _backfill_log_names():
             ) WHERE (shop_name = '' OR shop_name IS NULL)
               AND shop_id <> ''
               AND EXISTS (SELECT 1 FROM shop_cache WHERE shop_cache.shop_id = logs.shop_id)
+        """)
+        # 回填item_name（单个item_id，不含逗号的）
+        conn.execute("""
+            UPDATE logs SET item_name = (
+                SELECT name FROM food_cache WHERE food_cache.item_key = logs.item_id
+            ) WHERE (item_name = '' OR item_name IS NULL)
+              AND item_id <> '' AND item_id NOT LIKE '%,%'
+              AND EXISTS (SELECT 1 FROM food_cache WHERE food_cache.item_key = logs.item_id)
         """)
         conn.commit()
         conn.close()
@@ -3295,6 +3322,12 @@ def _report_logs(log_type="error"):
                         "duration": result.get("duration", 0),
                         "issues": result.get("issues", {}),
                     }]
+            elif log_type == "health":
+                entries = [{
+                    "ts": cn_now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "state": _patrol_state.get("state", "idle"),
+                    "message": _patrol_state.get("message", ""),
+                }]
             elif log_type == "ops":
                 # 上报未同步的操作日志（积压补发）
                 conn = get_db()
@@ -3313,44 +3346,6 @@ def _report_logs(log_type="error"):
                     conn.execute(f"UPDATE logs SET reported=1 WHERE id IN ({','.join('?' * len(ids))})", ids)
                     conn.commit()
                 conn.close()
-
-            elif log_type == "chat":
-                # 上报未同步的聊天记录
-                chat_dir = os.path.join(os.path.dirname(__file__), "chat_logs")
-                reported_file = os.path.join(chat_dir, "_reported.json")
-                reported = {}
-                if os.path.exists(reported_file):
-                    try:
-                        with open(reported_file) as f:
-                            reported = json.load(f)
-                    except:
-                        reported = {}
-
-                if os.path.isdir(chat_dir):
-                    for fname in sorted(os.listdir(chat_dir)):
-                        if not fname.endswith(".jsonl") or fname.startswith("_"):
-                            continue
-                        fpath = os.path.join(chat_dir, fname)
-                        file_size = os.path.getsize(fpath)
-                        last_reported_size = reported.get(fname, 0)
-                        if file_size <= last_reported_size:
-                            continue
-                        # 只读新增部分
-                        with open(fpath, "r", encoding="utf-8") as f:
-                            f.seek(last_reported_size)
-                            new_lines = f.readlines()
-                        if new_lines:
-                            for line in new_lines:
-                                try:
-                                    entries.append(json.loads(line.strip()))
-                                except:
-                                    pass
-                            reported[fname] = file_size
-
-                    # 更新已上报标记
-                    if entries:
-                        with open(reported_file, "w", encoding="utf-8") as f:
-                            json.dump(reported, f)
 
             if not entries:
                 return
@@ -3425,7 +3420,7 @@ def api_logs_report():
     data = request.json or {}
     operator = data.get("operator", "unknown")
     hostname = data.get("hostname", "unknown")
-    log_type = data.get("type", "error")  # error / patrol / ops
+    log_type = data.get("type", "error")  # error / patrol / health
     entries = data.get("entries", [])
     if not entries:
         return jsonify({"ok": True, "msg": "empty"})
@@ -3555,50 +3550,29 @@ def api_crm_tool():
     args = data.get("args", {})
     handlers = {
         "crm_query_diagnosis": _crm_query_diagnosis_local,
-        "crm_query_diagnosis_section": _crm_query_diagnosis_section_local,
         "crm_query_meeting": _crm_query_meeting_local,
         "crm_list_stores": _crm_list_stores_local,
         "crm_record_feedback": _crm_record_feedback_local,
-        "crm_save_review_todo": _crm_save_review_todo_local,
-        "crm_mark_reviewed": _crm_mark_reviewed_local,
     }
     fn = handlers.get(tool)
     if not fn:
         return jsonify({"result": f"未知CRM工具: {tool}"}), 400
     return jsonify({"result": fn(args)})
 
-def _parse_report_sections(content):
-    """把诊断报告md按##/###标题拆成章节列表 [{title, content, level}]"""
-    import re
-    sections = []
-    # 按##或###标题切分
-    parts = re.split(r'\n(#{2,3}\s+.+)', content)
-    # parts[0]是标题前的内容（报告头部）
-    if parts[0].strip():
-        # 提取第一行作为标题
-        first_line = parts[0].strip().split('\n')[0]
-        sections.append({"title": first_line, "content": parts[0].strip(), "level": 1})
-    # 后续每对(标题, 内容)
-    for i in range(1, len(parts), 2):
-        title = parts[i].strip().lstrip('#').strip()
-        body = parts[i+1].strip() if i+1 < len(parts) else ""
-        level = parts[i].count('#')
-        sections.append({"title": title, "content": parts[i].strip() + "\n" + body, "level": level})
-    return sections
-
 def _crm_query_diagnosis(args):
-    """查诊断报告概览 — 本地优先，无则走远程"""
+    """查诊断报告 — 本地优先，无则走远程"""
     if os.path.exists(CRM_DB):
         return _crm_query_diagnosis_local(args)
     return _crm_remote_call("crm_query_diagnosis", args)
 
 def _crm_query_diagnosis_local(args):
-    """查诊断报告概览（本地）— 返回基本信息+章节目录+TODO清单"""
+    """查诊断报告（本地）— 返回最新报告的关键部分，控制长度"""
     conn = _crm_db()
     if not conn:
         return "CRM数据库不存在"
     store_name = args.get("store_name", "")
     operator = args.get("operator", "")
+    # 先找store
     q = "SELECT id, store_name, branch, operator_name, stage, diagnosed_at FROM stores WHERE store_name LIKE ?"
     p = [f"%{store_name}%"]
     if operator:
@@ -3609,83 +3583,47 @@ def _crm_query_diagnosis_local(args):
         conn.close()
         return f"没有找到包含'{store_name}'的品牌"
     results = []
-    for s in stores[:3]:
+    for s in stores[:3]:  # 最多3个品牌
         docs = conn.execute(
-            "SELECT title, content, created_at FROM documents WHERE store_id=? AND doc_type='report' ORDER BY created_at DESC LIMIT 1",
+            "SELECT doc_type, title, content, created_at FROM documents WHERE store_id=? AND doc_type='report' ORDER BY created_at DESC LIMIT 1",
             (s["id"],)).fetchall()
         store_info = {"brand": s["store_name"], "branch": s["branch"], "operator": s["operator_name"],
                       "stage": s["stage"], "diagnosed_at": s["diagnosed_at"]}
         if docs:
             content = docs[0]["content"]
-            sections = _parse_report_sections(content)
-            # 章节目录（只返回标题列表）
+            # 提取关键部分，控制返回长度（DeepSeek处理超长tool output会编造）
+            key_content = _extract_report_key_sections(content)
             store_info["report_title"] = docs[0]["title"]
             store_info["report_date"] = docs[0]["created_at"]
-            store_info["sections"] = [{"index": i, "title": sec["title"]} for i, sec in enumerate(sections)]
-            # 提取TODO章节内容（Review核心）
-            todo_text = ""
-            for sec in sections:
-                if "TODO" in sec["title"].upper() or "todo" in sec["title"]:
-                    todo_text += sec["content"] + "\n"
-            if todo_text:
-                store_info["todos"] = todo_text[:4000]
-            # 提取报告头部基本信息（前500字）
-            store_info["header"] = content[:500]
-        else:
-            store_info["no_report"] = True
-        # 已有的CRM TODO记录
-        todos = conn.execute(
-            "SELECT seq, content, funnel_stage, status FROM todos WHERE store_id=? ORDER BY seq",
-            (s["id"],)).fetchall()
-        if todos:
-            store_info["crm_todos"] = [dict(t) for t in todos]
+            store_info["report_content"] = key_content
+            store_info["_notice"] = "以下是官方诊断报告原文，必须原样转发给运营，一个字不改"
         results.append(store_info)
     conn.close()
     return json.dumps(results, ensure_ascii=False)
 
-def _crm_query_diagnosis_section(args):
-    """查诊断报告某个章节 — 本地优先，无则走远程"""
-    if os.path.exists(CRM_DB):
-        return _crm_query_diagnosis_section_local(args)
-    return _crm_remote_call("crm_query_diagnosis_section", args)
 
-def _crm_query_diagnosis_section_local(args):
-    """查诊断报告具体章节（本地）"""
-    conn = _crm_db()
-    if not conn:
-        return "CRM数据库不存在"
-    store_name = args.get("store_name", "")
-    section_kw = args.get("section_keyword", "")
-    store = conn.execute("SELECT id, store_name FROM stores WHERE store_name LIKE ? LIMIT 1",
-                         (f"%{store_name}%",)).fetchone()
-    if not store:
-        conn.close()
-        return f"没有找到品牌'{store_name}'"
-    doc = conn.execute(
-        "SELECT content FROM documents WHERE store_id=? AND doc_type='report' ORDER BY created_at DESC LIMIT 1",
-        (store["id"],)).fetchone()
-    if not doc:
-        conn.close()
-        return f"{store['store_name']}没有诊断报告"
-    sections = _parse_report_sections(doc["content"])
-    # 模糊匹配章节
-    matched = [s for s in sections if section_kw in s["title"]]
-    if not matched:
-        # 尝试更宽松的匹配
-        kw_lower = section_kw.lower()
-        matched = [s for s in sections if kw_lower in s["title"].lower() or kw_lower in s["content"][:200].lower()]
-    conn.close()
-    if not matched:
-        all_titles = [s["title"] for s in sections]
-        return f"没有找到包含'{section_kw}'的章节。可选章节：\n" + "\n".join(f"- {t}" for t in all_titles)
-    # 返回匹配的章节（限制总长度）
-    result = ""
-    for s in matched:
-        result += s["content"] + "\n\n"
-        if len(result) > 6000:
-            result += "\n...(内容较长，已截取前6000字)"
-            break
-    return result
+def _extract_report_key_sections(content):
+    """从诊断报告md中提取关键部分：诊断总结+TODO+做对了的，控制在4000字内"""
+    import re
+    sections = []
+    # 尝试提取第二次诊断（复诊）部分
+    m = re.search(r'(## 第\d+次诊断.*)', content, re.DOTALL)
+    if m:
+        sections.append(m.group(1)[:4000])
+    else:
+        # 提取诊断总结
+        m = re.search(r'(## 三、诊断总结.*?)(?=\n## 四、|$)', content, re.DOTALL)
+        if m:
+            sections.append(m.group(1)[:2000])
+        # 提取TODO
+        m = re.search(r'(## 四、TODO.*?)(?=\n## 五、|$)', content, re.DOTALL)
+        if m:
+            sections.append(m.group(1)[:2000])
+        # 如果都没找到，取最后40%的内容（通常是总结部分）
+        if not sections:
+            cut = max(0, len(content) - 4000)
+            sections.append(content[cut:])
+    return "\n".join(sections)
 
 def _crm_query_meeting(args):
     """查会议纪要 — 本地优先，无则走远程"""
@@ -3787,83 +3725,6 @@ def _crm_record_feedback_local(args):
     return f"已记录反馈: {content[:50]}"
 
 
-def _crm_save_review_todo(args):
-    """存Review确认的TODO — 本地优先，无则走远程"""
-    if os.path.exists(CRM_DB):
-        return _crm_save_review_todo_local(args)
-    return _crm_remote_call("crm_save_review_todo", args)
-
-def _crm_save_review_todo_local(args):
-    """存Review TODO（本地）"""
-    conn = _crm_db()
-    if not conn:
-        return "CRM数据库不存在"
-    store_name = args.get("store_name", "")
-    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
-    if not store:
-        conn.close()
-        return f"没有找到品牌'{store_name}'，先确认品牌名"
-    store_id = store["id"]
-    # 算seq：当前最大seq+1
-    max_seq = conn.execute("SELECT MAX(seq) FROM todos WHERE store_id=?", (store_id,)).fetchone()[0] or 0
-    conn.execute(
-        """INSERT INTO todos (store_id, seq, content, funnel_stage, reason, expected_impact, type, status, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'todo', ?, datetime('now','localtime'))""",
-        (store_id, max_seq + 1, args.get("content", ""),
-         args.get("funnel_stage", ""), args.get("reason", ""),
-         args.get("expected_impact", ""), args.get("status", "待做"))
-    )
-    conn.commit()
-    conn.close()
-    return f"已存TODO#{max_seq+1}: {args.get('content','')[:50]}"
-
-def _crm_mark_reviewed(args):
-    """更新TODO状态 — 本地优先，无则走远程"""
-    if os.path.exists(CRM_DB):
-        return _crm_mark_reviewed_local(args)
-    return _crm_remote_call("crm_mark_reviewed", args)
-
-def _crm_mark_reviewed_local(args):
-    """更新TODO状态（本地）"""
-    conn = _crm_db()
-    if not conn:
-        return "CRM数据库不存在"
-    store_name = args.get("store_name", "")
-    todo_kw = args.get("todo_content", "")
-    new_status = args.get("new_status", "")
-    feedback = args.get("feedback", "")
-    # 找store
-    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
-    if not store:
-        conn.close()
-        return f"没有找到品牌'{store_name}'"
-    # 模糊匹配TODO
-    todos = conn.execute(
-        "SELECT id, seq, content, status FROM todos WHERE store_id=? AND content LIKE ?",
-        (store["id"], f"%{todo_kw}%")).fetchall()
-    if not todos:
-        conn.close()
-        return f"没有找到包含'{todo_kw}'的TODO"
-    if len(todos) > 1:
-        # 多条匹配，列出让运营选
-        lines = [f"找到{len(todos)}条匹配的TODO，请说清楚是哪条："]
-        for t in todos:
-            lines.append(f"  #{t['seq']} {t['content']} [{t['status']}]")
-        conn.close()
-        return "\n".join(lines)
-    # 唯一匹配，更新
-    todo = todos[0]
-    updates = ["status=?", "updated_at=datetime('now','localtime')"]
-    params = [new_status]
-    if feedback:
-        updates.append("feedback=?")
-        params.append(feedback)
-    params.append(todo["id"])
-    conn.execute(f"UPDATE todos SET {','.join(updates)} WHERE id=?", params)
-    conn.commit()
-    conn.close()
-    return f"已更新TODO#{todo['seq']}「{todo['content'][:30]}」→ {new_status}"
-
 def _report_feedback_remote(category, store_name, content):
     """反馈实时上报给管理员"""
     try:
@@ -3884,8 +3745,7 @@ def _report_feedback_remote(category, store_name, content):
         pass
 
 def _call_deepseek(messages, tools=None):
-    """Call DeepSeek API (绕过系统代理, 自动重试1次)."""
-    import time as _time
+    """Call DeepSeek API (绕过系统代理)."""
     payload = {
         "model": DEEPSEEK_MODEL,
         "messages": messages,
@@ -3896,28 +3756,20 @@ def _call_deepseek(messages, tools=None):
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    for attempt in range(2):
-        try:
-            session = http_requests.Session()
-            session.trust_env = False
-            session.proxies = {"http": None, "https": None}
-            resp = session.post(
-                DEEPSEEK_API_URL,
-                headers={
-                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=90
-            )
-            resp.raise_for_status()
-            return resp.json()
-        except (http_requests.exceptions.ConnectionError, http_requests.exceptions.Timeout) as e:
-            if attempt == 0:
-                print(f"[deepseek] 第1次请求失败({e})，2秒后重试...")
-                _time.sleep(2)
-            else:
-                raise
+    session = http_requests.Session()
+    session.trust_env = False  # 绕过系统代理
+    session.proxies = {"http": None, "https": None}  # 显式禁用代理
+    resp = session.post(
+        DEEPSEEK_API_URL,
+        headers={
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=60
+    )
+    resp.raise_for_status()
+    return resp.json()
 
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
@@ -4322,13 +4174,6 @@ def _schedule_patrol():
                     except Exception as _ce:
                         pass  # 拉指令失败不影响正常调度
 
-                # === 每小时自动git pull更新代码 ===
-                if not hasattr(_scheduler, '_last_update_hour'):
-                    _scheduler._last_update_hour = -1
-                if now.hour != _scheduler._last_update_hour:
-                    _scheduler._last_update_hour = now.hour
-                    _auto_update()
-
                 # === 每天6点同步operators.json（从PA拉最新运营-店铺关系） ===
                 if now.hour == 6 and now.minute < 2 and getattr(_scheduler, '_last_sync_date', None) != today:
                     _scheduler._last_sync_date = today
@@ -4340,13 +4185,12 @@ def _schedule_patrol():
                     except Exception as _se:
                         print(f"[schedule] operators.json同步失败: {_se}")
 
-                # === 每5分钟上报操作日志+聊天记录（积压补发）+ 回填空店名 ===
+                # === 每5分钟上报操作日志（积压补发）+ 回填空店名/菜名 ===
                 if not hasattr(_scheduler, '_last_ops_report'):
                     _scheduler._last_ops_report = now
                 if (now - _scheduler._last_ops_report).total_seconds() >= 300:
                     _scheduler._last_ops_report = now
                     _report_logs("ops")
-                    _report_logs("chat")
                     _backfill_log_names()
 
             except Exception as e:
@@ -4359,31 +4203,10 @@ def _schedule_patrol():
     print("[schedule] 定时调度器已启动")
 
 
-def _auto_update():
-    """启动时+定期从Gitee拉最新代码，保持运营机器代码同步"""
-    if not os.path.isdir(os.path.join(WORKSPACE, ".git")):
-        return  # 不是git仓库（Seth本地开发环境），跳过
-    try:
-        result = subprocess.run(
-            ["git", "pull", "origin", "feature/watch-mode", "--ff-only"],
-            capture_output=True, text=True, timeout=30, cwd=WORKSPACE
-        )
-        output = result.stdout.strip()
-        if "Already up to date" in output or "Already up-to-date" in output:
-            print("[update] 代码已是最新")
-        elif result.returncode == 0:
-            print(f"[update] 代码已更新: {output[:100]}")
-        else:
-            print(f"[update] git pull失败: {result.stderr[:100]}")
-    except Exception as e:
-        print(f"[update] 自动更新失败: {e}")
-
-
 if __name__ == "__main__":
     init_db()
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
-    _auto_update()
     _auto_backup()
     _auto_collect_due()
     _ensure_debug_chrome()
