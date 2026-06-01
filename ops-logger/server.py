@@ -1888,41 +1888,26 @@ def extension_version():
 
 @app.route("/api/extension/download")
 def extension_download():
-    """重定向到Gitee最新zip下载，不依赖本地文件"""
+    """重定向到Gitee最新zip下载。不降级到本地打包（避免发出老版本）"""
     from flask import redirect
-    # 先拿最新版本号
+    # 先用缓存的版本号（避免重复请求Gitee）
+    ver = _remote_version_cache.get("version")
+    if ver:
+        return redirect(f"{_GITEE_RAW}/ops-logger-v{ver}.zip")
+    # 没缓存就实时查
     try:
         session = http_requests.Session()
         session.trust_env = False
         resp = session.get(f"{_GITEE_RAW}/extension/manifest.json", timeout=5)
         if resp.ok:
             ver = resp.json().get("version", "0")
+            _remote_version_cache["version"] = ver
+            import time as _tv
+            _remote_version_cache["ts"] = _tv.time()
             return redirect(f"{_GITEE_RAW}/ops-logger-v{ver}.zip")
-    except:
-        pass
-    # 降级：本地打包
-    import zipfile, io
-    from flask import send_file
-    base = os.path.dirname(__file__)
-    ext_dir = os.path.join(base, "extension")
-    try:
-        with open(os.path.join(ext_dir, "manifest.json")) as f:
-            ver = json.load(f).get("version", "0")
-    except:
-        ver = "0"
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(ext_dir):
-            for fn in files:
-                if fn.startswith('.') or fn.startswith('_'):
-                    continue
-                fp = os.path.join(root, fn)
-                arcname = os.path.relpath(fp, ext_dir)
-                zf.write(fp, arcname)
-    buf.seek(0)
-    return send_file(buf, mimetype="application/zip",
-                     as_attachment=True,
-                     download_name=f"xiaoq-v{ver}.zip")
+    except Exception as e:
+        print(f"[download] Gitee查询失败: {e}")
+    return jsonify({"error": "无法获取最新版本，请稍后重试"}), 503
 
 @app.route("/download/<path:filename>")
 def download_file(filename):
