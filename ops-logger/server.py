@@ -876,9 +876,9 @@ def receive_logs():
 
         # Lookup shop name: prefer operator_stores (authoritative), fallback to shop_cache
         if shop_id and not shop_name:
-            os_row = conn.execute("SELECT shop_name FROM operator_stores WHERE shop_id=?", (str(shop_id),)).fetchone()
+            os_row = conn.execute("SELECT store FROM operator_stores WHERE shop_id=?", (str(shop_id),)).fetchone()
             if os_row:
-                shop_name = os_row["shop_name"]
+                shop_name = os_row["store"]
             else:
                 cached_shop = conn.execute("SELECT shop_name FROM shop_cache WHERE shop_id=?", (shop_id,)).fetchone()
                 if cached_shop and cached_shop["shop_name"] not in _BAD_SHOP_NAMES:
