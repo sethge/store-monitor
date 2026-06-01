@@ -15,3 +15,5 @@ memory/diagnosis/
 .venv/
 ops-logger/patrol_*.json
 */_metadata/
+*.db
+http.proxy=
