@@ -75,6 +75,17 @@ def init_db():
         except:
             pass
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS food_cache (
+            item_key TEXT PRIMARY KEY,
+            item_id TEXT,
+            shop_id TEXT,
+            name TEXT,
+            price REAL,
+            specs TEXT,
+            updated_at TEXT
+        )
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS shop_cache (
             shop_id TEXT PRIMARY KEY,
             shop_name TEXT,
@@ -774,8 +785,28 @@ def _extract_manjian_rules(params):
 # ========== Change Tracking Helpers ==========
 
 def _get_current_metrics_json(conn, shop_id, platform, item_id=None):
-    """Placeholder for metrics snapshot (food_cache removed, v2 uses DOM snapshots)."""
-    return "{}"
+    """Snapshot current metrics from food_cache for the shop/item."""
+    metrics = {}
+    if item_id:
+        for iid in item_id.split(","):
+            iid = iid.strip()
+            if not iid:
+                continue
+            row = conn.execute("SELECT name, price, specs FROM food_cache WHERE item_key=?", (iid,)).fetchone()
+            if row:
+                try:
+                    specs = json.loads(row["specs"]) if row["specs"] else {}
+                except:
+                    specs = {}
+                metrics[iid] = {
+                    "name": row["name"] or "",
+                    "price": row["price"] or 0,
+                    "status": specs.get("status", ""),
+                    "monthlySales": specs.get("monthlySales", 0),
+                }
+    shop_items = conn.execute("SELECT COUNT(*) as cnt FROM food_cache WHERE shop_id=?", (shop_id,)).fetchone()
+    metrics["_shop"] = {"item_count": shop_items["cnt"] if shop_items else 0}
+    return json.dumps(metrics, ensure_ascii=False)
 
 
 # ========== API ==========
@@ -849,6 +880,58 @@ def receive_logs():
             item_id = extract_item_id_from_body(api_method, body)
         if not item_name:
             item_name = extract_item_name_from_body(api_method, body)
+
+        # 从food_cache补全item_name（冷启动时extension的foodCache可能为空）
+        if item_id and not item_name:
+            names = []
+            for iid in item_id.split(","):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                row = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (iid,)).fetchone()
+                if row and row["name"]:
+                    names.append(row["name"])
+            if names:
+                item_name = ",".join(names)
+
+        # Use extension's beforeSnapshot if provided (captured at onBeforeRequest time, most accurate).
+        # Only fallback to food_cache when extension didn't send beforeSnapshot.
+        if item_id:
+            cache_before = {}
+            for iid in item_id.split(","):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                cached = conn.execute("SELECT name, price, specs FROM food_cache WHERE item_key=?", (iid,)).fetchone()
+                if cached:
+                    if not item_name:
+                        item_name = cached["name"] if not item_name else item_name
+                    cache_before[iid] = {
+                        "name": cached["name"] or "",
+                        "price": cached["price"] or 0,
+                    }
+                    try:
+                        specs_data = json.loads(cached["specs"]) if cached["specs"] else {}
+                        if isinstance(specs_data, dict):
+                            cache_before[iid].update({k: v for k, v in specs_data.items() if k in ("status", "category", "image")})
+                    except:
+                        pass
+            if cache_before and not before_snapshot:
+                if len(cache_before) == 1:
+                    before_snapshot = json.dumps(list(cache_before.values())[0], ensure_ascii=False)
+                else:
+                    before_snapshot = json.dumps(cache_before, ensure_ascii=False)
+
+        # If still no item_name, try food_cache by item_id
+        if item_id and not item_name:
+            names = []
+            for iid in item_id.split(","):
+                cached_fc = conn.execute("SELECT name FROM food_cache WHERE item_key=?", (iid.strip(),)).fetchone()
+                if cached_fc and cached_fc["name"]:
+                    names.append(cached_fc["name"])
+            if names:
+                item_name = ", ".join(names)
+
         action_type, action_detail = parse_action(api_method, body, conn)
 
         # 跳过非运营操作：
@@ -867,7 +950,54 @@ def receive_logs():
         # Build one-line human-readable change summary
         change_summary = build_change_summary(action_type, api_method, body, before_snapshot)
 
+        # Update food_cache with NEW state after modification
+        if item_id:
+            for i, iid in enumerate(item_id.split(",")):
+                iid = iid.strip()
+                if not iid:
+                    continue
+                existing = conn.execute("SELECT specs FROM food_cache WHERE item_key=?", (iid,)).fetchone()
+                existing_data = {}
+                if existing and existing["specs"]:
+                    try:
+                        existing_data = json.loads(existing["specs"])
+                    except:
+                        pass
+                names = item_name.split(",") if item_name else []
+                new_name = names[i].strip() if i < len(names) else (names[-1].strip() if names else "")
+                if not new_name and existing_data.get("name"):
+                    new_name = existing_data["name"]
+                new_price = existing_data.get("price", 0)
+                if action_type in ("改价", "改规格", "改规格/价格"):
+                    attr = (body.get("params", {}) if isinstance(body, dict) else {}).get("updateGoodsAttr", {})
+                    new_specs = attr.get("sfoodSpecs", [])
+                    if new_specs and new_specs[0].get("price") is not None:
+                        new_price = new_specs[0]["price"]
+                new_status = existing_data.get("status", "")
+                if action_type == "上架":
+                    new_status = "上架"
+                elif action_type == "下架":
+                    new_status = "下架"
+                cache_data = {**existing_data, "name": new_name, "price": new_price, "status": new_status}
+                conn.execute(
+                    "INSERT OR REPLACE INTO food_cache (item_key, item_id, shop_id, name, price, specs, updated_at) VALUES (?,?,?,?,?,?,?)",
+                    (iid, iid, shop_id, new_name, new_price,
+                     json.dumps(cache_data, ensure_ascii=False), cn_now().isoformat())
+                )
+
         after_snapshot = log.get("afterSnapshot", "")
+
+        # 去重：同一个timestamp+api_method+item_id只存一次
+        ts_val = log.get("timestamp", "")
+        dup = conn.execute(
+            "SELECT id FROM logs WHERE timestamp=? AND api_method=? AND item_id=? LIMIT 1",
+            (ts_val, api_method, item_id)
+        ).fetchone()
+        if dup:
+            # 已存在，如果有新的after_snapshot就更新
+            if after_snapshot:
+                conn.execute("UPDATE logs SET after_snapshot=? WHERE id=?", (after_snapshot, dup["id"]))
+            continue
 
         conn.execute(
             """INSERT INTO logs (operator, timestamp, api_method, url, body_full, platform,
@@ -1073,7 +1203,33 @@ def sync_cache():
     saved = 0
     now = cn_now().isoformat()
 
-    if cache_type == "shops":
+    if cache_type == "foods":
+        for f in items:
+            item_id = str(f.get("itemId", ""))
+            item_global_id = str(f.get("itemGlobalId", ""))
+            shop_id = str(f.get("shopId", ""))
+            name = f.get("name", "")
+            price = f.get("price", 0)
+
+            cache_data = json.dumps({
+                "name": name, "price": price,
+                "image": f.get("image", ""),
+                "description": f.get("description", ""),
+                "monthlySales": f.get("monthlySales", 0),
+                "status": "上架" if f.get("isOnShelf", True) else "下架",
+                "category": f.get("categoryName", ""),
+                "specs": f.get("specs", []),
+            }, ensure_ascii=False)
+
+            for key in [item_id, item_global_id]:
+                if key and key != "None" and key != "":
+                    conn.execute(
+                        "INSERT OR REPLACE INTO food_cache (item_key, item_id, shop_id, name, price, specs, updated_at) VALUES (?,?,?,?,?,?,?)",
+                        (key, item_id, shop_id, name, price, cache_data, now)
+                    )
+                    saved += 1
+
+    elif cache_type == "shops":
         for s in items:
             shop_id = str(s.get("shopId", ""))
             shop_name = s.get("shopName", "")
@@ -4166,6 +4322,13 @@ def _schedule_patrol():
                     except Exception as _ce:
                         pass  # 拉指令失败不影响正常调度
 
+                # === 每小时自动git pull更新代码 ===
+                if not hasattr(_scheduler, '_last_update_hour'):
+                    _scheduler._last_update_hour = -1
+                if now.hour != _scheduler._last_update_hour:
+                    _scheduler._last_update_hour = now.hour
+                    _auto_update()
+
                 # === 每天6点同步operators.json（从PA拉最新运营-店铺关系） ===
                 if now.hour == 6 and now.minute < 2 and getattr(_scheduler, '_last_sync_date', None) != today:
                     _scheduler._last_sync_date = today
@@ -4196,10 +4359,31 @@ def _schedule_patrol():
     print("[schedule] 定时调度器已启动")
 
 
+def _auto_update():
+    """启动时+定期从Gitee拉最新代码，保持运营机器代码同步"""
+    if not os.path.isdir(os.path.join(WORKSPACE, ".git")):
+        return  # 不是git仓库（Seth本地开发环境），跳过
+    try:
+        result = subprocess.run(
+            ["git", "pull", "origin", "feature/watch-mode", "--ff-only"],
+            capture_output=True, text=True, timeout=30, cwd=WORKSPACE
+        )
+        output = result.stdout.strip()
+        if "Already up to date" in output or "Already up-to-date" in output:
+            print("[update] 代码已是最新")
+        elif result.returncode == 0:
+            print(f"[update] 代码已更新: {output[:100]}")
+        else:
+            print(f"[update] git pull失败: {result.stderr[:100]}")
+    except Exception as e:
+        print(f"[update] 自动更新失败: {e}")
+
+
 if __name__ == "__main__":
     init_db()
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
+    _auto_update()
     _auto_backup()
     _auto_collect_due()
     _ensure_debug_chrome()

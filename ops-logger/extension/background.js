@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.0.0";
+const VERSION = "5.2.1";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -370,28 +370,18 @@ function extractItemInfo(body) {
 // ========== v2: DOM读取 + 日志合并 ==========
 
 async function sendDomRead(tabId, action) {
-  // 向content script发消息读DOM，支持主frame和所有子frame
+  // 向所有frame的content script发消息读DOM，合并结果
+  // 主frame拿shopName，菜品iframe拿foods
   if (!tabId || tabId <= 0) return null;
-  try {
-    // 先尝试直接发消息给tab（content script在all_frames里都有注入）
-    const response = await chrome.tabs.sendMessage(tabId, {
-      type: 'OPS_READ_DOM', action: action
-    });
-    if (response && (response.shopName || (response.foods && response.foods.length > 0))) {
-      return response;
-    }
-  } catch(e) {
-    // content script可能没加载（页面刚打开），用scripting.executeScript兜底
-  }
 
-  // 兜底：用chrome.scripting.executeScript注入一次性读取
+  // 用chrome.scripting.executeScript同时读所有frame，然后合并
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId, allFrames: true },
       func: () => {
-        // 简化版DOM读取（和content-ops-reader.js逻辑一致）
         var platform = location.hostname.indexOf('meituan') !== -1 ? 'meituan' :
-                       location.hostname.indexOf('ele.me') !== -1 ? 'eleme' : 'unknown';
+                       location.hostname.indexOf('ele.me') !== -1 ? 'eleme' :
+                       location.hostname.indexOf('faas.ele.me') !== -1 ? 'eleme' : 'unknown';
         var shopName = null;
         if (platform === 'meituan') {
           var el = document.querySelector('[class*=current-poi] [class*=txt_]') ||
@@ -423,16 +413,24 @@ async function sendDomRead(tabId, action) {
         }
 
         if (!shopName && foods.length === 0) return null;
-        return { platform: platform, shopName: shopName, foods: foods, url: location.href };
+        return { platform: platform, shopName: shopName, foods: foods, url: location.href, readAt: new Date().toISOString() };
       }
     });
-    // 合并所有frame的结果（取第一个有数据的）
+    // 合并所有frame的结果：shopName取第一个有的，foods合并所有frame
+    var merged = { platform: 'unknown', shopName: null, foods: [], url: '', readAt: new Date().toISOString() };
     for (const r of results) {
-      if (r.result && (r.result.shopName || (r.result.foods && r.result.foods.length > 0))) {
-        return r.result;
+      if (!r.result) continue;
+      if (r.result.platform !== 'unknown') merged.platform = r.result.platform;
+      if (r.result.shopName && !merged.shopName) merged.shopName = r.result.shopName;
+      if (r.result.foods && r.result.foods.length > 0) {
+        merged.foods = merged.foods.concat(r.result.foods);
       }
+      if (r.result.url && !merged.url) merged.url = r.result.url;
     }
-  } catch(e) {}
+    if (merged.shopName || merged.foods.length > 0) return merged;
+  } catch(e) {
+    console.log("[OpsLogger] sendDomRead executeScript error:", e.message);
+  }
   return null;
 }
 
@@ -653,8 +651,7 @@ async function pushLogs() {
   }
 }
 
-// Fallback periodic push (catches any missed)
-setInterval(pushLogs, 60000);
+// Fallback periodic push — moved to chrome.alarms (survives SW restart)
 
 // ========== Install / Update: 清理旧状态 ==========
 
@@ -683,9 +680,25 @@ discoverServer().then(() => {
   checkForUpdate();
   pushLogs();
 });
-setInterval(fetchConfig, CONFIG_REFRESH);
-setInterval(discoverServer, 3600000);
-setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL);
+
+// ========== chrome.alarms — survives SW kill/restart ==========
+chrome.alarms.create("pushLogs",     { periodInMinutes: 1 });
+chrome.alarms.create("fetchConfig",  { periodInMinutes: 5 });
+chrome.alarms.create("pollAlerts",   { periodInMinutes: 2 });
+chrome.alarms.create("cleanupLogs",  { periodInMinutes: 60 });
+chrome.alarms.create("discoverServer", { periodInMinutes: 60 });
+chrome.alarms.create("checkUpdate",  { periodInMinutes: 1440 }); // 24h
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  switch (alarm.name) {
+    case "pushLogs":      pushLogs(); break;
+    case "fetchConfig":   fetchConfig(); break;
+    case "pollAlerts":    pollAlerts(); break;
+    case "cleanupLogs":   cleanupOldLogs(); break;
+    case "discoverServer": discoverServer(); break;
+    case "checkUpdate":   checkForUpdate(); break;
+  }
+});
 
 // ========== Messages ==========
 
@@ -709,6 +722,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       pushLogs();
     });
+    return true;
+  }
+  if (msg.type === "OPS_FOOD_CACHE") {
+    // 不存内存，直接转发到server存food_cache表
+    syncCacheToServer("foods", msg.foods || []);
+    sendResponse({ ok: true });
     return true;
   }
   if (msg.type === "OPS_SHOP_CACHE") {
@@ -769,7 +788,6 @@ function cleanupOldLogs() {
   });
 }
 cleanupOldLogs();
-setInterval(cleanupOldLogs, 3600000); // check every hour
 
 // ========== Alert polling ==========
 // Check server for alerts and update badge
@@ -812,8 +830,7 @@ async function pollAlerts() {
   }
 }
 
-// Poll alerts every 2 minutes
-setInterval(pollAlerts, 120000);
+// pollAlerts — handled by chrome.alarms
 
 // Startup: init badge
 chrome.storage.local.get("ops_logs", (data) => {
