@@ -441,7 +441,307 @@
     } catch(e) {}
   }
 
-  // 初始化
+  // ========== 事件级追踪（填补快照3秒盲区 + 不依赖选择器） ==========
+
+  var _eventChanges = [];   // 事件捕捉到的精确变化
+  var _focusValues = {};    // element标识 → focus时的值
+  var _eventIdCounter = 0;
+
+  // 给元素生成稳定标识（用于_focusValues的key）
+  function elemKey(el) {
+    if (!el) return '';
+    if (el._opsKey) return el._opsKey;
+    el._opsKey = '__ops_' + (++_eventIdCounter);
+    return el._opsKey;
+  }
+
+  function isFormField(el) {
+    if (!el || !el.tagName) return false;
+    var tag = el.tagName;
+    if (tag === 'INPUT') {
+      var t = (el.type || '').toLowerCase();
+      return t !== 'hidden' && t !== 'submit' && t !== 'button' && t !== 'file';
+    }
+    return tag === 'SELECT' || tag === 'TEXTAREA' ||
+           el.getAttribute('contenteditable') === 'true' ||
+           el.getAttribute('role') === 'textbox' ||
+           el.getAttribute('role') === 'spinbutton';
+  }
+
+  function getFieldValue(el) {
+    if (!el) return '';
+    if (el.tagName === 'SELECT') {
+      var opt = el.options[el.selectedIndex];
+      return opt ? opt.text.trim() : '';
+    }
+    if (el.getAttribute('contenteditable') === 'true' || el.getAttribute('role') === 'textbox') {
+      return el.textContent.trim();
+    }
+    if (el.type === 'checkbox' || el.type === 'radio') {
+      return el.checked ? '\u5f00\u542f' : '\u5173\u95ed';
+    }
+    return el.value || '';
+  }
+
+  // 从元素往上找所在行的"名字"（菜品名/项目名）
+  function getRowContext(el) {
+    if (!el) return '';
+    var node = el;
+    // 往上找到行容器
+    for (var depth = 0; depth < 15 && node && node !== document.body; depth++) {
+      node = node.parentElement;
+      if (!node) break;
+
+      // 美团菜品卡片
+      if (node.className && node.className.indexOf('product-card') !== -1) {
+        var inp = node.querySelector('[class*=title] input');
+        var h3 = node.querySelector('h3[class*=title]');
+        if (inp && inp.value) return inp.value;
+        if (h3) return h3.getAttribute('title') || h3.textContent.trim();
+      }
+      // 饿了么菜品行
+      if (node.className && node.className.indexOf('tableRowWithBorderContainer') !== -1) {
+        var nameEl = node.querySelector('[class*=goodsComNameDisplay] span');
+        if (nameEl) return nameEl.textContent.trim();
+      }
+      // 通用表格行
+      if (node.tagName === 'TR') {
+        var firstTd = node.querySelector('td');
+        if (firstTd) {
+          var t = firstTd.textContent.trim();
+          if (t.length > 1 && t.length < 40) return t;
+        }
+      }
+      // 带data-name或data-id的容器
+      if (node.getAttribute('data-name')) return node.getAttribute('data-name');
+      // 通用列表项
+      if (node.className && (node.className.indexOf('item') !== -1 || node.className.indexOf('row') !== -1 || node.className.indexOf('card') !== -1)) {
+        // 找第一个看起来像名字的文本
+        var nameCandidate = node.querySelector('h3, h4, [class*=name], [class*=title], .name, .title');
+        if (nameCandidate) {
+          var ct = nameCandidate.textContent.trim();
+          if (ct.length > 1 && ct.length < 40) return ct;
+        }
+      }
+    }
+    return '';
+  }
+
+  // 判断是否是操作按钮
+  var ACTION_WORDS = ['\u4e0a\u67b6','\u4e0b\u67b6','\u5220\u9664','\u4fdd\u5b58','\u63d0\u4ea4','\u786e\u8ba4','\u53d6\u6d88',
+    '\u542f\u7528','\u505c\u7528','\u7f16\u8f91','\u590d\u5236','\u65b0\u5efa','\u6dfb\u52a0','\u53d1\u5e03',
+    '\u4e0b\u7ebf','\u4e0a\u7ebf','\u6392\u5e8f','\u79fb\u52a8','\u5e94\u7528','\u66f4\u65b0','\u8bbe\u7f6e',
+    '\u5173\u95ed','\u6253\u5f00','\u5f00\u59cb','\u7ed3\u675f','\u64a4\u56de','\u5ba1\u6838','\u901a\u8fc7','\u62d2\u7edd',
+    'submit','save','delete','confirm','apply','update','publish','remove','enable','disable'];
+
+  function isActionButton(el) {
+    if (!el) return null;
+    // 从点击目标往上找button/a
+    var node = el;
+    for (var d = 0; d < 5 && node; d++) {
+      if (node.tagName === 'BUTTON' || node.tagName === 'A' ||
+          node.getAttribute('role') === 'button' ||
+          (node.className && (node.className.indexOf('btn') !== -1 || node.className.indexOf('button') !== -1))) {
+        var text = node.textContent.trim();
+        if (text.length > 0 && text.length < 20) {
+          var tl = text.toLowerCase();
+          for (var i = 0; i < ACTION_WORDS.length; i++) {
+            if (tl.indexOf(ACTION_WORDS[i]) !== -1) return { el: node, text: text };
+          }
+        }
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // --- 事件监听 ---
+
+  // Focus：记住进入时的值
+  document.addEventListener('focusin', function(e) {
+    var el = e.target;
+    if (isFormField(el)) {
+      _focusValues[elemKey(el)] = getFieldValue(el);
+    }
+  }, true);
+
+  // Change：对比focus时的值，记录变化
+  document.addEventListener('change', function(e) {
+    var el = e.target;
+    if (!isFormField(el)) return;
+    var key = elemKey(el);
+    var oldVal = _focusValues[key];
+    if (oldVal === undefined) oldVal = '';
+    var newVal = getFieldValue(el);
+    if (oldVal === newVal) return;
+
+    var label = getFieldLabel(el);
+    var context = getRowContext(el);
+    _eventChanges.push({
+      target: context,
+      field: label || el.name || el.type || '',
+      from: oldVal,
+      to: newVal,
+      source: 'input',
+      ts: Date.now()
+    });
+    // 更新focus值（连续编辑同一字段时用最新的）
+    _focusValues[key] = newVal;
+  }, true);
+
+  // Input事件也监听（捕捉实时输入，不等blur）
+  var _inputDebounce = {};
+  document.addEventListener('input', function(e) {
+    var el = e.target;
+    if (!isFormField(el)) return;
+    var key = elemKey(el);
+    // 防抖：同一字段500ms内只记一次
+    if (_inputDebounce[key]) clearTimeout(_inputDebounce[key]);
+    _inputDebounce[key] = setTimeout(function() {
+      var oldVal = _focusValues[key];
+      if (oldVal === undefined) oldVal = '';
+      var newVal = getFieldValue(el);
+      if (oldVal === newVal) return;
+      // 检查是否已有change事件记录了同样的变化
+      var existing = _eventChanges.filter(function(c) {
+        return c.source === 'input' && c.field === (getFieldLabel(el) || el.name) && c.ts > Date.now() - 1000;
+      });
+      if (existing.length > 0) return; // change事件已记录
+      var label = getFieldLabel(el);
+      var context = getRowContext(el);
+      _eventChanges.push({
+        target: context,
+        field: label || el.name || '',
+        from: oldVal,
+        to: newVal,
+        source: 'input',
+        ts: Date.now()
+      });
+    }, 500);
+  }, true);
+
+  // Click：记录操作按钮点击
+  document.addEventListener('click', function(e) {
+    var btn = isActionButton(e.target);
+    if (!btn) return;
+    var context = getRowContext(btn.el);
+    _eventChanges.push({
+      target: context,
+      field: '\u64cd\u4f5c',
+      from: '',
+      to: btn.text,
+      source: 'click',
+      ts: Date.now()
+    });
+  }, true);
+
+  // ========== MutationObserver：监控class变化（开关/状态切换）==========
+
+  var _observerActive = false;
+  function startMutationObserver() {
+    if (_observerActive) return;
+    _observerActive = true;
+
+    // 只观察class和aria属性变化（轻量级）
+    var observer = new MutationObserver(function(mutations) {
+      for (var m = 0; m < mutations.length; m++) {
+        var mut = mutations[m];
+        if (mut.type !== 'attributes') continue;
+        var el = mut.target;
+
+        // class变化 → 检查是否是开关切换
+        if (mut.attributeName === 'class' || mut.attributeName === 'aria-checked') {
+          if (!el.className || typeof el.className !== 'string') continue;
+          var isSwitch = el.className.indexOf('switch') !== -1 || el.className.indexOf('toggle') !== -1 ||
+                         el.getAttribute('role') === 'switch' || el.getAttribute('role') === 'checkbox';
+          if (!isSwitch) continue;
+
+          var oldClass = mut.oldValue || '';
+          var newClass = el.className || '';
+          var wasOn = oldClass.indexOf('checked') !== -1 || oldClass.indexOf(' on') !== -1 || oldClass.indexOf('is-checked') !== -1;
+          var isOn = newClass.indexOf('checked') !== -1 || newClass.indexOf(' on') !== -1 || newClass.indexOf('is-checked') !== -1;
+          if (wasOn === isOn) continue;
+
+          var label = el.getAttribute('aria-label') || '';
+          if (!label) {
+            var p = el.parentElement;
+            if (p) {
+              for (var cn = 0; cn < p.childNodes.length; cn++) {
+                var cnode = p.childNodes[cn];
+                if (cnode === el) break;
+                var cnText = (cnode.textContent || '').trim();
+                if (cnText.length > 0 && cnText.length < 20) { label = cnText; break; }
+              }
+            }
+          }
+          if (!label) continue;
+
+          var context = getRowContext(el);
+          _eventChanges.push({
+            target: context,
+            field: label,
+            from: wasOn ? '\u5f00\u542f' : '\u5173\u95ed',
+            to: isOn ? '\u5f00\u542f' : '\u5173\u95ed',
+            source: 'mutation',
+            ts: Date.now()
+          });
+        }
+      }
+    });
+
+    // 观察整个页面的属性变化（只看class和aria-checked）
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'aria-checked'],
+      attributeOldValue: true,
+      subtree: true
+    });
+  }
+
+  // 延迟启动observer（等页面稳定）
+  setTimeout(startMutationObserver, 2000);
+
+  // ========== 清理过期事件（保留最近30秒）==========
+  function cleanupEvents() {
+    var cutoff = Date.now() - 30000;
+    _eventChanges = _eventChanges.filter(function(c) { return c.ts > cutoff; });
+  }
+
+  // ========== 合并快照diff和事件变化 ==========
+  function mergeChanges(snapshotChanges, eventChanges) {
+    if (!eventChanges || eventChanges.length === 0) return snapshotChanges;
+    if (!snapshotChanges || snapshotChanges.length === 0) return eventChanges.map(function(c) {
+      return { target: c.target, field: c.field, from: c.from, to: c.to };
+    });
+
+    // 以事件变化为准（更精确），快照变化做补充
+    var merged = [];
+    var seen = {};
+
+    // 先加事件变化
+    for (var i = 0; i < eventChanges.length; i++) {
+      var ec = eventChanges[i];
+      var key = (ec.target || '') + '|' + (ec.field || '');
+      if (!seen[key]) {
+        seen[key] = true;
+        merged.push({ target: ec.target, field: ec.field, from: ec.from, to: ec.to });
+      }
+    }
+
+    // 再加快照里有但事件没捕到的变化
+    for (var j = 0; j < snapshotChanges.length; j++) {
+      var sc = snapshotChanges[j];
+      var skey = (sc.target || '') + '|' + (sc.field || '');
+      if (!seen[skey]) {
+        seen[skey] = true;
+        merged.push(sc);
+      }
+    }
+
+    return merged;
+  }
+
+  // ========== 初始化 ==========
   _currSnapshot = takeSnapshot();
   _baselineUrl = location.href;
   _baselineSnapshot = _currSnapshot;
@@ -449,18 +749,25 @@
   setInterval(function() {
     tick();
     pushIfChanged();
+    cleanupEvents();
   }, SNAPSHOT_INTERVAL);
 
   // ========== 消息处理 ==========
   chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     if (msg.type === 'OPS_GET_DIFF') {
-      // API触发了，拍一张最新快照，和上一张做diff
+      // API触发了，拍一张最新快照
       var freshSnapshot = takeSnapshot();
-      var recentChanges = diffSnapshots(_prevSnapshot, freshSnapshot);
-      // 同时提供和基线的全量diff（用于创建类操作）
-      var fullChanges = diffSnapshots(_baselineSnapshot, freshSnapshot);
+      var snapshotChanges = diffSnapshots(_prevSnapshot, freshSnapshot);
+      var fullSnapshotChanges = diffSnapshots(_baselineSnapshot, freshSnapshot);
 
-      // 只在有数据时响应（让其他frame有机会响应）
+      // 取最近10秒的事件变化（API触发前的操作）
+      var cutoff = Date.now() - 10000;
+      var recentEvents = _eventChanges.filter(function(c) { return c.ts > cutoff; });
+
+      // 合并：事件优先，快照补充
+      var recentChanges = mergeChanges(snapshotChanges, recentEvents);
+      var fullChanges = mergeChanges(fullSnapshotChanges, recentEvents);
+
       var hasData = recentChanges.length > 0 || fullChanges.length > 0 ||
                     freshSnapshot.items.length > 0 || Object.keys(freshSnapshot.forms).length > 0;
       if (hasData) {
@@ -474,7 +781,8 @@
           snapshot: { items: freshSnapshot.items, forms: freshSnapshot.forms }
         });
       }
-      // 不调用sendResponse = 让其他frame响应
+      // 消费掉已上报的事件
+      _eventChanges = [];
       return false;
     }
 
@@ -491,5 +799,5 @@
     return false;
   });
 
-  console.log('[OpsReader] v3 active snapshot mode on', getPlatform(), location.href.substring(0, 60));
+  console.log('[OpsReader] v3 active snapshot + event tracking on', getPlatform(), location.href.substring(0, 60));
 })();
