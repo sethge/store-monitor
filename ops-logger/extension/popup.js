@@ -734,13 +734,15 @@ async function checkAgent() {
   var data = await api('/api/agent/status');
   if (!data) {
     dot.className = 'agent-dot ok';
-    msg.textContent = '服务已连接（无巡检）';
-    btn.disabled = true;
-    btn.style.display = 'none';
+    msg.textContent = '服务已连接';
+    btn.disabled = false;
+    btn.textContent = '巡检';
+    btn.dataset.action = 'start';
     return;
   }
 
   btn.style.display = '';
+  btn.disabled = false;
   agentReady = data.has_run_fast;
 
   if (data.patrol && data.patrol.state === 'running') {
@@ -777,16 +779,11 @@ async function checkAgent() {
     }
     btn.disabled = false;
     btn.textContent = '重试';
-  } else if (data.has_run_fast) {
-    dot.className = 'agent-dot ok';
-    msg.textContent = 'agent就绪';
-    btn.disabled = false;
-    btn.textContent = '巡检';
   } else {
     dot.className = 'agent-dot ok';
-    msg.textContent = '服务已连接';
-    btn.disabled = true;
-    btn.style.display = 'none';
+    msg.textContent = data.has_run_fast ? 'agent就绪' : '服务已连接';
+    btn.disabled = false;
+    btn.textContent = '巡检';
   }
 }
 
