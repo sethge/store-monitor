@@ -15,6 +15,29 @@ from playwright.async_api import async_playwright
 import patrol_log as L
 
 
+def _human_error(err_msg):
+    """把技术报错翻译成运营能看懂的话"""
+    e = str(err_msg)
+    if 'Timeout' in e and 'goto' in e.lower():
+        return "页面打不开（加载超时），可能是网络卡或登录过期"
+    if 'Timeout' in e:
+        return "操作超时，页面响应太慢"
+    if 'ERR_ABORTED' in e or 'ERR_CONNECTION' in e:
+        return "网络连接失败，页面加载中断"
+    if 'Target page' in e or 'target closed' in e.lower():
+        return "页面被意外关闭，需要重新登录"
+    if 'context' in e.lower() and ('destroy' in e.lower() or 'closed' in e.lower()):
+        return "浏览器会话失效，需要重新登录"
+    if '登录' in e:
+        return e[:60]
+    if 'passport' in e.lower() or 'login' in e.lower():
+        return "跳到登录页了，cookie可能过期"
+    if 'not found' in e.lower() or '未找到' in e:
+        return "页面元素没找到，平台可能改版了"
+    # 兜底：截取前40字符
+    return f"检查异常: {e[:40]}"
+
+
 def _report_to_remote(log_type="error"):
     """巡检结束后上报日志到管理员server，管理员实时可查"""
     import requests as _req
@@ -268,7 +291,7 @@ async def main():
             L.error("brand", f"get_ext失败，跳过{brand}", detail=str(e))
             _log_error("brand_setup", f"get_ext失败，跳过{brand}", {"brand": brand, "error": str(e)})
             print(f"❌ 插件连接失败，跳过")
-            all_issues[brand] = [{"platform":"","type":"error","msg":f"插件连接失败: {str(e)[:50]}","details":[]}]
+            all_issues[brand] = [{"platform":"","type":"error","msg":f"插件连接失败: {_human_error(e)}","details":[]}]
             continue
 
         ok, status = await pick_brand(ext, brand)
@@ -285,7 +308,7 @@ async def main():
             L.error("brand", f"获取店铺失败: {brand}", detail=str(e))
             _log_error("brand_stores", f"获取店铺失败: {brand}", {"error": str(e)})
             print(f"❌ 获取店铺失败")
-            all_issues[brand] = [{"platform":"","type":"error","msg":f"获取店铺失败: {str(e)[:50]}","details":[]}]
+            all_issues[brand] = [{"platform":"","type":"error","msg":f"获取店铺失败: {_human_error(e)}","details":[]}]
             continue
 
         L.step("brand", f"{brand_short}: {len(stores)}家店铺")
@@ -369,7 +392,7 @@ async def main():
                 except Exception as e:
                     L.error("store", f"登录失败: {p_name} {acct.get('account','')}", detail=str(e))
                     _log_error("store_login", f"登录店铺失败，跳过", {"brand": brand, "store": store_key, "account": acct.get('account',''), "platform": p_name, "error": str(e)})
-                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录失败: {str(e)[:40]}","details":[]})
+                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"登录失败: {_human_error(e)}","details":[]})
                     continue
 
                 if p == 'meituan':
@@ -417,8 +440,8 @@ async def main():
                                         all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                             except Exception as e:
                                 err_msg = str(e)
-                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg:
-                                    L.step("scrape", f"美团页面加载失败，刷新重试")
+                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg or 'Timeout' in err_msg:
+                                    L.step("scrape", f"美团页面加载失败({err_msg[:30]})，刷新重试")
                                     try:
                                         await pg.reload(wait_until="commit", timeout=15000)
                                         await asyncio.sleep(3)
@@ -433,7 +456,7 @@ async def main():
                                             elif k=='promo':
                                                 all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                                     except Exception as e2:
-                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {_human_error(e2)}","details":[]})
                                 elif 'Target page' in err_msg or 'context' in err_msg.lower():
                                     # context销毁，重新通过goku登录
                                     L.step("scrape", f"美团页面context失效，重新登录重试")
@@ -460,9 +483,9 @@ async def main():
                                         else:
                                             all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重新登录失败","details":[]})
                                     except Exception as e2:
-                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {_human_error(e2)}","details":[]})
                                 else:
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
+                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":_human_error(err_msg),"details":[]})
                             try:
                                 if pg: await pg.close()
                             except: pass
@@ -493,8 +516,8 @@ async def main():
                                         all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                             except Exception as e:
                                 err_msg = str(e)
-                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg:
-                                    L.step("scrape", f"饿了么页面加载失败，刷新重试")
+                                if 'ERR_ABORTED' in err_msg or 'ERR_CONNECTION' in err_msg or 'Timeout' in err_msg:
+                                    L.step("scrape", f"饿了么页面加载失败({err_msg[:30]})，刷新重试")
                                     try:
                                         await pg.reload(wait_until="commit", timeout=15000)
                                         await asyncio.sleep(3)
@@ -509,7 +532,7 @@ async def main():
                                             elif k=='promo':
                                                 all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"promo","msg":f"推广余额不足：{v['balance']}元/日消费{v['median']}元","details":[]})
                                     except Exception as e2:
-                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {_human_error(e2)}","details":[]})
                                 elif 'Target page' in err_msg or 'context' in err_msg.lower():
                                     L.step("scrape", f"饿了么页面context失效，重新登录重试")
                                     try:
@@ -535,9 +558,9 @@ async def main():
                                         else:
                                             all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重新登录失败","details":[]})
                                     except Exception as e2:
-                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {str(e2)[:30]}","details":[]})
+                                        all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"重试仍失败: {_human_error(e2)}","details":[]})
                                 else:
-                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":f"检查出错: {err_msg[:30]}","details":[]})
+                                    all_issues.setdefault(display_name(), []).append({"platform":p_name,"type":"error","msg":_human_error(err_msg),"details":[]})
                             try:
                                 if pg: await pg.close()
                             except: pass

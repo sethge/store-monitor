@@ -149,9 +149,9 @@ function buildInfoModule(data, settings, agentStatus) {
     var parts1 = [];
     var patrolTs = (agentStatus && agentStatus.last_patrol) || (data && data.ts) || '';
     var alertTs = (agentStatus && agentStatus.last_alert) || '';
-    if (patrolTs) parts1.push('\u5DE1\u5E97 ' + esc(patrolTs));
-    if (alertTs) parts1.push('\u9884\u8B66 ' + esc(alertTs));
-    line1 = parts1.length > 0 ? parts1.join(' \u00B7 ') : '尚未巡检';
+    if (patrolTs) parts1.push('\u4E0A\u6B21\u5DE1\u5E97 ' + esc(patrolTs));
+    if (alertTs) parts1.push('\u4E0A\u6B21\u9884\u8B66 ' + esc(alertTs));
+    line1 = parts1.length > 0 ? parts1.join(' \u00B7 ') : '\u5C1A\u672A\u5DE1\u68C0';
   }
 
   // Line 2: schedule info
@@ -162,7 +162,7 @@ function buildInfoModule(data, settings, agentStatus) {
   if (settings.alert_enabled) {
     parts.push('每' + (settings.alert_interval || 10) + '分钟预警');
   }
-  var line2 = parts.length > 0 ? parts.join(' \u00B7 ') : '定时巡检和预警未开启';
+  var line2 = parts.length > 0 ? parts.join(' \u00B7 ') : '\u5B9A\u65F6\u5DE1\u68C0\u548C\u9884\u8B66\u672A\u5F00\u542F\uFF0C\u53EF\u624B\u52A8\u5DE1\u68C0';
 
   return '<div class="info-module">' +
     '<div class="info-summary">' +
@@ -283,6 +283,11 @@ async function loadDaily() {
     return !dismissed[key];
   });
   updateBadge('alertBadge', activeAlerts.length);
+
+  // 预警关闭时提示
+  if (!settings.alert_enabled && activeAlerts.length === 0 && authAlerts.length === 0 && errorAlerts.length === 0) {
+    html += '<div style="text-align:center;color:#999;padding:12px 0;font-size:12px">\u5B9E\u65F6\u9884\u8B66\u5DF2\u5173\u95ED\uFF0C\u53EF\u5728\u4E0A\u65B9\u8BBE\u7F6E\u4E2D\u5F00\u542F</div>';
+  }
 
   if (activeAlerts.length > 0) {
     html += '<div class="alert-section-title">\uD83D\uDD14 预警 ' + activeAlerts.length + '条</div>';
