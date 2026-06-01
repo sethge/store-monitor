@@ -1,21 +1,19 @@
 {
   "manifest_version": 3,
   "name": "小q助手",
-  "version": "5.2.1",
+  "version": "5.0.2",
   "description": "运营助手 — 巡店预警/调整复盘/交流",
   "permissions": [
     "storage",
     "webRequest",
     "scripting",
     "tabs",
-    "cookies",
-    "alarms"
+    "cookies"
   ],
   "host_permissions": [
     "*://*.waimai.meituan.com/*",
     "*://*.meituan.com/*",
     "*://*.ele.me/*",
-    "*://*.faas.ele.me/*",
     "*://*.eleme.cn/*",
     "*://*.koubei.com/*"
   ],
@@ -32,7 +30,6 @@
         "*://*.waimai.meituan.com/*",
         "*://*.meituan.com/*",
         "*://*.ele.me/*",
-        "*://*.faas.ele.me/*",
         "*://*.eleme.cn/*"
       ],
       "js": ["content-ops-reader.js", "content-inject.js"],
