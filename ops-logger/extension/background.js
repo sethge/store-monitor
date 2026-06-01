@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.1.0";
+const VERSION = "5.1.1";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -500,13 +500,17 @@ async function readDomAndSave(entry, tabId, shopId) {
     await resolveItemName(entry, tabId);
   }
 
-  // 5. 保存before快照
+  // 5. 保存before快照（foodCache精确快照优先，DOM只做兜底）
   if (domBefore && domBefore.foods && domBefore.foods.length > 0) {
-    entry.beforeSnapshot = JSON.stringify({
-      source: 'dom',
-      foods: domBefore.foods.slice(0, 20),
-      readAt: domBefore.readAt || new Date().toISOString()
-    });
+    if (!entry.beforeSnapshot) {
+      // foodCache没数据，用DOM兜底
+      entry.beforeSnapshot = JSON.stringify({
+        source: 'dom',
+        foods: domBefore.foods.slice(0, 20),
+        readAt: domBefore.readAt || new Date().toISOString()
+      });
+    }
+    // foodCache已有精确快照时不覆盖
   }
 
   // 6. 立刻保存日志（不等after，避免延迟）

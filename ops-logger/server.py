@@ -520,6 +520,14 @@ def build_change_summary(action_type, api_method, body, before_snapshot):
     if not before:
         before = {}
 
+    # DOM快照格式兼容：{"source":"dom","foods":[...],"cache":{...}}
+    # 优先用cache（foodCache精确数据），降级用foods列表第一个
+    if isinstance(before, dict) and before.get("source") == "dom":
+        if isinstance(before.get("cache"), dict):
+            before = before["cache"]
+        elif isinstance(before.get("foods"), list) and len(before["foods"]) == 1:
+            before = before["foods"][0]
+
     item_name = ""
     # Try to get item name from before or body
     if isinstance(before, dict) and "name" in before:
