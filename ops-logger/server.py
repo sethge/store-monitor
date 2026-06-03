@@ -173,6 +173,18 @@ def init_db():
             description TEXT, snapshot_at TEXT, raw_data TEXT
         )
     """)
+    # 小q主动消息队列
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pending_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operator TEXT,
+            trigger_type TEXT,
+            trigger_key TEXT,
+            content TEXT,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            read_at TEXT
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -4095,6 +4107,186 @@ def api_chat_save():
     return jsonify({"ok": True})
 
 
+@app.route("/api/chat/pending", methods=["GET", "POST"])
+def api_chat_pending():
+    """小q主动发消息 — GET返回未读消息，POST手动创建"""
+    if request.method == "POST":
+        data = request.json or {}
+        operator = data.get("operator", "")
+        content = data.get("content", "")
+        if not operator or not content:
+            return jsonify({"ok": False}), 400
+        conn = get_db()
+        conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
+                     (operator, "manual", "manual", content))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
+
+    # GET
+    operator = request.args.get("operator", "")
+    peek = request.args.get("peek", "")  # peek=1只看数量不消费
+    if not operator:
+        return jsonify({"messages": [], "count": 0})
+
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT id, trigger_type, content, created_at FROM pending_messages WHERE operator=? AND read_at IS NULL ORDER BY id",
+        (operator,)
+    ).fetchall()
+
+    if peek:
+        conn.close()
+        return jsonify({"messages": [], "count": len(rows)})
+
+    messages = []
+    ids = []
+    for r in rows:
+        messages.append({
+            "id": r["id"],
+            "role": "assistant",
+            "content": r["content"],
+            "ts": r["created_at"],
+            "trigger": r["trigger_type"]
+        })
+        ids.append(r["id"])
+
+    # 标记已读
+    if ids:
+        now = cn_now().strftime("%Y-%m-%d %H:%M:%S")
+        conn.execute(f"UPDATE pending_messages SET read_at=? WHERE id IN ({','.join('?' * len(ids))})", [now] + ids)
+        conn.commit()
+    conn.close()
+
+    return jsonify({"messages": messages, "count": len(messages)})
+
+
+def _generate_pending_content(operator, trigger_type, context):
+    """调DeepSeek生成小q主动发的消息内容，像同事发微信一样自然。"""
+    prompt = f"""你是小q，{operator}的运营同事。你发现了一件事要主动找{operator}聊，像微信发消息一样自然地说出来。
+
+事件类型: {trigger_type}
+具体内容: {context}
+
+要求：
+- 像微信发消息，短，直接，不用格式符号
+- 不要"您好"、"请问"这种客套
+- 自然地引出话题，让对方愿意接话
+- 一两句话就够"""
+
+    try:
+        result = _call_deepseek([
+            {"role": "system", "content": "你是小q，用微信聊天的方式说话。短句，直接，不啰嗦。"},
+            {"role": "user", "content": prompt}
+        ])
+        reply = result["choices"][0]["message"].get("content", "").strip()
+        if reply:
+            return reply
+    except Exception as e:
+        print(f"[pending] DeepSeek生成失败: {e}")
+
+    return None  # 生成失败就不发
+
+
+def _generate_pending_messages():
+    """检查各数据源，调DeepSeek生成小q要主动说的话。在scheduler里定期调。"""
+    cfg = load_config()
+    operator = cfg.get("operator", "")
+    if not operator:
+        return
+
+    conn = get_db()
+    now = cn_now()
+
+    # --- 触发器1: 新诊断报告 ---
+    try:
+        crm = _crm_db()
+        if crm:
+            recent_reports = crm.execute("""
+                SELECT d.id, s.brand, d.created_at
+                FROM documents d JOIN stores s ON d.store_id = s.id
+                WHERE d.doc_type='report'
+                  AND d.created_at >= datetime('now', '-7 days', 'localtime')
+                ORDER BY d.created_at DESC
+            """).fetchall()
+
+            for rpt in recent_reports:
+                trigger_key = f"diagnosis_{rpt['id']}"
+                exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
+                                      (operator, trigger_key)).fetchone()
+                if not exists:
+                    brand = rpt["brand"] or "未知品牌"
+                    content = _generate_pending_content(operator, "新诊断报告",
+                        f"{brand}的诊断报告刚出来，需要找{operator}一起过一下诊断结果和TODO")
+                    if content:
+                        conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
+                                     (operator, "new_diagnosis", trigger_key, content))
+                        print(f"[pending] 新诊断消息: {operator} ← {brand}")
+            crm.close()
+    except Exception as e:
+        print(f"[pending] 检查诊断报告失败: {e}")
+
+    # --- 触发器2: TODO到期跟进 ---
+    try:
+        today = now.date().isoformat()
+        due_items = conn.execute("""
+            SELECT ct.id, ct.action_type, ct.check_date, l.shop_name, l.change_summary
+            FROM change_tracking ct LEFT JOIN logs l ON ct.log_id = l.id
+            WHERE ct.status='pending' AND ct.check_date <= ?
+            LIMIT 5
+        """, (today,)).fetchall()
+
+        if due_items:
+            trigger_key = f"todo_due_{today}"
+            exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
+                                  (operator, trigger_key)).fetchone()
+            if not exists:
+                details = []
+                for item in due_items:
+                    shop = item["shop_name"] or "某家店"
+                    summary = item["change_summary"] or item["action_type"] or "调整"
+                    details.append(f"{shop}的{summary}")
+                context = f"有{len(due_items)}个之前的操作到了复盘时间：{'、'.join(details[:3])}。需要看看数据变化"
+                content = _generate_pending_content(operator, "TODO到期复盘", context)
+                if content:
+                    conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
+                                 (operator, "todo_due", trigger_key, content))
+                    print(f"[pending] TODO到期消息: {operator} ← {len(due_items)}项")
+    except Exception as e:
+        print(f"[pending] 检查TODO到期失败: {e}")
+
+    # --- 触发器3: 差评预警 ---
+    try:
+        data = _load_patrol_result()
+        if data:
+            patrol_ts = data.get("ts", "")
+            trigger_key = f"alert_{patrol_ts}"
+            exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
+                                  (operator, trigger_key)).fetchone()
+            if not exists:
+                red_alerts = []
+                for store_name, items in data.get("issues", {}).items():
+                    for item in items:
+                        if item.get("type") == "bad_review":
+                            for d in item.get("details", [])[:2]:
+                                if isinstance(d, dict):
+                                    stars = d.get("stars", "")
+                                    comment = (d.get("comment", ""))[:30]
+                                    red_alerts.append(f"{store_name}{stars}星差评：{comment}")
+                if red_alerts:
+                    context = "巡检发现差评：" + "；".join(red_alerts[:3])
+                    content = _generate_pending_content(operator, "差评预警", context)
+                    if content:
+                        conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
+                                     (operator, "alert", trigger_key, content))
+                        print(f"[pending] 预警消息: {operator} ← {len(red_alerts)}条差评")
+    except Exception as e:
+        print(f"[pending] 检查预警失败: {e}")
+
+    conn.commit()
+    conn.close()
+
+
 def _ensure_debug_chrome():
     """确保Chrome带debug端口在跑。没有就清零重来：杀debug Chrome → 拷贝登录态 → 重启"""
     try:
@@ -4400,6 +4592,16 @@ def _schedule_patrol():
                     _report_logs("ops")
                     _report_logs("chat")
                     _backfill_log_names()
+
+                # === 每30分钟检查一次，生成小q主动消息 ===
+                if not hasattr(_scheduler, '_last_pending_check'):
+                    _scheduler._last_pending_check = now
+                if (now - _scheduler._last_pending_check).total_seconds() >= 1800:
+                    _scheduler._last_pending_check = now
+                    try:
+                        _generate_pending_messages()
+                    except Exception as _pe:
+                        print(f"[schedule] 生成主动消息失败: {_pe}")
 
             except Exception as e:
                 print(f"[schedule] 调度器异常: {e}")

@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.2.0";
+const VERSION = "5.3.0";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -1068,6 +1068,34 @@ async function pollAlerts() {
 // Poll alerts every 2 minutes
 setInterval(pollAlerts, 120000);
 
+// ========== Pending messages (小q主动找你) ==========
+
+async function pollPendingMessages() {
+  if (!SERVER_URL) return;
+  try {
+    const { ops_operator } = await chrome.storage.local.get("ops_operator");
+    if (!ops_operator) return;
+
+    const res = await fetch(SERVER_URL + "/api/chat/pending?operator=" + encodeURIComponent(ops_operator) + "&peek=1&t=" + Date.now());
+    if (!res.ok) return;
+    const data = await res.json();
+    const count = data.count || 0;
+
+    // 存pending数量，popup打开时读
+    await chrome.storage.local.set({ ops_pending_count: count });
+
+    if (count > 0) {
+      chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
+      chrome.action.setBadgeText({ text: String(count) });
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+// 每2分钟检查一次pending消息
+setInterval(pollPendingMessages, 120000);
+
 // Startup: init badge
 chrome.storage.local.get("ops_logs", (data) => {
   const unpushed = (data.ops_logs || []).filter(l => !l.pushed).length;
@@ -1077,4 +1105,5 @@ chrome.storage.local.get("ops_logs", (data) => {
   }
   // Delayed first poll (wait for server discovery)
   setTimeout(pollAlerts, 5000);
+  setTimeout(pollPendingMessages, 8000);
 });

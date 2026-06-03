@@ -39,7 +39,7 @@ body { font-family: -apple-system, sans-serif; background: #f5f5f5; height: 100v
   <select id="operator">
     <option value="唐培华">唐培华</option>
     <option value="张议芳">张议芳</option>
-    <option value="吴蔡倩">吴蔡倩</option>
+    <option value="吴蔡倩" selected>吴蔡倩</option>
     <option value="石婷婷">石婷婷</option>
     <option value="王丽丽">王丽丽</option>
     <option value="王志华">王志华</option>
@@ -53,6 +53,31 @@ body { font-family: -apple-system, sans-serif; background: #f5f5f5; height: 100v
 <script>
 const API = 'http://localhost:5500/api/chat';
 let history = [];
+
+// 加载pending消息
+async function loadPending() {
+  const op = document.getElementById('operator').value;
+  try {
+    const resp = await fetch('http://localhost:5500/api/chat/pending?operator=' + encodeURIComponent(op));
+    const data = await resp.json();
+    if (data.messages && data.messages.length > 0) {
+      for (const m of data.messages) {
+        addMsg('assistant', m.content);
+        history.push({role: 'assistant', content: m.content});
+      }
+    }
+  } catch(e) {}
+}
+
+// 打开时自动拉
+loadPending();
+
+// 切换运营时重新拉
+document.getElementById('operator').addEventListener('change', function() {
+  history = [];
+  document.getElementById('messages').innerHTML = '';
+  loadPending();
+});
 
 function addMsg(role, text, tools) {
   const box = document.getElementById('messages');

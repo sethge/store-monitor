@@ -120,7 +120,11 @@ function initTabs() {
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
       // 切到调整/复盘tab时自动刷新数据
       if (tab.dataset.tab === 'changes') loadChanges();
-      // 切到预警Tab时不自动清红点，由用户点"知道了"逐条清
+      // 切到聊天tab时清聊天badge
+      if (tab.dataset.tab === 'chat') {
+        var cb = document.getElementById('chatBadge');
+        if (cb) cb.style.display = 'none';
+      }
     });
   });
 }
@@ -1124,6 +1128,9 @@ async function init() {
     renderChatHistory(savedChat);
   }
 
+  // 检查小q有没有主动消息要发
+  await checkPendingMessages();
+
   // 顺便唤醒background service worker
   chrome.runtime.sendMessage({ type: 'OPS_GET_STATE' }, function() {
     if (chrome.runtime.lastError) {}
@@ -1238,6 +1245,47 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAgent();
   }, 30000);
 });
+
+// ========== Pending messages (小q主动找你) ==========
+
+async function checkPendingMessages() {
+  if (!_currentOperator) return;
+  try {
+    var res = await fetch(SERVER_URL + '/api/chat/pending?operator=' + encodeURIComponent(_currentOperator));
+    if (!res.ok) return;
+    var data = await res.json();
+    if (!data.messages || data.messages.length === 0) return;
+
+    // 有消息！在聊天tab上显示红点 + 自动切过去
+    var chatBadge = document.getElementById('chatBadge');
+    if (chatBadge) {
+      chatBadge.textContent = data.messages.length;
+      chatBadge.style.display = '';
+    }
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    document.querySelector('[data-tab="chat"]').classList.add('active');
+    document.getElementById('tab-chat').classList.add('active');
+
+    // 隐藏欢迎页
+    var welcome = document.getElementById('chatWelcome');
+    if (welcome) welcome.style.display = 'none';
+
+    // 渲染小q发来的消息
+    for (var i = 0; i < data.messages.length; i++) {
+      var m = data.messages[i];
+      chatHistory.push({ role: 'assistant', content: m.content, ts: m.ts });
+      addChatMsg('bot', m.content);
+    }
+    saveChatHistory(chatHistory);
+
+    // 清badge
+    chrome.action.setBadgeText({ text: '' });
+    chrome.storage.local.set({ ops_pending_count: 0 });
+  } catch(e) {
+    // ignore
+  }
+}
 
 // ========== Tab 5: Chat (会话) ==========
 
