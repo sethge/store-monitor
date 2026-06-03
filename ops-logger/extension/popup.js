@@ -1292,14 +1292,12 @@ async function checkPendingMessages() {
 var chatHistory = [];
 var chatThinking = false;
 
-function addChatMsg(role, text, toolInfo) {
+function addChatMsg(role, text) {
   var area = document.getElementById('chatArea');
 
   var div = document.createElement('div');
   div.className = 'chat-msg ' + role;
-  if (role === 'bot' && toolInfo) {
-    div.innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>') + '<div class="tool-info">' + esc(toolInfo) + '</div>';
-  } else if (role === 'err') {
+  if (role === 'err') {
     div.textContent = text;
   } else {
     div.innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
@@ -1349,7 +1347,7 @@ async function sendMsg() {
       var data = await res.json();
       var reply = data.reply || '(没有回复)';
       chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
-      addChatMsg('bot', reply, data.tools_used ? data.tools_used.join(' \u2192 ') : '');
+      addChatMsg('bot', reply);
 
       // Change 2: persist chat history after each exchange
       saveChatHistory(chatHistory);

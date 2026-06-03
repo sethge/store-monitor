@@ -84,9 +84,6 @@ function addMsg(role, text, tools) {
   const div = document.createElement('div');
   div.className = 'msg ' + role + ' clearfix';
   let html = '<div class="bubble">' + escapeHtml(text) + '</div>';
-  if (role === 'assistant' && tools && tools.length) {
-    html += '<div class="tools">🔧 ' + tools.join(', ') + '</div>';
-  }
   div.innerHTML = html;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
