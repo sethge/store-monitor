@@ -4198,31 +4198,51 @@ def _generate_pending_messages():
     conn = get_db()
     now = cn_now()
 
-    # --- 触发器1: 新诊断报告 ---
+    # --- 触发器1: 新诊断报告（从CRM review_batches查，本地或远程）---
     try:
+        recent_reports = []
         crm = _crm_db()
         if crm:
             recent_reports = crm.execute("""
-                SELECT d.id, s.brand, d.created_at
-                FROM documents d JOIN stores s ON d.store_id = s.id
-                WHERE d.doc_type='report'
-                  AND d.created_at >= datetime('now', '-7 days', 'localtime')
-                ORDER BY d.created_at DESC
-            """).fetchall()
-
-            for rpt in recent_reports:
-                trigger_key = f"diagnosis_{rpt['id']}"
-                exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
-                                      (operator, trigger_key)).fetchone()
-                if not exists:
-                    brand = rpt["brand"] or "未知品牌"
-                    content = _generate_pending_content(operator, "新诊断报告",
-                        f"{brand}的诊断报告刚出来，需要找{operator}一起过一下诊断结果和TODO")
-                    if content:
-                        conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
-                                     (operator, "new_diagnosis", trigger_key, content))
-                        print(f"[pending] 新诊断消息: {operator} ← {brand}")
+                SELECT id, brand_name, diagnosis_summary, diagnosed_at
+                FROM review_batches
+                WHERE diagnosed_at IS NOT NULL
+                  AND diagnosed_at >= datetime('now', '-7 days', 'localtime')
+                  AND operator_name = ?
+                ORDER BY diagnosed_at DESC
+            """, (operator,)).fetchall()
             crm.close()
+        else:
+            # 远程: 调CRM API
+            url = _discover_crm_remote()
+            if url:
+                try:
+                    session = http_requests.Session()
+                    session.trust_env = False
+                    resp = session.get(f"{url}/api/review_batch/recent_diagnosed",
+                                      params={"operator": operator}, timeout=10)
+                    if resp.ok:
+                        recent_reports = resp.json()
+                except Exception as _re:
+                    print(f"[pending] CRM远程查诊断失败: {_re}")
+
+        for rpt in recent_reports:
+            rpt_id = rpt["id"] if isinstance(rpt, dict) else rpt[0]
+            brand = (rpt["brand_name"] if isinstance(rpt, dict) else rpt[1]) or "未知品牌"
+            summary = (rpt.get("diagnosis_summary", "") if isinstance(rpt, dict) else (rpt[2] or ""))
+            trigger_key = f"diagnosis_{rpt_id}"
+            exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
+                                  (operator, trigger_key)).fetchone()
+            if not exists:
+                context = f"{brand}的诊断报告刚出来"
+                if summary:
+                    context += f"，核心发现：{summary[:100]}"
+                context += f"。需要找{operator}一起过一下诊断结果和下一步TODO"
+                content = _generate_pending_content(operator, "新诊断报告", context)
+                if content:
+                    conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
+                                 (operator, "new_diagnosis", trigger_key, content))
+                    print(f"[pending] 新诊断消息: {operator} ← {brand}")
     except Exception as e:
         print(f"[pending] 检查诊断报告失败: {e}")
 
