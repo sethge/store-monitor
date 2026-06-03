@@ -4412,6 +4412,18 @@ def _schedule_patrol():
 
 
 if __name__ == "__main__":
+    # 启动前确保端口可用，防止死循环
+    import signal
+    _port = 5500
+    _pids = subprocess.run(["lsof", "-i", f":{_port}", "-t"], capture_output=True, text=True).stdout.strip()
+    if _pids:
+        for _p in _pids.split("\n"):
+            try:
+                os.kill(int(_p), signal.SIGKILL)
+            except:
+                pass
+        import time; time.sleep(1)
+
     init_db()
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
