@@ -2,21 +2,28 @@
 # Ops Logger Keep-Alive: server + tunnel + OSS publish
 # 由 launchd 管理，开机自启，挂了自动重启
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+DIR="/Users/seth/Downloads/store-monitor/ops-logger"
 cd "$DIR"
+
+# OSS凭据从环境文件读取
+OSS_AK=$(grep OSS_ACCESS_KEY ~/Downloads/wp-automation/.env 2>/dev/null | head -1 | cut -d= -f2)
+OSS_SK=$(grep OSS_ACCESS_SECRET ~/Downloads/wp-automation/.env 2>/dev/null | head -1 | cut -d= -f2)
 
 LOG="/tmp/ops-logger-keepalive.log"
 echo "$(date) [keep-alive] starting..." >> "$LOG"
 
 # 1. 启动 server（如果没在跑）
-if ! curl -s --max-time 2 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+if ! curl -s --max-time 5 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+  # 先杀掉所有同名进程，防止僵尸堆积
+  pkill -f "ops-logger/server.py" 2>/dev/null
   lsof -i :5500 -t | xargs kill -9 2>/dev/null
-  sleep 1
+  sleep 2
   /opt/homebrew/bin/python3 "$DIR/server.py" &
   SERVER_PID=$!
   echo "$(date) [keep-alive] server started, PID=$SERVER_PID" >> "$LOG"
-  sleep 2
-  if ! curl -s --max-time 2 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+  sleep 3
+  if ! curl -s --max-time 5 http://127.0.0.1:5500/health > /dev/null 2>&1; then
     echo "$(date) [keep-alive] ERROR: server failed to start" >> "$LOG"
     exit 1
   fi
@@ -51,16 +58,10 @@ echo "$(date) [keep-alive] tunnel URL: $TUNNEL_URL" >> "$LOG"
 # 3. 发布 URL 到 OSS
 /opt/homebrew/bin/python3 -c "
 import oss2, json, datetime
-import os
-import pathlib
-_env = dict(l.strip().split('=',1) for l in pathlib.Path(os.path.expanduser('~/Downloads/wp-automation/.env')).read_text().splitlines() if '=' in l and not l.startswith('#'))
-ak = os.environ.get('OSS_ACCESS_KEY_ID', _env.get('OSS_ACCESS_KEY', ''))
-sk = os.environ.get('OSS_ACCESS_KEY_SECRET', _env.get('OSS_ACCESS_SECRET', ''))
-auth = oss2.Auth(ak, sk)
-session = oss2.Session()
-session.session.trust_env = False
-bucket = oss2.Bucket(auth, 'http://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', session=session)
-data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')})
+auth = oss2.Auth('$OSS_AK', '$OSS_SK')
+bucket = oss2.Bucket(auth, 'https://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', connect_timeout=30)
+bucket.session.trust_env = False
+data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')})
 bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
 print('Published to OSS')
 " >> "$LOG" 2>&1
@@ -90,47 +91,23 @@ while true; do
       echo "$(date) [keep-alive] new tunnel URL: $TUNNEL_URL, publishing..." >> "$LOG"
       /opt/homebrew/bin/python3 -c "
 import oss2, json, datetime
-import os
-import pathlib
-_env = dict(l.strip().split('=',1) for l in pathlib.Path(os.path.expanduser('~/Downloads/wp-automation/.env')).read_text().splitlines() if '=' in l and not l.startswith('#'))
-ak = os.environ.get('OSS_ACCESS_KEY_ID', _env.get('OSS_ACCESS_KEY', ''))
-sk = os.environ.get('OSS_ACCESS_KEY_SECRET', _env.get('OSS_ACCESS_SECRET', ''))
-auth = oss2.Auth(ak, sk)
-session = oss2.Session()
-session.session.trust_env = False
-bucket = oss2.Bucket(auth, 'http://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', session=session)
-data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')})
+auth = oss2.Auth('$OSS_AK', '$OSS_SK')
+bucket = oss2.Bucket(auth, 'https://oss-cn-hangzhou.aliyuncs.com', 'meihu-video', connect_timeout=30)
+bucket.session.trust_env = False
+data = json.dumps({'url': '$TUNNEL_URL', 'updated': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')})
 bucket.put_object('tools/ops-logger-server.json', data, headers={'Content-Type': 'application/json'})
 " >> "$LOG" 2>&1
     fi
   fi
 
   # 也检查 server
-  if ! curl -s --max-time 2 http://127.0.0.1:5500/health > /dev/null 2>&1; then
+  if ! curl -s --max-time 5 http://127.0.0.1:5500/health > /dev/null 2>&1; then
     echo "$(date) [keep-alive] server down, restarting..." >> "$LOG"
+    # 杀掉所有同名进程，防止僵尸堆积
+    pkill -f "ops-logger/server.py" 2>/dev/null
     lsof -i :5500 -t | xargs kill -9 2>/dev/null
-    sleep 1
-    /opt/homebrew/bin/python3 "$DIR/server.py" &
     sleep 2
-  fi
-
-  # 检查 Chrome debug 端口（独立profile，不杀运营日常Chrome）
-  if ! curl --noproxy localhost -s --max-time 2 http://localhost:9222/json/version > /dev/null 2>&1; then
-    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    if [ -f "$CHROME" ] && ! pgrep -f "remote-debugging-port=9222" > /dev/null 2>&1; then
-      echo "$(date) [keep-alive] debug Chrome down, restarting..." >> "$LOG"
-      DEBUG_PROFILE="$HOME/chrome-debug"
-      # 加载扩展
-      EXT_DIR="$DIR/extension"
-      GOKU_DIR="$(dirname "$DIR")/goku"
-      LOAD_EXT=""
-      [ -d "$EXT_DIR" ] && LOAD_EXT="$EXT_DIR"
-      [ -d "$GOKU_DIR" ] && LOAD_EXT="${LOAD_EXT:+$LOAD_EXT,}$GOKU_DIR"
-      "$CHROME" --remote-debugging-port=9222 --no-first-run --no-default-browser-check \
-        --proxy-server="direct://" --user-data-dir="$DEBUG_PROFILE" \
-        ${LOAD_EXT:+--load-extension="$LOAD_EXT"} > /dev/null 2>&1 &
-      sleep 3
-      echo "$(date) [keep-alive] debug Chrome started (profile: $DEBUG_PROFILE)" >> "$LOG"
-    fi
+    /opt/homebrew/bin/python3 "$DIR/server.py" &
+    sleep 3
   fi
 done
