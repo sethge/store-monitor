@@ -4203,14 +4203,20 @@ def _generate_pending_messages():
         recent_reports = []
         crm = _crm_db()
         if crm:
-            recent_reports = crm.execute("""
-                SELECT id, brand_name, diagnosis_summary, diagnosed_at
-                FROM review_batches
-                WHERE diagnosed_at IS NOT NULL
-                  AND diagnosed_at >= datetime('now', '-7 days', 'localtime')
-                  AND operator_name = ?
-                ORDER BY diagnosed_at DESC
-            """, (operator,)).fetchall()
+            # 只查最新一周，避免推太多历史消息
+            latest_week = crm.execute(
+                "SELECT MAX(week_date) FROM review_batches WHERE diagnosed_at IS NOT NULL"
+            ).fetchone()
+            lw = latest_week[0] if latest_week else None
+            if lw:
+                recent_reports = crm.execute("""
+                    SELECT id, brand_name, diagnosis_summary, diagnosed_at
+                    FROM review_batches
+                    WHERE diagnosed_at IS NOT NULL
+                      AND week_date = ?
+                      AND operator_name = ?
+                    ORDER BY diagnosed_at DESC
+                """, (lw, operator)).fetchall()
             crm.close()
         else:
             # 远程: 调CRM API
