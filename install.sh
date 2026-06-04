@@ -5,6 +5,24 @@
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 带重试的安装：失败了问用户要不要再试
+retry_install() {
+    local desc="$1"
+    shift
+    while true; do
+        if "$@" ; then
+            return 0
+        fi
+        echo ""
+        echo "⚠️  ${desc} 安装失败"
+        read -p "要重试吗？(y=重试 / n=跳过): " choice
+        case "$choice" in
+            [yY]*) echo "重试中..." ;;
+            *) echo "已跳过 ${desc}"; return 1 ;;
+        esac
+    done
+}
 QCLAW_DIR="$HOME/.qclaw"
 
 echo "安装食亨智慧运营Agent..."
@@ -18,15 +36,13 @@ if [ "$(uname -s)" = "Darwin" ]; then
 
     # 确保有 Homebrew
     command -v brew &>/dev/null || {
-        echo "安装 Homebrew（中科大镜像）..."
-        /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
+        retry_install "Homebrew" /bin/bash -c "$(curl -fsSL https://mirrors.ustc.edu.cn/misc/brew-install.sh)"
         eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null
     }
 
     # 确保有 Homebrew Python（系统python受限，pip install会失败）
     if ! command -v /opt/homebrew/bin/python3 &>/dev/null; then
-        echo "安装 Homebrew Python3..."
-        brew install python3
+        retry_install "Python3" brew install python3
     fi
 fi
 
@@ -156,7 +172,7 @@ if [ -d "$SCRIPT_DIR/ops-logger" ]; then
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <false/>
     <key>StandardOutPath</key>
     <string>$SCRIPT_DIR/ops-logger/server.log</string>
     <key>StandardErrorPath</key>
@@ -186,8 +202,7 @@ echo "检查Python依赖..."
 
 # opencv（视频提帧，替代 ffmpeg）
 $PYTHON -c "import cv2" 2>/dev/null || {
-    echo "安装opencv..."
-    $PIP_CMD opencv-python-headless 2>/dev/null || $PIP install opencv-python-headless
+    retry_install "opencv" $PIP_CMD opencv-python-headless || retry_install "opencv" $PIP install opencv-python-headless
 }
 echo "  ✓ opencv"
 
@@ -195,9 +210,8 @@ echo "  ✓ opencv"
 PLAYWRIGHT_VER="1.44.0"
 $PYTHON -c "import playwright; v=playwright.__version__; exit(0 if v=='$PLAYWRIGHT_VER' else 1)" 2>/dev/null || {
     echo "安装playwright==$PLAYWRIGHT_VER..."
-    $PIP_CMD "playwright==$PLAYWRIGHT_VER" 2>/dev/null || $PIP install "playwright==$PLAYWRIGHT_VER"
-    PLAYWRIGHT_DOWNLOAD_HOST="https://npmmirror.com/mirrors/playwright/" playwright install chromium 2>/dev/null || \
-    playwright install chromium
+    retry_install "playwright" $PIP_CMD "playwright==$PLAYWRIGHT_VER" || retry_install "playwright" $PIP install "playwright==$PLAYWRIGHT_VER"
+    retry_install "Chromium浏览器" bash -c "PLAYWRIGHT_DOWNLOAD_HOST='https://npmmirror.com/mirrors/playwright/' playwright install chromium 2>/dev/null || playwright install chromium"
 }
 echo "  ✓ playwright ($PLAYWRIGHT_VER)"
 
@@ -211,15 +225,13 @@ done
 
 # 腾讯云 OCR SDK
 $PYTHON -c "from tencentcloud.ocr.v20181119 import ocr_client" 2>/dev/null || {
-    echo "安装腾讯云OCR SDK..."
-    $PIP_CMD tencentcloud-sdk-python 2>/dev/null || $PIP install tencentcloud-sdk-python
+    retry_install "腾讯云OCR" $PIP_CMD tencentcloud-sdk-python || retry_install "腾讯云OCR" $PIP install tencentcloud-sdk-python
 }
 echo "  ✓ tencentcloud-sdk"
 
 # Gemini SDK
 $PYTHON -c "from google import genai" 2>/dev/null || {
-    echo "安装google-genai..."
-    $PIP_CMD google-genai 2>/dev/null || $PIP install google-genai
+    retry_install "google-genai" $PIP_CMD google-genai || retry_install "google-genai" $PIP install google-genai
 }
 echo "  ✓ google-genai"
 
