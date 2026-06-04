@@ -3071,8 +3071,8 @@ AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。你由Deep
 - "这个我觉得不是这样" → 最有价值——记录为诊断错误
 - 讨论中冒出新想法 → "这个挺好的，要加到计划里吗？"
 
-确认的TODO调crm_save_review_todo存。
-已做的/不做的调crm_mark_reviewed更新。
+确认的TODO调crm_save_todo存（必须带action_type，如"改满减"/"改菜品"/"改价格"等，用于自动匹配执行）。
+运营说"做了/不做了/老板不同意"时调crm_mark_todo_done更新状态。
 
 ### Phase 3：聊完收尾
 
@@ -3081,7 +3081,7 @@ AGENT_SYSTEM_PROMPT = """你是小q，外卖运营团队的AI同事。你由Deep
 
 背后默默做的事（不用告诉运营）：
 - 诊断错误 → crm_record_feedback已记录
-- 确认的TODO → crm_save_review_todo已存
+- 确认的TODO → crm_save_todo已存（带action_type）
 - 新发现/新认知 → crm_record_feedback(category=suggestion)记录
 
 ### Phase 4：后续跟进
@@ -3259,6 +3259,41 @@ AGENT_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "crm_save_todo",
+            "description": "保存讨论确认的TODO到CRM。和运营讨论达成共识后调用——运营认可要做某件事时，把它存为结构化TODO",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "store_name": {"type": "string", "description": "品牌名"},
+                    "content": {"type": "string", "description": "TODO内容，具体到操作（如'满减第二档改成45减8'）"},
+                    "action_type": {"type": "string", "enum": ["改满减", "改菜品", "改价格", "改推广", "改活动", "改店铺信息", "改菜单结构", "回复评价", "其他"], "description": "操作类型，用于和ops-log自动匹配"},
+                    "reason": {"type": "string", "description": "为什么要做（简短原因）"},
+                    "expected_impact": {"type": "string", "description": "预期效果（如'客单价提升5元'）"}
+                },
+                "required": ["store_name", "content", "action_type"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crm_mark_todo_done",
+            "description": "标记TODO状态。运营说'做了'/'不做了'/'老板不同意'时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "store_name": {"type": "string", "description": "品牌名"},
+                    "todo_content": {"type": "string", "description": "TODO内容关键词，模糊匹配"},
+                    "new_status": {"type": "string", "enum": ["已执行", "不做了", "商家不同意", "待讨论", "已完成"], "description": "新状态"},
+                    "note": {"type": "string", "description": "备注（运营说了什么原因）"}
+                },
+                "required": ["store_name", "todo_content", "new_status"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "crm_record_feedback",
             "description": "记录运营反馈。产品bug(插件/巡检不好用)、诊断bug(报告内容有误)、建议(想要什么功能)都用这个",
             "parameters": {
@@ -3428,6 +3463,10 @@ def _exec_tool(name, args):
             return _crm_query_meeting(args)
         elif name == "crm_list_stores":
             return _crm_list_stores(args)
+        elif name == "crm_save_todo":
+            return _crm_save_todo(args)
+        elif name == "crm_mark_todo_done":
+            return _crm_mark_todo_done(args)
         elif name == "crm_record_feedback":
             return _crm_record_feedback(args)
 
@@ -3771,6 +3810,8 @@ def api_crm_tool():
         "crm_query_diagnosis": _crm_query_diagnosis_local,
         "crm_query_meeting": _crm_query_meeting_local,
         "crm_list_stores": _crm_list_stores_local,
+        "crm_save_todo": _crm_save_todo_local,
+        "crm_mark_todo_done": _crm_mark_todo_done_local,
         "crm_record_feedback": _crm_record_feedback_local,
     }
     fn = handlers.get(tool)
@@ -3906,6 +3947,85 @@ def _crm_list_stores_local(args):
     if not rows:
         return "CRM中没有品牌记录"
     return json.dumps([dict(r) for r in rows], ensure_ascii=False)
+
+def _crm_save_todo(args):
+    """保存TODO — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_save_todo_local(args)
+    return _crm_remote_call("crm_save_todo", args)
+
+def _crm_save_todo_local(args):
+    """讨论确认的TODO写入CRM todos表"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    store_name = args.get("store_name", "")
+    content = args.get("content", "")
+    action_type = args.get("action_type", "其他")
+    reason = args.get("reason", "")
+    expected_impact = args.get("expected_impact", "")
+
+    # 找store_id
+    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
+    if not store:
+        conn.close()
+        return f"CRM中没有找到品牌'{store_name}'，TODO未保存"
+    store_id = store["id"]
+
+    # 算seq：当前最大seq + 1
+    row = conn.execute("SELECT MAX(seq) as max_seq FROM todos WHERE store_id=?", (store_id,)).fetchone()
+    seq = (row["max_seq"] or 0) + 1
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        "INSERT INTO todos (store_id, seq, content, funnel_stage, reason, expected_impact, type, status, context, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (store_id, seq, content, action_type, reason, expected_impact, "todo", "待做", f"[讨论确认] {now}", now))
+    conn.execute("INSERT INTO events (store_id, event_type, content) VALUES (?, 'todo_created', ?)",
+                 (store_id, f"TODO#{seq}: {content}"))
+    conn.commit()
+    conn.close()
+    return f"已保存TODO#{seq}: {content}"
+
+def _crm_mark_todo_done(args):
+    """更新TODO状态 — 本地优先，无则走远程"""
+    if os.path.exists(CRM_DB):
+        return _crm_mark_todo_done_local(args)
+    return _crm_remote_call("crm_mark_todo_done", args)
+
+def _crm_mark_todo_done_local(args):
+    """更新TODO状态（本地）"""
+    conn = _crm_db()
+    if not conn:
+        return "CRM数据库不存在"
+    store_name = args.get("store_name", "")
+    todo_content = args.get("todo_content", "")
+    new_status = args.get("new_status", "已执行")
+    note = args.get("note", "")
+
+    store = conn.execute("SELECT id FROM stores WHERE store_name LIKE ? LIMIT 1", (f"%{store_name}%",)).fetchone()
+    if not store:
+        conn.close()
+        return f"CRM中没有找到品牌'{store_name}'"
+    store_id = store["id"]
+
+    # 模糊匹配TODO内容
+    todo = conn.execute("SELECT id, seq, content, status FROM todos WHERE store_id=? AND content LIKE ? LIMIT 1",
+                        (store_id, f"%{todo_content}%")).fetchone()
+    if not todo:
+        conn.close()
+        return f"没有找到匹配的TODO: {todo_content}"
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    feedback_text = f"[{now}] {new_status}" + (f" — {note}" if note else "")
+    old_feedback = todo["status"] or ""
+
+    conn.execute("UPDATE todos SET status=?, feedback=COALESCE(feedback,'')||?, updated_at=? WHERE id=?",
+                 (new_status, f"\n{feedback_text}" if old_feedback else feedback_text, now, todo["id"]))
+    conn.execute("INSERT INTO events (store_id, event_type, content) VALUES (?, 'todo_update', ?)",
+                 (store_id, f"TODO#{todo['seq']} → {new_status}" + (f": {note}" if note else "")))
+    conn.commit()
+    conn.close()
+    return f"已更新TODO#{todo['seq']}: {todo['content'][:30]} → {new_status}"
 
 def _crm_record_feedback(args):
     """记录反馈 — 本地优先，无则走远程"""
@@ -4187,6 +4307,78 @@ def _generate_pending_content(operator, trigger_type, context):
 
     return None  # 生成失败就不发
 
+
+# ========== TODO-OpsLog 自动匹配 ==========
+
+# TODO的action_type → ops-log的action_type映射
+TODO_OPSLOG_MATCH = {
+    "改满减": ["创建活动", "修改活动", "关闭活动"],
+    "改菜品": ["修改菜品", "新建菜品", "删除菜品", "改名", "改图片"],
+    "改价格": ["改价", "改规格"],
+    "改推广": ["修改活动", "创建活动"],
+    "改活动": ["创建活动", "修改活动", "关闭活动"],
+    "改店铺信息": ["修改店铺信息"],
+    "改菜单结构": ["菜品排序", "新建菜品", "删除菜品", "上架", "下架"],
+    "回复评价": ["回复评价"],
+}
+
+def _match_todos_with_opslog():
+    """定期检查：CRM里的待做TODO是否已被ops-log匹配到执行。"""
+    crm = _crm_db()
+    if not crm:
+        return
+    try:
+        # 查所有"待做"状态的TODO（有action_type的）
+        todos = crm.execute("""
+            SELECT t.id, t.seq, t.content, t.funnel_stage as action_type, t.status, t.updated_at,
+                   s.store_name, s.branch
+            FROM todos t JOIN stores s ON t.store_id = s.id
+            WHERE t.status IN ('待做', '📋 待做')
+              AND t.funnel_stage IS NOT NULL AND t.funnel_stage != ''
+        """).fetchall()
+        if not todos:
+            crm.close()
+            return
+
+        conn = get_db()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        for todo in todos:
+            todo_action = todo["action_type"]
+            store_name = todo["store_name"] or ""
+            todo_updated = todo["updated_at"] or "2020-01-01"
+
+            # 查ops-log里匹配的操作类型
+            opslog_types = TODO_OPSLOG_MATCH.get(todo_action, [])
+            if not opslog_types:
+                continue
+
+            placeholders = ",".join("?" * len(opslog_types))
+            # 在TODO创建之后、店名匹配的ops-log里找
+            matched = conn.execute(f"""
+                SELECT id, action_type, change_summary, shop_name, received_at
+                FROM logs
+                WHERE action_type IN ({placeholders})
+                  AND shop_name LIKE ?
+                  AND received_at > ?
+                ORDER BY received_at DESC LIMIT 1
+            """, opslog_types + [f"%{store_name}%", todo_updated]).fetchone()
+
+            if matched:
+                summary = matched["change_summary"] or matched["action_type"]
+                feedback = f"\n[自动匹配] {matched['received_at']} ops-log检测到执行: {summary}"
+                crm.execute("UPDATE todos SET status='✅ 已执行', feedback=COALESCE(feedback,'')||?, updated_at=? WHERE id=?",
+                            (feedback, now, todo["id"]))
+                crm.execute("INSERT INTO events (store_id, event_type, content) VALUES ((SELECT store_id FROM todos WHERE id=?), 'todo_auto_matched', ?)",
+                            (todo["id"], f"TODO#{todo['seq']}自动匹配ops-log: {summary}"))
+                print(f"[todo-match] TODO#{todo['seq']} '{todo['content'][:20]}' ← ops-log: {summary}")
+
+        crm.commit()
+        crm.close()
+        conn.close()
+    except Exception as e:
+        print(f"[todo-match] 匹配失败: {e}")
+        import traceback; traceback.print_exc()
 
 def _generate_pending_messages():
     """检查各数据源，调DeepSeek生成小q要主动说的话。在scheduler里定期调。"""
@@ -4624,6 +4816,10 @@ def _schedule_patrol():
                     _scheduler._last_pending_check = now
                 if (now - _scheduler._last_pending_check).total_seconds() >= 1800:
                     _scheduler._last_pending_check = now
+                    try:
+                        _match_todos_with_opslog()
+                    except Exception as _me:
+                        print(f"[schedule] TODO匹配失败: {_me}")
                     try:
                         _generate_pending_messages()
                     except Exception as _pe:
