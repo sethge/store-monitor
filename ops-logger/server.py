@@ -4444,62 +4444,38 @@ def _generate_pending_messages():
     except Exception as e:
         print(f"[pending] 检查诊断报告失败: {e}")
 
-    # --- 触发器2: TODO到期跟进 ---
+    # --- 触发器2: CRM TODO待办提醒 ---
     try:
-        today = now.date().isoformat()
-        due_items = conn.execute("""
-            SELECT ct.id, ct.action_type, ct.check_date, l.shop_name, l.change_summary
-            FROM change_tracking ct LEFT JOIN logs l ON ct.log_id = l.id
-            WHERE ct.status='pending' AND ct.check_date <= ?
-            LIMIT 5
-        """, (today,)).fetchall()
+        crm = _crm_db()
+        if crm:
+            todo_items = crm.execute("""
+                SELECT t.id, t.content, t.funnel_stage, s.store_name
+                FROM todos t LEFT JOIN stores s ON t.store_id = s.id
+                WHERE t.status = '待做' AND s.operator_name = ?
+                LIMIT 10
+            """, (operator,)).fetchall()
+            crm.close()
 
-        if due_items:
-            trigger_key = f"todo_due_{today}"
-            exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
-                                  (operator, trigger_key)).fetchone()
-            if not exists:
-                details = []
-                for item in due_items:
-                    shop = item["shop_name"] or "某家店"
-                    summary = item["change_summary"] or item["action_type"] or "调整"
-                    details.append(f"{shop}的{summary}")
-                context = f"有{len(due_items)}个之前的操作到了复盘时间：{'、'.join(details[:3])}。需要看看数据变化"
-                content = _generate_pending_content(operator, "TODO到期复盘", context)
-                if content:
-                    conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
-                                 (operator, "todo_due", trigger_key, content))
-                    print(f"[pending] TODO到期消息: {operator} ← {len(due_items)}项")
-    except Exception as e:
-        print(f"[pending] 检查TODO到期失败: {e}")
-
-    # --- 触发器3: 差评预警 ---
-    try:
-        data = _load_patrol_result()
-        if data:
-            patrol_ts = data.get("ts", "")
-            trigger_key = f"alert_{patrol_ts}"
-            exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
-                                  (operator, trigger_key)).fetchone()
-            if not exists:
-                red_alerts = []
-                for store_name, items in data.get("issues", {}).items():
-                    for item in items:
-                        if item.get("type") == "bad_review":
-                            for d in item.get("details", [])[:2]:
-                                if isinstance(d, dict):
-                                    stars = d.get("stars", "")
-                                    comment = (d.get("comment", ""))[:30]
-                                    red_alerts.append(f"{store_name}{stars}星差评：{comment}")
-                if red_alerts:
-                    context = "巡检发现差评：" + "；".join(red_alerts[:3])
-                    content = _generate_pending_content(operator, "差评预警", context)
+            if todo_items:
+                trigger_key = f"crm_todo_{now.date().isoformat()}"
+                exists = conn.execute("SELECT 1 FROM pending_messages WHERE operator=? AND trigger_key=?",
+                                      (operator, trigger_key)).fetchone()
+                if not exists:
+                    details = []
+                    for item in todo_items:
+                        store = item["store_name"] or "某家店"
+                        content_txt = item["content"] or "待办"
+                        details.append(f"{store}：{content_txt}")
+                    context = f"CRM里有{len(todo_items)}个待办还没做：{'；'.join(details[:3])}"
+                    if len(todo_items) > 3:
+                        context += f"……还有{len(todo_items)-3}个"
+                    content = _generate_pending_content(operator, "CRM待办提醒", context)
                     if content:
                         conn.execute("INSERT INTO pending_messages (operator, trigger_type, trigger_key, content) VALUES (?,?,?,?)",
-                                     (operator, "alert", trigger_key, content))
-                        print(f"[pending] 预警消息: {operator} ← {len(red_alerts)}条差评")
+                                     (operator, "crm_todo", trigger_key, content))
+                        print(f"[pending] CRM TODO消息: {operator} ← {len(todo_items)}项待办")
     except Exception as e:
-        print(f"[pending] 检查预警失败: {e}")
+        print(f"[pending] 检查CRM TODO失败: {e}")
 
     conn.commit()
     conn.close()

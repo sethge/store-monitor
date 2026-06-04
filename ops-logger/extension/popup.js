@@ -1279,9 +1279,9 @@ async function checkPendingMessages() {
     }
     saveChatHistory(chatHistory);
 
-    // 清badge
-    chrome.action.setBadgeText({ text: '' });
+    // 清pending计数，通知background重算badge
     chrome.storage.local.set({ ops_pending_count: 0 });
+    chrome.runtime.sendMessage({ type: 'PENDING_CONSUMED' });
   } catch(e) {
     // ignore
   }

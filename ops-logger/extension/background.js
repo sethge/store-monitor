@@ -6,7 +6,7 @@
  * - Auto-update: checks server version, reloads if newer
  */
 
-const VERSION = "5.3.1";
+const VERSION = "5.3.2";
 const SERVER_URL = "http://127.0.0.1:5500";
 const MAX_LOCAL_LOGS = 5000;
 const LOG_RETENTION_DAYS = 7;
@@ -599,9 +599,8 @@ async function saveLog(entry) {
       ops_logs.splice(0, ops_logs.length - MAX_LOCAL_LOGS);
     }
     await chrome.storage.local.set({ ops_logs });
-    const unpushed = ops_logs.filter(l => !l.pushed).length;
-    chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
-    chrome.action.setBadgeText({ text: String(unpushed) });
+    _badgeCounts.unpushed = ops_logs.filter(l => !l.pushed).length;
+    updateBadge();
   } catch (e) {
     console.error("[OpsLogger] save failed:", e);
   }
@@ -650,8 +649,8 @@ async function pushLogs() {
         cleaned.forEach(l => ops_logs.push(l));
       }
       await chrome.storage.local.set({ ops_logs });
-      const remaining = ops_logs.filter(l => !l.pushed).length;
-      chrome.action.setBadgeText({ text: remaining > 0 ? String(remaining) : "" });
+      _badgeCounts.unpushed = ops_logs.filter(l => !l.pushed).length;
+      updateBadge();
       // 通知popup实时刷新操作日志
       chrome.runtime.sendMessage({ type: "OPS_LOGS_PUSHED", saved: result.saved }).catch(() => {});
     }
@@ -669,7 +668,8 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     // 首次安装：全部清空，让运营重新输入身份
     chrome.storage.local.clear();
-    chrome.action.setBadgeText({ text: '' });
+    _badgeCounts = { alerts: 0, unpushed: 0, pending: 0, hasRed: false };
+    updateBadge();
     console.log('[OpsLogger] install -> cleared all state');
   } else if (details.reason === 'update') {
     // 更新：只清临时状态，保留 ops_operator / ops_shop_cache / ops_food_cache
@@ -678,7 +678,8 @@ chrome.runtime.onInstalled.addListener((details) => {
       'ops_update_available',
       'dismissed_alerts',
     ]);
-    chrome.action.setBadgeText({ text: '' });
+    _badgeCounts = { alerts: 0, unpushed: 0, pending: 0, hasRed: false };
+    updateBadge();
     console.log('[OpsLogger] update -> cleared stale state');
   }
 });
@@ -711,6 +712,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
     });
     return true;
+  }
+  if (msg.type === "PENDING_CONSUMED") {
+    _badgeCounts.pending = 0;
+    updateBadge();
+    sendResponse({ ok: true });
+    return;
   }
   if (msg.type === "OPS_SET_OPERATOR") {
     chrome.storage.local.set({ ops_operator: msg.name }, () => {
@@ -1024,8 +1031,24 @@ function cleanupOldLogs() {
 cleanupOldLogs();
 setInterval(cleanupOldLogs, 3600000); // check every hour
 
+// ========== Badge统一管理（alerts + unpushed + pending 叠加求和）==========
+
+// 各数据源缓存
+var _badgeCounts = { alerts: 0, unpushed: 0, pending: 0, hasRed: false };
+
+function updateBadge() {
+  var total = _badgeCounts.alerts + _badgeCounts.unpushed + _badgeCounts.pending;
+  if (total > 0) {
+    // 有红色预警用深红，否则统一用#e94560
+    var color = _badgeCounts.hasRed ? "#c62828" : "#e94560";
+    chrome.action.setBadgeBackgroundColor({ color: color });
+    chrome.action.setBadgeText({ text: String(total) });
+  } else {
+    chrome.action.setBadgeText({ text: "" });
+  }
+}
+
 // ========== Alert polling ==========
-// Check server for alerts and update badge
 
 async function pollAlerts() {
   if (!SERVER_URL) return;
@@ -1033,39 +1056,20 @@ async function pollAlerts() {
     const res = await fetch(SERVER_URL + "/api/alerts?t=" + Date.now());
     if (!res.ok) return;
     const alerts = await res.json();
-    // 只计算实际预警（不含auth/error）
     const realAlerts = alerts.filter(a => a.type !== "auth" && a.type !== "error");
-    const hasRed = realAlerts.some(a => a.level === "red");
-    const alertCount = realAlerts.length;
-
-    if (alertCount > 0) {
-      chrome.action.setBadgeBackgroundColor({ color: hasRed ? "#c62828" : "#e65100" });
-      chrome.action.setBadgeText({ text: String(alertCount) });
-    } else {
-      // Check for unpushed logs
-      const { ops_logs = [] } = await chrome.storage.local.get("ops_logs");
-      const unpushed = ops_logs.filter(l => !l.pushed).length;
-      if (unpushed > 0) {
-        chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
-        chrome.action.setBadgeText({ text: String(unpushed) });
-      } else {
-        chrome.action.setBadgeText({ text: "" });
-      }
-    }
+    _badgeCounts.alerts = realAlerts.length;
+    _badgeCounts.hasRed = realAlerts.some(a => a.level === "red");
   } catch (e) {
-    // Server unreachable, fall back to unpushed count
-    try {
-      const { ops_logs = [] } = await chrome.storage.local.get("ops_logs");
-      const unpushed = ops_logs.filter(l => !l.pushed).length;
-      if (unpushed > 0) {
-        chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
-        chrome.action.setBadgeText({ text: String(unpushed) });
-      }
-    } catch(e2) {}
+    // server不可达时不清零，保留上次的数
   }
+  // 更新unpushed
+  try {
+    const { ops_logs = [] } = await chrome.storage.local.get("ops_logs");
+    _badgeCounts.unpushed = ops_logs.filter(l => !l.pushed).length;
+  } catch(e2) {}
+  updateBadge();
 }
 
-// Poll alerts every 2 minutes
 setInterval(pollAlerts, 120000);
 
 // ========== Pending messages (小q主动找你) ==========
@@ -1079,30 +1083,22 @@ async function pollPendingMessages() {
     const res = await fetch(SERVER_URL + "/api/chat/pending?operator=" + encodeURIComponent(ops_operator) + "&peek=1&t=" + Date.now());
     if (!res.ok) return;
     const data = await res.json();
-    const count = data.count || 0;
+    var count = data.count || 0;
 
-    // 存pending数量，popup打开时读
     await chrome.storage.local.set({ ops_pending_count: count });
-
-    if (count > 0) {
-      chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
-      chrome.action.setBadgeText({ text: String(count) });
-    }
+    _badgeCounts.pending = count;
+    updateBadge();
   } catch (e) {
     // ignore
   }
 }
 
-// 每2分钟检查一次pending消息
 setInterval(pollPendingMessages, 120000);
 
 // Startup: init badge
 chrome.storage.local.get("ops_logs", (data) => {
-  const unpushed = (data.ops_logs || []).filter(l => !l.pushed).length;
-  if (unpushed > 0) {
-    chrome.action.setBadgeBackgroundColor({ color: "#e94560" });
-    chrome.action.setBadgeText({ text: String(unpushed) });
-  }
+  _badgeCounts.unpushed = (data.ops_logs || []).filter(l => !l.pushed).length;
+  updateBadge();
   // Delayed first poll (wait for server discovery)
   setTimeout(pollAlerts, 5000);
   setTimeout(pollPendingMessages, 8000);
